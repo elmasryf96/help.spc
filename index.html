@@ -11,7 +11,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <link rel="stylesheet" href="style.css?v=8.0">
+    <link rel="stylesheet" href="style.css?v=9.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
@@ -204,125 +204,22 @@
         </div>
     </div>
 
-    <!-- 🖨️ قالب الـ PDF المتطابق 100% مع ملف الـ Word -->
+    <!-- 🖨️ القالب العبقري: طباعة البيانات بكسور الأبعاد الصحيحة فوق خلفية الورقة الأصلية 100% -->
     <div id="noc-pdf-template" class="pdf-template-hidden">
-        <!-- Header Info Table -->
-        <table class="word-header-table">
-            <tr>
-                <td style="width: 35%;">
-                    <div class="word-logo-wrap">
-                        <svg viewBox="0 0 100 120" fill="none" class="word-logo-svg">
-                            <circle cx="35" cy="18" r="5" fill="#E8D567"/>
-                            <circle cx="68" cy="18" r="5" fill="#E8D567"/>
-                            <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
-                            <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
-                            <circle cx="51.5" cy="42.5" r="6" fill="#1A252F"/>
-                            <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
-                        </svg>
-                        <div class="word-logo-text">Smart<span>Collection</span></div>
-                    </div>
-                </td>
-                <td style="width: 65%; text-align: right;">
-                    <div class="word-contact-grid">
-                        <span><i class="fa-solid fa-phone"></i> 024935100</span>
-                        <span>Contact center</span>
-                        <span>Customer Support</span>
-                        <span><i class="fa-solid fa-envelope"></i> info@smartcollection.co</span>
-                        <span>Via email</span>
-                        <span><i class="fa-solid fa-globe"></i> www.smartcollection.co</span>
-                    </div>
-                </td>
-            </tr>
-        </table>
+        <!-- طبقة النص التفاعلي فوق الخلفية -->
+        <div class="field-tenant-top" id="word_pdf_tenant_top"></div>
+        <div class="field-contract-top" id="word_pdf_contract_top"></div>
+        <div class="field-tower" id="word_pdf_tower"></div>
+        <div class="field-unit" id="word_pdf_unit"></div>
+        <div class="field-date-1" id="word_pdf_date_1"></div>
+        <div class="field-date-2" id="word_pdf_date_2"></div>
 
-        <!-- Blue Top Info Rows -->
-        <table class="word-blue-bar-table">
-            <tr>
-                <td style="width: 45%; font-weight: bold; font-size: 14px;" id="word_pdf_tenant_top"></td>
-                <td style="width: 25%; font-weight: bold; font-size: 13px;" id="word_pdf_tower"></td>
-                <td style="width: 30%; text-align: right;">Date: <span id="word_pdf_date_1"></span></td>
-            </tr>
-            <tr>
-                <td style="font-weight: bold; font-size: 13px;" id="word_pdf_contract_top"></td>
-                <td style="font-weight: bold; font-size: 13px;" id="word_pdf_unit"></td>
-                <td style="text-align: right;">Date: <span id="word_pdf_date_2"></span></td>
-            </tr>
-        </table>
-
-        <div class="word-title">No Objection Certificate</div>
-
-        <div class="word-body-paragraph">
-            The Customer Service Department in Smart Payments Collection LLC certifies that the above customer has paid all outstanding debts for chilled water of the mentioned contract.
-            <br><br>
-            Once issuance of the no objection certificate, the premise will be automatically transferred to the (Landlord/Properties Management Company) who will be responsible for any future chilled water consumption and district cooling (capacity charge) on the given account number.
-        </div>
-
-        <!-- 2 Information Tables Side-by-Side -->
-        <table class="word-side-tables">
-            <tr>
-                <td style="width: 48%; vertical-align: top;">
-                    <div class="word-tbl-header">Tenant Information</div>
-                    <table class="word-inner-tbl">
-                        <tr>
-                            <td class="lbl-col">Consumer Name</td>
-                            <td id="word_pdf_tenant_name"></td>
-                        </tr>
-                        <tr>
-                            <td class="lbl-col">Contract Number</td>
-                            <td id="word_pdf_tenant_contract"></td>
-                        </tr>
-                    </table>
-                </td>
-                <td style="width: 4%;"></td>
-                <td style="width: 48%; vertical-align: top;">
-                    <div class="word-tbl-header">Owner Information</div>
-                    <table class="word-inner-tbl">
-                        <tr>
-                            <td class="lbl-col">Consumer Name</td>
-                            <td id="word_pdf_owner_name">N/A</td>
-                        </tr>
-                        <tr>
-                            <td class="lbl-col">Contract Number</td>
-                            <td id="word_pdf_owner_contract">N/A</td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-        </table>
-
-        <!-- Stamp & Regards -->
-        <table class="word-footer-table">
-            <tr>
-                <td style="width: 60%; vertical-align: bottom;">
-                    <div class="word-regards">
-                        Regards<br>
-                        <strong>Customer Service Division</strong><br>
-                        Smart Payments Collection LLC
-                    </div>
-                </td>
-                <td style="width: 40%; text-align: right;">
-                    <div class="pdf-stamp-container">
-                        <div class="pdf-stamp-circle">
-                            <div class="stamp-top">سمارت لتحصيل الرسوم ذ.م.م</div>
-                            <div class="stamp-center">
-                                <svg viewBox="0 0 100 120" fill="none" class="stamp-svg">
-                                    <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#1b4285"/>
-                                </svg>
-                                <strong>Smart Collection</strong>
-                                <span>Abu Dhabi-U.A.E.</span>
-                            </div>
-                            <div class="stamp-bottom">SMART PAYMENTS COLLECTION L.L.C.</div>
-                        </div>
-                    </div>
-                </td>
-            </tr>
-        </table>
-
-        <div class="word-address-footer">
-            2nd floor Office 213 Ali & Sons Business Center Plot no.29 Al Ain Rd, Umm Al Anar Abu Dhabi, UAE - Po Box 129865
-        </div>
+        <div class="field-tenant-name" id="word_pdf_tenant_name"></div>
+        <div class="field-tenant-contract" id="word_pdf_tenant_contract"></div>
+        <div class="field-owner-name" id="word_pdf_owner_name">N/A</div>
+        <div class="field-owner-contract" id="word_pdf_owner_contract">N/A</div>
     </div>
 
-    <script src="script.js?v=8.0"></script>
+    <script src="script.js?v=9.0"></script>
 </body>
 </html>
