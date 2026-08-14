@@ -3,15 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Collection - Portal</title>
+    <title>Smart Collection - Portal Login</title>
     <link rel="stylesheet" href="style.css">
     <!-- Font Awesome للأيقونات -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
-    <!-- الصفحة الرئيسية (Dashboard) -->
-    <div id="home-page" class="page active-page">
+    <!-- 🔒 صفحة تسجيل الدخول (Login Page) -->
+    <div id="login-page" class="page active-page">
+        <div class="login-container">
+            <div class="logo-container justify-center margin-bottom-20">
+                <svg class="logo-svg" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+                    <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+                    <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+                    <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+                    <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+                    <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+                </svg>
+                <div class="logo-text">
+                    Smart
+                    <span>Collection</span>
+                </div>
+            </div>
+
+            <h2 class="login-title">Portal Access Login</h2>
+            
+            <form onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="username"><i class="fa-solid fa-user"></i> Username</label>
+                    <input type="text" id="username" class="login-input" placeholder="Enter username" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password"><i class="fa-solid fa-lock"></i> Password</label>
+                    <input type="password" id="password" class="login-input" placeholder="Enter password" required>
+                </div>
+
+                <div id="login-error" class="login-error-msg">
+                    ❌ Invalid Username or Password!
+                </div>
+
+                <button type="submit" class="btn-login">Sign In</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 🏠 الصفحة الرئيسية (Dashboard) -->
+    <div id="home-page" class="page hidden-page">
         <div class="container text-center">
             <div class="brand-header justify-center">
                 <div class="logo-container">
@@ -44,20 +84,11 @@
                     <p>Search tower database, service fees, security deposits, and management info.</p>
                     <button class="btn-primary">Open Portal</button>
                 </div>
-
-                <!-- كارت مستقبلي -->
-                <div class="menu-card disabled">
-                    <div class="menu-icon">
-                        <i class="fa-solid fa-chart-pie"></i>
-                    </div>
-                    <h3>Reports & Analytics</h3>
-                    <p>Advanced system reports and financial overview (Coming Soon).</p>
-                </div>
             </div>
         </div>
     </div>
 
-    <!-- صفحة Towers Fees Search Portal -->
+    <!-- 🏢 صفحة Towers Fees Search Portal -->
     <div id="towers-page" class="page hidden-page">
         <div class="container">
             <button class="back-btn" onclick="navigateTo('home-page')">
@@ -89,7 +120,6 @@
                 <label for="towerInput">🔍 Search & Select Tower Name:</label>
                 <div class="input-wrapper">
                     <input type="text" id="towerInput" list="towersList" class="combo-input" placeholder="Type tower name (e.g. Al Dana, Danube, Lamar)..." oninput="handleSelection()">
-                    <!-- زر مسح البحث (Clear) -->
                     <button type="button" id="clearBtn" class="clear-btn" onclick="clearSearch()" title="Clear text">
                         <i class="fa-solid fa-xmark"></i>
                     </button>

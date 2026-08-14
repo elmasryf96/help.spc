@@ -1,3 +1,20 @@
+// 🔑 دالة تسجيل الدخول والتحقق من البيانات
+function handleLogin(event) {
+    event.preventDefault();
+    
+    const user = document.getElementById("username").value.trim();
+    const pass = document.getElementById("password").value.trim();
+    const errorMsg = document.getElementById("login-error");
+
+    // البيانات المطلوبة بالضبط
+    if (user === "SPC" && pass === "SPC@2026") {
+        errorMsg.style.display = "none";
+        navigateTo('home-page'); // التوجيه للـ Dashboard الرئيسية
+    } else {
+        errorMsg.style.display = "block"; // إظهار رسالة الخطأ
+    }
+}
+
 // دالة التنقل بين الصفحات
 function navigateTo(pageId) {
     const pages = document.querySelectorAll('.page');
@@ -109,7 +126,6 @@ function updateFields(data, towerName = "") {
             document.getElementById(f).innerText = data[f] !== undefined ? data[f] : "-";
         });
 
-        // تخصيص قيمة التأمين لأبراج دبي/الذين تم طلب تحديدهم
         const lowerName = towerName.toLowerCase();
         if (lowerName.includes("danube") || lowerName.includes("lamar")) {
             document.getElementById("deposit_amount").innerText = "1,000 AED (Fixed for all units)";
@@ -127,7 +143,6 @@ function handleSelection() {
     const val = document.getElementById("towerInput").value.trim();
     const clearBtn = document.getElementById("clearBtn");
     
-    // إظهار زرار الـ Clear فقط عند كتابة نص
     if (val.length > 0) {
         clearBtn.style.display = "block";
     } else {
@@ -152,5 +167,5 @@ function clearSearch() {
     input.value = ""; 
     document.getElementById("clearBtn").style.display = "none"; 
     updateFields(null); 
-    input.focus(); // إعادة تركيز الماوس في خانة البحث لتظهر جميع الخيارات فوراً
+    input.focus();
 }
