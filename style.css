@@ -378,7 +378,7 @@ body {
     min-width: 300px; 
 }
 
-/* 🔄 Row Alignment */
+/* 🔄 Center Alignment for all data rows */
 .row { 
     display: flex; 
     justify-content: space-between; 
@@ -404,12 +404,12 @@ body {
     position: relative; 
 }
 
-/* 🏷️ Unified Badge System across all cards */
-.custom-badge {
+/* 🏷️ Unified Golden Badge Design across all cards */
+.spc-badge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: #fdfbf2;
+    background: #fff8d6;
     border: 1.5px solid #e8d567;
     border-radius: 8px;
     padding: 4px 12px;
@@ -419,13 +419,7 @@ body {
     box-shadow: 0 2px 4px rgba(232, 213, 103, 0.15);
 }
 
-.custom-badge-blue {
-    background: #eef6ff;
-    border-color: #90caf9;
-    color: #1565c0;
-}
-
-/* 🛡️ Danube Deposit Badges Container */
+/* 🛡️ Danube Deposit Badges Styling */
 .deposit-badge-container {
     display: flex;
     flex-direction: column;
@@ -437,7 +431,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #fdfbf2;
+    background: #fff8d6;
     border: 1.5px solid #e8d567;
     border-radius: 8px;
     padding: 5px 12px;
