@@ -34,49 +34,6 @@ function navigateTo(pageId) {
     }
 }
 
-function generatePDF(event) {
-    event.preventDefault();
-
-    const tenantName = document.getElementById("noc_tenant_name").value.trim();
-    const tenantContract = document.getElementById("noc_tenant_contract").value.trim();
-    const towerName = document.getElementById("noc_tower_name").value.trim();
-    const unitNo = document.getElementById("noc_unit_no").value.trim();
-    const ownerName = document.getElementById("noc_owner_name").value.trim() || "N/A";
-    const ownerContract = document.getElementById("noc_owner_contract").value.trim() || "N/A";
-    const issueDate = document.getElementById("noc_date").value.trim();
-
-    document.getElementById("word_pdf_tenant_top").innerText = tenantName;
-    document.getElementById("word_pdf_contract_top").innerText = tenantContract;
-    document.getElementById("word_pdf_tower").innerText = towerName;
-    document.getElementById("word_pdf_unit").innerText = unitNo;
-    document.getElementById("word_pdf_date_1").innerText = issueDate;
-    document.getElementById("word_pdf_date_2").innerText = issueDate;
-
-    document.getElementById("word_pdf_tenant_name").innerText = tenantName;
-    document.getElementById("word_pdf_tenant_contract").innerText = tenantContract;
-    document.getElementById("word_pdf_owner_name").innerText = ownerName;
-    document.getElementById("word_pdf_owner_contract").innerText = ownerContract;
-
-    const element = document.getElementById("noc-pdf-template");
-    element.style.position = "static";
-    element.style.left = "0";
-    element.style.top = "0";
-
-    const opt = {
-        margin:       0,
-        filename:     `NOC_${tenantName.replace(/\s+/g, '_')}_${unitNo}.pdf`,
-        image:        { type: 'jpeg', quality: 1.0 },
-        html2canvas:  { scale: 2, useCORS: true, logging: false },
-        jsPDF:        { unit: 'px', format: [794, 1123], orientation: 'portrait' }
-    };
-
-    html2pdf().set(opt).from(element).save().then(() => {
-        element.style.position = "absolute";
-        element.style.left = "-9999px";
-        element.style.top = "-9999px";
-    });
-}
-
 document.addEventListener("DOMContentLoaded", () => {
     const datalist = document.getElementById("towersList");
     if (datalist) {
@@ -85,15 +42,6 @@ document.addEventListener("DOMContentLoaded", () => {
             option.value = tower;
             datalist.appendChild(option);
         });
-    }
-
-    const dateInput = document.getElementById("noc_date");
-    if (dateInput) {
-        const today = new Date();
-        const dd = String(today.getDate()).padStart(2, '0');
-        const mm = String(today.getMonth() + 1).padStart(2, '0');
-        const yyyy = today.getFullYear();
-        dateInput.value = `${dd}/${mm}/${yyyy}`;
     }
 });
 
