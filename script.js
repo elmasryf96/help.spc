@@ -6,7 +6,7 @@ function handleLogin(event) {
 
     if (user === "SPC" && pass === "SPC@2026") {
         errorMsg.style.display = "none";
-        navigateTo('home-page'); // توجيه للشاشة الرئيسية أولاً
+        navigateTo('home-page');
     } else {
         errorMsg.style.display = "block";
     }
@@ -36,14 +36,48 @@ function navigateTo(pageId) {
 
 document.addEventListener("DOMContentLoaded", () => {
     const datalist = document.getElementById("towersList");
-    if (datalist) {
+    const nocSelect = document.getElementById("nocTowerSelect");
+
+    if (datalist || nocSelect) {
         Object.keys(towersData).sort().forEach(tower => {
-            let option = document.createElement("option");
-            option.value = tower;
-            datalist.appendChild(option);
+            if (datalist) {
+                let option = document.createElement("option");
+                option.value = tower;
+                datalist.appendChild(option);
+            }
+            if (nocSelect) {
+                let opt = document.createElement("option");
+                opt.value = tower;
+                opt.textContent = tower;
+                nocSelect.appendChild(opt);
+            }
         });
     }
 });
+
+function handleNocChange() {
+    const tower = document.getElementById("nocTowerSelect").value;
+    const userType = document.getElementById("nocUserType").value;
+
+    const resultArea = document.getElementById("noc-result-area");
+    const ownerCard = document.getElementById("owner-checklist-card");
+    const tenantCard = document.getElementById("tenant-checklist-card");
+
+    if (tower && userType) {
+        resultArea.classList.remove("hidden-page");
+        if (userType === "owner") {
+            ownerCard.classList.remove("hidden-page");
+            tenantCard.classList.add("hidden-page");
+        } else if (userType === "tenant") {
+            tenantCard.classList.remove("hidden-page");
+            ownerCard.classList.add("hidden-page");
+        }
+    } else {
+        resultArea.classList.add("hidden-page");
+        ownerCard.classList.add("hidden-page");
+        tenantCard.classList.add("hidden-page");
+    }
+}
 
 const towersData = {
   "Al Dana Towers": { "client": "ADCP/Nine Yard", "location": "Abudhabi", "bank": "SPC", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "40.00 AED", "activation": "200.00 AED", "disconnection": "500.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
@@ -147,7 +181,7 @@ function handleSelection() {
         updateFields(towersData[val], val);
     } else {
         const matchedKey = Object.keys(towersData).find(key => key.toLowerCase() === val.toLowerCase());
-        if (matchedKey) { updateFields(towersData[matchedKey], matchedKey); } else { updateFields(null); }
+        if (matchedKey) { updateFields(matchedKey, matchedKey); } else { updateFields(null); }
     }
 }
 
