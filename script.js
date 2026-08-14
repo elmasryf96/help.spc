@@ -34,7 +34,6 @@ function navigateTo(pageId) {
     }
 }
 
-// 🖨️ دالة التوليد بمطابقة ملف الـ Word بالضبط
 function generatePDF(event) {
     event.preventDefault();
 
@@ -46,7 +45,6 @@ function generatePDF(event) {
     const ownerContract = document.getElementById("noc_owner_contract").value.trim() || "N/A";
     const issueDate = document.getElementById("noc_date").value.trim();
 
-    // ربط البيانات بالأسماء الموجودة في الهيدر الملون والأشرطة الزرقاء
     document.getElementById("word_pdf_tenant_top").innerText = tenantName;
     document.getElementById("word_pdf_contract_top").innerText = tenantContract;
     document.getElementById("word_pdf_tower").innerText = towerName;
@@ -65,11 +63,11 @@ function generatePDF(event) {
     element.style.top = "0";
 
     const opt = {
-        margin:       [0.2, 0.2, 0.2, 0.2],
+        margin:       0,
         filename:     `NOC_${tenantName.replace(/\s+/g, '_')}_${unitNo}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+        image:        { type: 'jpeg', quality: 1.0 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false },
+        jsPDF:        { unit: 'px', format: [794, 1123], orientation: 'portrait' }
     };
 
     html2pdf().set(opt).from(element).save().then(() => {
