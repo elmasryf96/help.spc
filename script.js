@@ -167,20 +167,29 @@ function updateFields(data, towerName = "") {
     const depositVal = document.getElementById("deposit_amount");
 
     if (data) {
-        // 1. Client Details with special badge for long text wrapping
-        const clientVal = data["client"] || "-";
-        document.getElementById("client").innerHTML = `<span class="client-badge">${clientVal}</span>`;
+        // 1. Force Client Details into Golden Badge (Bypasses any HTML override)
+        const clientElem = document.getElementById("client");
+        if (clientElem) {
+            const clientVal = data["client"] || "-";
+            clientElem.innerHTML = `<span class="client-badge">${clientVal}</span>`;
+        }
 
         // 2. Format All Fees as Golden Badges
         feeFields.forEach(f => {
-            const val = data[f] !== undefined ? data[f] : "-";
-            document.getElementById(f).innerHTML = renderBadge(val);
+            const el = document.getElementById(f);
+            if (el) {
+                const val = data[f] !== undefined ? data[f] : "-";
+                el.innerHTML = renderBadge(val);
+            }
         });
 
         // 3. Format Building Details as Golden Badges
         detailFields.forEach(f => {
-            const val = data[f] !== undefined ? data[f] : "-";
-            document.getElementById(f).innerHTML = renderBadge(val);
+            const el = document.getElementById(f);
+            if (el) {
+                const val = data[f] !== undefined ? data[f] : "-";
+                el.innerHTML = renderBadge(val);
+            }
         });
         
         const lowerName = towerName.toLowerCase();
@@ -227,8 +236,12 @@ function updateFields(data, towerName = "") {
             }
         }
     } else {
-        ["client", ...feeFields, ...detailFields].forEach(f => {
-            document.getElementById(f).innerText = "-";
+        const clientElem = document.getElementById("client");
+        if (clientElem) clientElem.innerText = "-";
+        
+        feeFields.concat(detailFields).forEach(f => {
+            const el = document.getElementById(f);
+            if (el) el.innerText = "-";
         });
         depositRow.style.alignItems = "baseline";
         depositVal.innerText = "-";
