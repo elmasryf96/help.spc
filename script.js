@@ -16,17 +16,14 @@ function handleLogin(event) {
 
 // 🚪 دالة تسجيل الخروج Logout
 function handleLogout() {
-    // تصفير خانات تسجيل الدخول
     document.getElementById("username").value = "";
     document.getElementById("password").value = "";
     document.getElementById("login-error").style.display = "none";
 
-    // تصفير خانة البحث وتصنيفات الأبراج
     if (document.getElementById("towerInput")) {
         clearSearch();
     }
 
-    // العودة لصفحة تسجيل الدخول
     navigateTo('login-page');
 }
 
@@ -44,6 +41,72 @@ function navigateTo(pageId) {
         targetPage.classList.add('active-page');
     }
 }
+
+// 🖨️ دالة توليد وتحميل شهادة الـ NOC كملف PDF
+function generatePDF(event) {
+    event.preventDefault();
+
+    // جلب البيانات من الفورم
+    const tenantName = document.getElementById("noc_tenant_name").value.trim();
+    const tenantContract = document.getElementById("noc_tenant_contract").value.trim();
+    const towerName = document.getElementById("noc_tower_name").value.trim();
+    const unitNo = document.getElementById("noc_unit_no").value.trim();
+    const ownerName = document.getElementById("noc_owner_name").value.trim() || "N/A";
+    const ownerContract = document.getElementById("noc_owner_contract").value.trim() || "N/A";
+    const issueDate = document.getElementById("noc_date").value.trim();
+
+    // تركيب البيانات جوه قالب الـ PDF
+    document.getElementById("pdf_out_tenant_name").innerText = tenantName;
+    document.getElementById("pdf_out_tenant_contract").innerText = tenantContract;
+    document.getElementById("pdf_out_tower").innerText = towerName;
+    document.getElementById("pdf_out_unit").innerText = unitNo;
+    document.getElementById("pdf_out_owner_name").innerText = ownerName;
+    document.getElementById("pdf_out_owner_contract").innerText = ownerContract;
+    document.getElementById("pdf_out_date").innerText = issueDate;
+
+    // إظهار قالب الـ PDF مؤقتاً لالتقاط الشاشة
+    const element = document.getElementById("noc-pdf-template");
+    element.style.position = "static";
+    element.style.left = "0";
+    element.style.top = "0";
+
+    // إعدادات جودة وحجم الـ PDF
+    const opt = {
+        margin:       [0.3, 0.3, 0.3, 0.3],
+        filename:     `NOC_${tenantName.replace(/\s+/g, '_')}_${unitNo}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    // تحويل وتحميل الملف ثم إخفاء القالب مجدداً
+    html2pdf().set(opt).from(element).save().then(() => {
+        element.style.position = "absolute";
+        element.style.left = "-9999px";
+        element.style.top = "-9999px";
+    });
+}
+
+// 📅 تعبئة التاريخ تلقائياً بتاريخ اليوم بصيغة DD/MM/YYYY عند الفتح
+document.addEventListener("DOMContentLoaded", () => {
+    const datalist = document.getElementById("towersList");
+    if (datalist) {
+        Object.keys(towersData).sort().forEach(tower => {
+            let option = document.createElement("option");
+            option.value = tower;
+            datalist.appendChild(option);
+        });
+    }
+
+    const dateInput = document.getElementById("noc_date");
+    if (dateInput) {
+        const today = new Date();
+        const dd = String(today.getDate()).padStart(2, '0');
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const yyyy = today.getFullYear();
+        dateInput.value = `${dd}/${mm}/${yyyy}`;
+    }
+});
 
 // قاعدة البيانات المكتملة
 const towersData = {
@@ -121,19 +184,6 @@ const towersData = {
   "Yasmina Towers 2": { "client": "Dhafir development", "location": "Abudhabi", "bank": "Client", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "35.00 AED", "activation": "100.00 AED", "disconnection": "500.00 AED", "noc": "0.00 AED", "final": "0.00 AED" }
 };
 
-// ملء القائمة عند تحميل الصفحة
-document.addEventListener("DOMContentLoaded", () => {
-    const datalist = document.getElementById("towersList");
-    if (datalist) {
-        Object.keys(towersData).sort().forEach(tower => {
-            let option = document.createElement("option");
-            option.value = tower;
-            datalist.appendChild(option);
-        });
-    }
-});
-
-// تحديث خانات الكروت
 function updateFields(data, towerName = "") {
     const fields = ["client", "location", "bank", "deposit", "online", "billing", "late", "activation", "disconnection", "noc", "final"];
     if (data) {
@@ -153,7 +203,6 @@ function updateFields(data, towerName = "") {
     }
 }
 
-// دالة التعامل مع الكتابة والبحث
 function handleSelection() {
     const val = document.getElementById("towerInput").value.trim();
     const clearBtn = document.getElementById("clearBtn");
@@ -176,7 +225,6 @@ function handleSelection() {
     }
 }
 
-// دالة مسح النص وإعادة إظهار القائمة
 function clearSearch() {
     const input = document.getElementById("towerInput");
     if (input) {
