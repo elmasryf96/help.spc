@@ -163,8 +163,18 @@ function updateFields(data, towerName = "") {
         
         const lowerName = towerName.toLowerCase();
         
+        // 🏰 Danube Towers List Check
+        const isDanube = lowerName.includes("danube") || 
+                         lowerName.includes("gemini") || 
+                         lowerName.includes("elz") || 
+                         lowerName.includes("glamz") || 
+                         lowerName.includes("lawnz") || 
+                         lowerName.includes("miraclz") || 
+                         lowerName.includes("resortz") || 
+                         lowerName.includes("starz");
+
         // 🛡️ Security Deposit Calculation logic based on project rules
-        if (lowerName.includes("danube")) {
+        if (isDanube) {
             document.getElementById("deposit_amount").innerText = "Studio & 1BHK: 1,000 AED | 2BHK: 2,000 AED | 3BHK+: 3,000 AED";
         } else if (lowerName.includes("lamar")) {
             document.getElementById("deposit_amount").innerText = "1,000 AED (Fixed for all units)";
