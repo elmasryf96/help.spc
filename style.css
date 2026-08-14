@@ -401,3 +401,34 @@ body {
 .relative-header { 
     position: relative; 
 }
+
+/* 🛡️ Danube Deposit Badges Styling (New Layout) */
+.deposit-badge-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-end;
+}
+
+.deposit-badge-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fdfbf2;
+    border: 1.5px solid #e8d567;
+    border-radius: 8px;
+    padding: 5px 12px;
+    width: 230px; /* عرض موحد ومحاذي */
+    box-sizing: border-box;
+    font-size: 13px;
+}
+
+.deposit-badge-row .badge-label {
+    font-weight: 700;
+    color: var(--dark-navy);
+}
+
+.deposit-badge-row .badge-val {
+    font-weight: 800;
+    color: #b8860b;
+}
