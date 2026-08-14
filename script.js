@@ -1,4 +1,4 @@
-// 🔓 دخول مباشر للداشبورد فور الضغط على Sign In بدون اشتراط إدخال بيانات
+// 🔓 دخول مباشر فور الضغط على Sign In بدون إجبار إدخال بيانات
 function handleLogin(event) {
     if (event) event.preventDefault();
     const errorMsg = document.getElementById("login-error");
@@ -34,7 +34,6 @@ function navigateTo(pageId) {
     }
 }
 
-// 🏢 ملء القوائم المنسدلة فور تحميل الصفحة
 document.addEventListener("DOMContentLoaded", () => {
     const datalist = document.getElementById("towersList");
     const nocSelect = document.getElementById("nocTowerSelect");
@@ -155,21 +154,92 @@ const towersData = {
   "Yasmina Towers 2": { "client": "Dhafir development", "location": "Abudhabi", "bank": "Client", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "35.00 AED", "activation": "100.00 AED", "disconnection": "500.00 AED", "noc": "0.00 AED", "final": "0.00 AED" }
 };
 
+function renderBadge(val) {
+    if (!val || val === "-") return "-";
+    return `<span class="spc-badge">${val}</span>`;
+}
+
 function updateFields(data, towerName = "") {
-    const fields = ["client", "location", "bank", "deposit", "online", "billing", "late", "activation", "disconnection", "noc", "final"];
+    const feeFields = ["billing", "late", "activation", "disconnection", "noc", "final"];
+    const detailFields = ["location", "bank", "online", "deposit"];
+    const depositRow = document.getElementById("deposit_amount").closest('.row');
+    const depositVal = document.getElementById("deposit_amount");
+
     if (data) {
-        fields.forEach(f => {
-            document.getElementById(f).innerText = data[f] !== undefined ? data[f] : "-";
+        const clientElem = document.getElementById("client");
+        if (clientElem) {
+            const clientVal = data["client"] || "-";
+            clientElem.innerHTML = `<span class="client-badge">${clientVal}</span>`;
+        }
+
+        feeFields.forEach(f => {
+            const el = document.getElementById(f);
+            if (el) {
+                const val = data[f] !== undefined ? data[f] : "-";
+                el.innerHTML = renderBadge(val);
+            }
         });
+
+        detailFields.forEach(f => {
+            const el = document.getElementById(f);
+            if (el) {
+                const val = data[f] !== undefined ? data[f] : "-";
+                el.innerHTML = renderBadge(val);
+            }
+        });
+        
         const lowerName = towerName.toLowerCase();
-        if (lowerName.includes("danube") || lowerName.includes("lamar")) {
-            document.getElementById("deposit_amount").innerText = "1,000 AED (Fixed for all units)";
+        
+        const isDanube = lowerName.includes("danube") || 
+                         lowerName.includes("gemini") || 
+                         lowerName.includes("elz") || 
+                         lowerName.includes("glamz") || 
+                         lowerName.includes("lawnz") || 
+                         lowerName.includes("miraclz") || 
+                         lowerName.includes("resortz") || 
+                         lowerName.includes("starz");
+
+        if (isDanube) {
+            depositRow.style.alignItems = "center";
+            depositVal.innerHTML = `
+                <div class="deposit-badge-container">
+                    <div class="deposit-badge-row">
+                        <span class="badge-label">Studio & 1BHK:</span>
+                        <span class="badge-val">1,000 AED</span>
+                    </div>
+                    <div class="deposit-badge-row">
+                        <span class="badge-label">2BHK:</span>
+                        <span class="badge-val">2,000 AED</span>
+                    </div>
+                    <div class="deposit-badge-row">
+                        <span class="badge-label">3BHK+:</span>
+                        <span class="badge-val">3,000 AED</span>
+                    </div>
+                </div>`;
         } else {
-            document.getElementById("deposit_amount").innerText = "Check the prior owner or tenant account";
+            depositRow.style.alignItems = "center";
+            if (lowerName.includes("lamar")) {
+                depositVal.innerHTML = renderBadge("1,000 AED (Fixed)");
+            } else if (lowerName.includes("maison")) {
+                depositVal.innerHTML = renderBadge("Unit Capacity × 62.5 × 8");
+            } else if (data.deposit === "SPC for new customer") {
+                depositVal.innerHTML = renderBadge("New Customers Only");
+            } else if (data.deposit === "Client") {
+                depositVal.innerHTML = renderBadge("Client / Owner");
+            } else {
+                depositVal.innerHTML = renderBadge("Check Prior Account");
+            }
         }
     } else {
-        fields.forEach(f => document.getElementById(f).innerText = "-");
-        document.getElementById("deposit_amount").innerText = "-";
+        const clientElem = document.getElementById("client");
+        if (clientElem) clientElem.innerText = "-";
+        
+        feeFields.concat(detailFields).forEach(f => {
+            const el = document.getElementById(f);
+            if (el) el.innerText = "-";
+        });
+        depositRow.style.alignItems = "baseline";
+        depositVal.innerText = "-";
     }
 }
 
