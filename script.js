@@ -1,7 +1,5 @@
-// 🔑 دالة تسجيل الدخول والتحقق من البيانات
 function handleLogin(event) {
     event.preventDefault();
-    
     const user = document.getElementById("username").value.trim();
     const pass = document.getElementById("password").value.trim();
     const errorMsg = document.getElementById("login-error");
@@ -14,20 +12,14 @@ function handleLogin(event) {
     }
 }
 
-// 🚪 دالة تسجيل الخروج Logout
 function handleLogout() {
     document.getElementById("username").value = "";
     document.getElementById("password").value = "";
     document.getElementById("login-error").style.display = "none";
-
-    if (document.getElementById("towerInput")) {
-        clearSearch();
-    }
-
+    if (document.getElementById("towerInput")) { clearSearch(); }
     navigateTo('login-page');
 }
 
-// دالة التنقل بين الصفحات
 function navigateTo(pageId) {
     const pages = document.querySelectorAll('.page');
     pages.forEach(page => {
@@ -42,11 +34,10 @@ function navigateTo(pageId) {
     }
 }
 
-// 🖨️ دالة توليد وتحميل شهادة الـ NOC كملف PDF
+// 🖨️ دالة التوليد بمطابقة ملف الـ Word بالضبط
 function generatePDF(event) {
     event.preventDefault();
 
-    // جلب البيانات من الفورم
     const tenantName = document.getElementById("noc_tenant_name").value.trim();
     const tenantContract = document.getElementById("noc_tenant_contract").value.trim();
     const towerName = document.getElementById("noc_tower_name").value.trim();
@@ -55,31 +46,32 @@ function generatePDF(event) {
     const ownerContract = document.getElementById("noc_owner_contract").value.trim() || "N/A";
     const issueDate = document.getElementById("noc_date").value.trim();
 
-    // تركيب البيانات جوه قالب الـ PDF
-    document.getElementById("pdf_out_tenant_name").innerText = tenantName;
-    document.getElementById("pdf_out_tenant_contract").innerText = tenantContract;
-    document.getElementById("pdf_out_tower").innerText = towerName;
-    document.getElementById("pdf_out_unit").innerText = unitNo;
-    document.getElementById("pdf_out_owner_name").innerText = ownerName;
-    document.getElementById("pdf_out_owner_contract").innerText = ownerContract;
-    document.getElementById("pdf_out_date").innerText = issueDate;
+    // ربط البيانات بالأسماء الموجودة في الهيدر الملون والأشرطة الزرقاء
+    document.getElementById("word_pdf_tenant_top").innerText = tenantName;
+    document.getElementById("word_pdf_contract_top").innerText = tenantContract;
+    document.getElementById("word_pdf_tower").innerText = towerName;
+    document.getElementById("word_pdf_unit").innerText = unitNo;
+    document.getElementById("word_pdf_date_1").innerText = issueDate;
+    document.getElementById("word_pdf_date_2").innerText = issueDate;
 
-    // إظهار قالب الـ PDF مؤقتاً لالتقاط الشاشة
+    document.getElementById("word_pdf_tenant_name").innerText = tenantName;
+    document.getElementById("word_pdf_tenant_contract").innerText = tenantContract;
+    document.getElementById("word_pdf_owner_name").innerText = ownerName;
+    document.getElementById("word_pdf_owner_contract").innerText = ownerContract;
+
     const element = document.getElementById("noc-pdf-template");
     element.style.position = "static";
     element.style.left = "0";
     element.style.top = "0";
 
-    // إعدادات جودة وحجم الـ PDF
     const opt = {
-        margin:       [0.3, 0.3, 0.3, 0.3],
+        margin:       [0.2, 0.2, 0.2, 0.2],
         filename:     `NOC_${tenantName.replace(/\s+/g, '_')}_${unitNo}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2, useCORS: true },
         jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
     };
 
-    // تحويل وتحميل الملف ثم إخفاء القالب مجدداً
     html2pdf().set(opt).from(element).save().then(() => {
         element.style.position = "absolute";
         element.style.left = "-9999px";
@@ -87,7 +79,6 @@ function generatePDF(event) {
     });
 }
 
-// 📅 تعبئة التاريخ تلقائياً بتاريخ اليوم بصيغة DD/MM/YYYY عند الفتح
 document.addEventListener("DOMContentLoaded", () => {
     const datalist = document.getElementById("towersList");
     if (datalist) {
@@ -108,7 +99,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-// قاعدة البيانات المكتملة
 const towersData = {
   "Al Dana Towers": { "client": "ADCP/Nine Yard", "location": "Abudhabi", "bank": "SPC", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "40.00 AED", "activation": "200.00 AED", "disconnection": "500.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
   "Al Mamzar Gate": { "client": "H S H Real Estate", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "40.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
@@ -190,7 +180,6 @@ function updateFields(data, towerName = "") {
         fields.forEach(f => {
             document.getElementById(f).innerText = data[f] !== undefined ? data[f] : "-";
         });
-
         const lowerName = towerName.toLowerCase();
         if (lowerName.includes("danube") || lowerName.includes("lamar")) {
             document.getElementById("deposit_amount").innerText = "1,000 AED (Fixed for all units)";
@@ -206,22 +195,13 @@ function updateFields(data, towerName = "") {
 function handleSelection() {
     const val = document.getElementById("towerInput").value.trim();
     const clearBtn = document.getElementById("clearBtn");
-    
-    if (val.length > 0) {
-        clearBtn.style.display = "block";
-    } else {
-        clearBtn.style.display = "none";
-    }
+    if (val.length > 0) { clearBtn.style.display = "block"; } else { clearBtn.style.display = "none"; }
     
     if (towersData[val]) {
         updateFields(towersData[val], val);
     } else {
         const matchedKey = Object.keys(towersData).find(key => key.toLowerCase() === val.toLowerCase());
-        if (matchedKey) {
-            updateFields(towersData[matchedKey], matchedKey);
-        } else {
-            updateFields(null);
-        }
+        if (matchedKey) { updateFields(towersData[matchedKey], matchedKey); } else { updateFields(null); }
     }
 }
 
