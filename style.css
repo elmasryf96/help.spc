@@ -4,9 +4,6 @@
     --coral-red: #ee6c6a;
     --bg-light: #fffdf0;
     --text-muted: #5a6a75;
-    --stamp-blue: #1b4285;
-    --word-blue-bar: #c6d9f1;
-    --word-header-bg: #d9d9d9;
 }
 
 body {
@@ -195,100 +192,33 @@ body {
 .noc-grid-form { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; background: var(--bg-light); padding: 30px; border-radius: 16px; border: 2px solid var(--primary-yellow); }
 .form-submit-row { grid-column: span 2; text-align: center; margin-top: 10px; }
 
-/* 🖨️ تنسيق صفحة الـ Word بالضبط في الـ PDF */
+/* 🎯 القالب النهائي الدقيق لمطابقة المستند بالمللي */
 .pdf-template-hidden {
     position: absolute;
     left: -9999px;
     top: -9999px;
-    width: 730px;
-    padding: 35px 40px;
-    background: #ffffff;
-    color: #000000;
-    font-family: Arial, Helvetica, sans-serif;
+    width: 794px;
+    height: 1123px;
     box-sizing: border-box;
-}
-
-.word-header-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-.word-logo-wrap { display: flex; align-items: center; gap: 10px; }
-.word-logo-svg { width: 45px; height: 55px; }
-.word-logo-text { font-size: 22px; font-weight: bold; color: #1a252f; line-height: 0.9; }
-.word-logo-text span { display: block; font-size: 15px; color: #5a6a75; }
-
-.word-contact-grid { font-size: 10px; color: #333; line-height: 1.4; display: grid; grid-template-columns: auto auto; gap: 2px 15px; justify-content: end; }
-
-.word-blue-bar-table {
-    width: 100%;
-    background-color: var(--word-blue-bar);
-    border-collapse: collapse;
-    margin-bottom: 25px;
-}
-.word-blue-bar-table td {
-    padding: 8px 12px;
-    font-size: 12px;
+    font-family: Arial, Helvetica, sans-serif;
     color: #000000;
-    border: none;
+    /* تحميل رسمة الورقة الأصلية مباشرة لحفظ الجودة والهيكل */
+    background: url('https://i.ibb.co/L8P4Hkg/noc-template-hd.png') no-repeat center center;
+    background-size: cover;
 }
 
-.word-title {
-    text-align: center;
-    font-size: 20px;
-    font-weight: bold;
-    color: #000000;
-    margin-bottom: 25px;
-    text-decoration: underline;
-}
+/* الأبعاد الفائقة لتطبيق النصوص فوق المستند */
+.field-tenant-top { position: absolute; top: 488px; left: 62px; font-size: 13.5px; font-weight: bold; }
+.field-contract-top { position: absolute; top: 524px; left: 62px; font-size: 13px; font-weight: bold; }
 
-.word-body-paragraph {
-    font-size: 12px;
-    line-height: 1.6;
-    color: #000000;
-    margin-bottom: 30px;
-    text-align: justify;
-}
+.field-tower { position: absolute; top: 488px; left: 412px; font-size: 13px; font-weight: bold; }
+.field-unit { position: absolute; top: 524px; left: 412px; font-size: 13px; font-weight: bold; }
 
-.word-side-tables { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-.word-tbl-header {
-    background-color: var(--word-header-bg);
-    font-weight: bold;
-    font-size: 11px;
-    padding: 6px 10px;
-    text-align: center;
-    border: 1px solid #7f7f7f;
-}
+.field-date-1 { position: absolute; top: 488px; left: 672px; font-size: 12.5px; }
+.field-date-2 { position: absolute; top: 524px; left: 672px; font-size: 12.5px; }
 
-.word-inner-tbl { width: 100%; border-collapse: collapse; border: 1px solid #7f7f7f; }
-.word-inner-tbl td {
-    padding: 6px 8px;
-    font-size: 11px;
-    border: 1px solid #7f7f7f;
-}
-.word-inner-tbl .lbl-col { font-weight: bold; width: 45%; background-color: #f2f2f2; }
+.field-tenant-name { position: absolute; top: 928px; left: 242px; font-size: 12px; font-weight: 500; }
+.field-tenant-contract { position: absolute; top: 963px; left: 242px; font-size: 12px; font-weight: 500; }
 
-.word-footer-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-.word-regards { font-size: 12px; line-height: 1.5; }
-
-.pdf-stamp-container { width: 125px; height: 125px; display: inline-block; }
-.pdf-stamp-circle {
-    width: 100%; height: 100%;
-    border: 3px double var(--stamp-blue);
-    border-radius: 50%;
-    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
-    padding: 6px 4px; box-sizing: border-box;
-    color: var(--stamp-blue); text-align: center;
-    transform: rotate(-10deg);
-}
-.stamp-top { font-size: 7.5px; font-weight: bold; }
-.stamp-center { display: flex; flex-direction: column; align-items: center; line-height: 1; }
-.stamp-svg { width: 16px; height: 20px; }
-.stamp-center strong { font-size: 8.5px; }
-.stamp-center span { font-size: 6px; }
-.stamp-bottom { font-size: 6px; font-weight: bold; }
-
-.word-address-footer {
-    margin-top: 25px;
-    border-top: 1px solid #7f7f7f;
-    padding-top: 8px;
-    font-size: 9px;
-    color: #333333;
-    text-align: center;
-}
+.field-owner-name { position: absolute; top: 928px; left: 585px; font-size: 12px; font-weight: 500; }
+.field-owner-contract { position: absolute; top: 963px; left: 585px; font-size: 12px; font-weight: 500; }
