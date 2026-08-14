@@ -154,27 +154,32 @@ const towersData = {
   "Yasmina Towers 2": { "client": "Dhafir development", "location": "Abudhabi", "bank": "Client", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "35.00 AED", "activation": "100.00 AED", "disconnection": "500.00 AED", "noc": "0.00 AED", "final": "0.00 AED" }
 };
 
+// Helper function to render uniform badge HTML
+function renderBadge(val) {
+    if (!val || val === "-") return "-";
+    return `<span class="spc-badge">${val}</span>`;
+}
+
 function updateFields(data, towerName = "") {
     const feeFields = ["billing", "late", "activation", "disconnection", "noc", "final"];
-    const detailFields = ["client", "location", "bank", "online", "deposit"];
+    const detailFields = ["location", "bank", "online", "deposit"];
     const depositRow = document.getElementById("deposit_amount").closest('.row');
     const depositVal = document.getElementById("deposit_amount");
 
     if (data) {
-        // 💰 Format Fees as Badges
+        // 1. Client name (Keep text readable for long names)
+        document.getElementById("client").innerText = data["client"] || "-";
+
+        // 2. Format All Fees as Golden Badges
         feeFields.forEach(f => {
             const val = data[f] !== undefined ? data[f] : "-";
-            document.getElementById(f).innerHTML = `<span class="custom-badge">${val}</span>`;
+            document.getElementById(f).innerHTML = renderBadge(val);
         });
 
-        // 🏢 Format Building Details
+        // 3. Format Building Details as Golden Badges
         detailFields.forEach(f => {
             const val = data[f] !== undefined ? data[f] : "-";
-            if (f === "client") {
-                document.getElementById(f).innerText = val; // نص عادي بدون بَادج للأسماء الطويلة
-            } else {
-                document.getElementById(f).innerHTML = `<span class="custom-badge">${val}</span>`;
-            }
+            document.getElementById(f).innerHTML = renderBadge(val);
         });
         
         const lowerName = towerName.toLowerCase();
@@ -209,19 +214,19 @@ function updateFields(data, towerName = "") {
         } else {
             depositRow.style.alignItems = "center";
             if (lowerName.includes("lamar")) {
-                depositVal.innerHTML = `<span class="custom-badge">1,000 AED (Fixed)</span>`;
+                depositVal.innerHTML = renderBadge("1,000 AED (Fixed)");
             } else if (lowerName.includes("maison")) {
-                depositVal.innerHTML = `<span class="custom-badge custom-badge-blue">Unit Capacity × 62.5 × 8</span>`;
+                depositVal.innerHTML = renderBadge("Unit Capacity × 62.5 × 8");
             } else if (data.deposit === "SPC for new customer") {
-                depositVal.innerHTML = `<span class="custom-badge">New Customers Only</span>`;
+                depositVal.innerHTML = renderBadge("New Customers Only");
             } else if (data.deposit === "Client") {
-                depositVal.innerHTML = `<span class="custom-badge">Client / Owner</span>`;
+                depositVal.innerHTML = renderBadge("Client / Owner");
             } else {
-                depositVal.innerHTML = `<span class="custom-badge">Check Prior Account</span>`;
+                depositVal.innerHTML = renderBadge("Check Prior Account");
             }
         }
     } else {
-        [...feeFields, ...detailFields].forEach(f => {
+        ["client", ...feeFields, ...detailFields].forEach(f => {
             document.getElementById(f).innerText = "-";
         });
         depositRow.style.alignItems = "baseline";
