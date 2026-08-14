@@ -115,11 +115,10 @@ body {
 }
 
 .dashboard-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 30px;
+    display: flex;
+    justify-content: center;
     padding: 40px;
-    max-width: 900px;
+    max-width: 500px;
     margin: 0 auto;
 }
 
@@ -130,6 +129,7 @@ body {
     background: #ffffff;
     cursor: pointer;
     text-align: center;
+    width: 100%;
 }
 
 .menu-icon { font-size: 3.2rem; margin-bottom: 15px; }
@@ -188,37 +188,8 @@ body {
 .bottom-cards-row .card { flex: 1; min-width: 300px; }
 .row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed #e2e8f0; font-size: 14.5px; }
 
-.noc-form-wrapper { padding: 30px 40px; max-width: 800px; margin: 0 auto; }
-.noc-grid-form { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; background: var(--bg-light); padding: 30px; border-radius: 16px; border: 2px solid var(--primary-yellow); }
-.form-submit-row { grid-column: span 2; text-align: center; margin-top: 10px; }
-
-/* 🎯 القالب النهائي الدقيق لمطابقة المستند بالمللي */
-.pdf-template-hidden {
-    position: absolute;
-    left: -9999px;
-    top: -9999px;
-    width: 794px;
-    height: 1123px;
-    box-sizing: border-box;
-    font-family: Arial, Helvetica, sans-serif;
-    color: #000000;
-    /* تحميل رسمة الورقة الأصلية مباشرة لحفظ الجودة والهيكل */
-    background: url('https://i.ibb.co/L8P4Hkg/noc-template-hd.png') no-repeat center center;
-    background-size: cover;
-}
-
-/* الأبعاد الفائقة لتطبيق النصوص فوق المستند */
-.field-tenant-top { position: absolute; top: 488px; left: 62px; font-size: 13.5px; font-weight: bold; }
-.field-contract-top { position: absolute; top: 524px; left: 62px; font-size: 13px; font-weight: bold; }
-
-.field-tower { position: absolute; top: 488px; left: 412px; font-size: 13px; font-weight: bold; }
-.field-unit { position: absolute; top: 524px; left: 412px; font-size: 13px; font-weight: bold; }
-
-.field-date-1 { position: absolute; top: 488px; left: 672px; font-size: 12.5px; }
-.field-date-2 { position: absolute; top: 524px; left: 672px; font-size: 12.5px; }
-
-.field-tenant-name { position: absolute; top: 928px; left: 242px; font-size: 12px; font-weight: 500; }
-.field-tenant-contract { position: absolute; top: 963px; left: 242px; font-size: 12px; font-weight: 500; }
-
-.field-owner-name { position: absolute; top: 928px; left: 585px; font-size: 12px; font-weight: 500; }
-.field-owner-contract { position: absolute; top: 963px; left: 585px; font-size: 12px; font-weight: 500; }
+.margin-bottom-20 { margin-bottom: 20px; }
+.justify-center { justify-center: center !important; }
+.text-center { text-align: center; }
+.relative-header { position: relative; }
+.brand-header .logout-btn { position: absolute; right: 40px; }
