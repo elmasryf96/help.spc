@@ -1,18 +1,270 @@
-<div class="search-box">
-    <div class="form-row-2col">
-        <div class="input-group-field">
-            <label for="nocTowerSelect">Select Building / Tower Name:</label>
-            <select id="nocTowerSelect" class="combo-input" onchange="handleNocChange()">
-                <option value="">-- Choose Building --</option>
-            </select>
-        </div>
-        <div class="input-group-field">
-            <label for="nocUserType">Select Applicant Type:</label>
-            <select id="nocUserType" class="combo-input" onchange="handleNocChange()">
-                <option value="">-- Choose Type --</option>
-                <option value="owner">Owner</option>
-                <option value="tenant">Tenant</option>
-            </select>
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPC - Agent Helper</title>
+
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'><circle cx='35' cy='18' r='5' fill='%23E8D567'/><circle cx='68' cy='18' r='5' fill='%23E8D567'/><circle cx='51.5' cy='7' r='5.5' fill='%23E8D567'/><path d='M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z' fill='%23E8D567'/><circle cx='51.5' cy='42.5' r='6' fill='%231A252F'/><path d='M47 75L56 75L53.5 115L49.5 115L47 75Z' fill='%23E8D567'/></svg>">
+
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <link rel="stylesheet" href="style.css?v=2026.3">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <!-- 🔒 Login Page -->
+    <div id="login-page" class="page active-page">
+        <div class="login-container">
+            <div class="logo-container justify-center margin-bottom-20">
+                <svg class="logo-svg" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+                    <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+                    <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+                    <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+                    <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+                    <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+                </svg>
+                <div class="logo-text">Smart <span>Collection</span></div>
+            </div>
+
+            <h2 class="login-title">Portal Access Login</h2>
+            
+            <form onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="username"><i class="fa-solid fa-user"></i> Username</label>
+                    <input type="text" id="username" class="login-input" placeholder="Enter username" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password"><i class="fa-solid fa-lock"></i> Password</label>
+                    <input type="password" id="password" class="login-input" placeholder="Enter password" required>
+                </div>
+
+                <div id="login-error" class="login-error-msg">❌ Invalid Username or Password!</div>
+
+                <button type="submit" class="btn-login">Sign In</button>
+            </form>
         </div>
     </div>
-</div>
+
+    <!-- 🏠 Main Dashboard -->
+    <div id="home-page" class="page hidden-page">
+        <div class="container text-center">
+            <div class="brand-header relative-header">
+                <div class="logo-container">
+                    <svg class="logo-svg" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+                        <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+                        <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+                        <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+                    </svg>
+                    <div class="logo-text">Smart <span>Collection</span></div>
+                </div>
+
+                <button class="logout-btn" onclick="handleLogout()" title="Log out">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+
+            <div class="system-title">🚀 AGENT ASSISTANT DASHBOARD</div>
+
+            <div class="dashboard-grid">
+                <div class="menu-card" onclick="navigateTo('towers-page')">
+                    <div class="menu-icon"><i class="fa-solid fa-database"></i></div>
+                    <h3>Master Data & Towers Portal</h3>
+                    <p>Search towers database, service fees, security deposits, and management details.</p>
+                    <button class="btn-primary">Access Master Data <i class="fa-solid fa-arrow-right"></i></button>
+                </div>
+
+                <div class="menu-card" onclick="navigateTo('noc-page')">
+                    <div class="menu-icon"><i class="fa-solid fa-file-contract"></i></div>
+                    <h3>NOC Process</h3>
+                    <p>Check requirements, MOU, owner & tenant conditions, and clearance rules.</p>
+                    <button class="btn-primary">Start NOC Process <i class="fa-solid fa-arrow-right"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🏢 Towers Master Data Page -->
+    <div id="towers-page" class="page hidden-page">
+        <div class="container">
+            <div class="brand-header relative-header">
+                <button class="back-btn" onclick="navigateTo('home-page')">
+                    <i class="fa-solid fa-arrow-left"></i> Main Dashboard
+                </button>
+
+                <div class="logo-container">
+                    <svg class="logo-svg" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+                        <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+                        <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+                        <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+                    </svg>
+                    <div class="logo-text">Smart <span>Collection</span></div>
+                </div>
+
+                <button class="logout-btn" onclick="handleLogout()" title="Log out">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+
+            <div class="system-title">🏢 Towers Master Data & Service Fees Search Portal</div>
+            
+            <div class="search-box">
+                <label for="towerInput">🔍 Search & Select Tower Name:</label>
+                <div class="input-wrapper">
+                    <input type="text" id="towerInput" list="towersList" class="combo-input" placeholder="Type tower name (e.g. Al Dana, Danube, Lamar)..." oninput="handleSelection()">
+                    <button type="button" id="clearBtn" class="clear-btn" onclick="clearSearch()"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <datalist id="towersList"></datalist>
+            </div>
+
+            <div class="cards-wrapper">
+                <div class="card card-fees-top">
+                    <h3>🏷️ APPLICABLE SERVICE FEES</h3>
+                    <div class="fees-grid">
+                        <div class="row"><span class="title">Billing Fee:</span><span class="val" id="billing">-</span></div>
+                        <div class="row"><span class="title">Late Fee:</span><span class="val" id="late">-</span></div>
+                        <div class="row"><span class="title">Activation Fee:</span><span class="val" id="activation">-</span></div>
+                        <div class="row"><span class="title">Disconnection Fee:</span><span class="val" id="disconnection">-</span></div>
+                        <div class="row"><span class="title">NOC Fee:</span><span class="val" id="noc">-</span></div>
+                        <div class="row"><span class="title">Final Bill Fee:</span><span class="val" id="final">-</span></div>
+                    </div>
+                </div>
+
+                <div class="bottom-cards-row">
+                    <div class="card">
+                        <h3>🏛️ BUILDING & MANAGEMENT DETAILS</h3>
+                        <div class="row"><span class="title">Client Details:</span><span class="val" id="client">-</span></div>
+                        <div class="row"><span class="title">Location:</span><span class="val" id="location">-</span></div>
+                        <div class="row"><span class="title">Bank Account:</span><span class="val" id="bank">-</span></div>
+                        <div class="row"><span class="title">Online Payment Availability:</span><span class="val" id="online">-</span></div>
+                    </div>
+
+                    <div class="card card-deposit">
+                        <h3>🛡️ SECURITY DEPOSIT</h3>
+                        <div class="row"><span class="title">Security Deposit Refund:</span><span class="val" id="deposit">-</span></div>
+                        <div class="row"><span class="title">Security Deposit Amount:</span><span class="val" id="deposit_amount">-</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📑 NOC Process Page -->
+    <div id="noc-page" class="page hidden-page">
+        <div class="container">
+            <div class="brand-header relative-header">
+                <button class="back-btn" onclick="navigateTo('home-page')">
+                    <i class="fa-solid fa-arrow-left"></i> Main Dashboard
+                </button>
+
+                <div class="logo-container">
+                    <svg class="logo-svg" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+                        <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+                        <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+                        <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+                    </svg>
+                    <div class="logo-text">Smart <span>Collection</span></div>
+                </div>
+
+                <button class="logout-btn" onclick="handleLogout()" title="Log out">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+
+            <div class="system-title">📑 NOC Requirements & Clearance Checker</div>
+
+            <div class="search-box">
+                <div class="form-row-2col">
+                    <div class="input-group-field">
+                        <label for="nocTowerSelect">🏢 Select Tower Name:</label>
+                        <select id="nocTowerSelect" class="combo-input" onchange="handleNocChange()">
+                            <option value="">-- Choose Tower --</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group-field">
+                        <label for="nocUserType">👤 Select User Type:</label>
+                        <select id="nocUserType" class="combo-input" onchange="handleNocChange()">
+                            <option value="">-- Select Owner / Tenant --</option>
+                            <option value="owner">Owner</option>
+                            <option value="tenant">Tenant</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div id="noc-result-area" class="cards-wrapper hidden-page">
+                <div id="owner-checklist-card" class="card card-warning hidden-page">
+                    <h3>⚠️ OWNER NOC MANDATORY CHECKLIST</h3>
+                    <ul class="checklist-items">
+                        <li>
+                            <i class="fa-solid fa-file-signature check-icon"></i>
+                            <div>
+                                <strong>MOU Verification:</strong>
+                                <p>Ensure the owner has provided a valid, signed <strong>MOU (Memorandum of Understanding)</strong>.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <i class="fa-solid fa-address-book check-icon"></i>
+                            <div>
+                                <strong>New Owner Contact Information:</strong>
+                                <p>Verify and capture the new owner's <strong>Mobile Number</strong> and <strong>Email Address</strong>.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <i class="fa-solid fa-file-invoice-dollar check-icon"></i>
+                            <div>
+                                <strong>Interim Billing (No Active Tenant):</strong>
+                                <p>Issue a final invoice for actual chilled water consumption up to <strong>today's date</strong> if no active tenant exists.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <i class="fa-solid fa-scale-balanced check-icon"></i>
+                            <div>
+                                <strong>Zero Outstanding Balance Rule:</strong>
+                                <p>All active and closed accounts linked to this unit/apartment (including prior owners and previous tenants) MUST have an outstanding balance of exactly <strong>0.00 AED</strong>.</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <div id="tenant-checklist-card" class="card hidden-page">
+                    <h3>📋 TENANT NOC CLEARANCE CHECKLIST</h3>
+                    <ul class="checklist-items">
+                        <li>
+                            <i class="fa-solid fa-receipt check-icon"></i>
+                            <div>
+                                <strong>Tenant Final Settlement:</strong>
+                                <p>Ensure all outstanding invoices for chilled water consumption up to the move-out date are fully settled.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <i class="fa-solid fa-vault check-icon"></i>
+                            <div>
+                                <strong>Security Deposit Verification:</strong>
+                                <p>Check security deposit status and clearance as per building specifications.</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js?v=2026.3"></script>
+</body>
+</html>
