@@ -6,7 +6,7 @@ function handleLogin(event) {
 
     if (user === "SPC" && pass === "SPC@2026") {
         errorMsg.style.display = "none";
-        navigateTo('home-page');
+        navigateTo('towers-page');
     } else {
         errorMsg.style.display = "block";
     }
