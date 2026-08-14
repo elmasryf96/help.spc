@@ -164,7 +164,9 @@ function updateFields(data, towerName = "") {
         const lowerName = towerName.toLowerCase();
         
         // 🛡️ Security Deposit Calculation logic based on project rules
-        if (lowerName.includes("danube") || lowerName.includes("lamar")) {
+        if (lowerName.includes("danube")) {
+            document.getElementById("deposit_amount").innerText = "Studio & 1BHK: 1,000 AED | 2BHK: 2,000 AED | 3BHK+: 3,000 AED";
+        } else if (lowerName.includes("lamar")) {
             document.getElementById("deposit_amount").innerText = "1,000 AED (Fixed for all units)";
         } else if (lowerName.includes("maison")) {
             document.getElementById("deposit_amount").innerText = "Unit Capacity * 62.5 * 8";
