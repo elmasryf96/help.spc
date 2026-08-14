@@ -378,10 +378,12 @@ body {
     min-width: 300px; 
 }
 
+/* 🔄 Row Alignment */
 .row { 
     display: flex; 
     justify-content: space-between; 
-    padding: 12px 0; 
+    align-items: center; 
+    padding: 10px 0; 
     border-bottom: 1px dashed #e2e8f0; 
     font-size: 14.5px; 
 }
@@ -402,7 +404,28 @@ body {
     position: relative; 
 }
 
-/* 🛡️ Danube Deposit Badges Styling (New Layout) */
+/* 🏷️ Unified Badge System across all cards */
+.custom-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #fdfbf2;
+    border: 1.5px solid #e8d567;
+    border-radius: 8px;
+    padding: 4px 12px;
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #b8860b;
+    box-shadow: 0 2px 4px rgba(232, 213, 103, 0.15);
+}
+
+.custom-badge-blue {
+    background: #eef6ff;
+    border-color: #90caf9;
+    color: #1565c0;
+}
+
+/* 🛡️ Danube Deposit Badges Container */
 .deposit-badge-container {
     display: flex;
     flex-direction: column;
@@ -418,9 +441,10 @@ body {
     border: 1.5px solid #e8d567;
     border-radius: 8px;
     padding: 5px 12px;
-    width: 230px; /* عرض موحد ومحاذي */
+    width: 230px;
     box-sizing: border-box;
     font-size: 13px;
+    box-shadow: 0 2px 4px rgba(232, 213, 103, 0.15);
 }
 
 .deposit-badge-row .badge-label {
