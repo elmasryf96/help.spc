@@ -190,25 +190,16 @@ function updateFields(data, towerName = "") {
         
         const lowerName = towerName.toLowerCase();
         
-        // 1. فحص أبراج Al Reem Bay و Torino لإظهار -
-        if ((lowerName.includes("reem") && lowerName.includes("bay")) || lowerName.includes("torino")) {
-            depositRow.style.alignItems = "baseline";
-            depositVal.innerText = "-";
-        }
-        // 2. فحص برج Bali
-        else if (lowerName.includes("bali")) {
-            depositRow.style.alignItems = "center";
-            depositVal.innerHTML = renderBadge("Unit Capacity × 8");
-        } 
-        // 3. فحص أبراج Danube
-        else if (lowerName.includes("danube") || 
-                 lowerName.includes("gemini") || 
-                 lowerName.includes("elz") || 
-                 lowerName.includes("glamz") || 
-                 lowerName.includes("lawnz") || 
-                 lowerName.includes("miraclz") || 
-                 lowerName.includes("resortz") || 
-                 lowerName.includes("starz")) {
+        const isDanube = lowerName.includes("danube") || 
+                         lowerName.includes("gemini") || 
+                         lowerName.includes("elz") || 
+                         lowerName.includes("glamz") || 
+                         lowerName.includes("lawnz") || 
+                         lowerName.includes("miraclz") || 
+                         lowerName.includes("resortz") || 
+                         lowerName.includes("starz");
+
+        if (isDanube) {
             depositRow.style.alignItems = "center";
             depositVal.innerHTML = `
                 <div class="deposit-badge-container">
@@ -225,9 +216,7 @@ function updateFields(data, towerName = "") {
                         <span class="badge-val">3,000 AED</span>
                     </div>
                 </div>`;
-        } 
-        // 4. باقي الحالات الخاصة والأبراج العادية
-        else {
+        } else {
             depositRow.style.alignItems = "center";
             if (lowerName.includes("lamar")) {
                 depositVal.innerHTML = renderBadge("1,000 AED (Fixed)");
@@ -235,6 +224,8 @@ function updateFields(data, towerName = "") {
                 depositVal.innerHTML = renderBadge("Unit Capacity × 62.5 × 8");
             } else if (data.deposit === "SPC for new customer") {
                 depositVal.innerHTML = renderBadge("New Customers Only");
+            } else if (data.deposit === "Client") {
+                depositVal.innerHTML = renderBadge("Client / Owner");
             } else {
                 depositVal.innerHTML = renderBadge("Check Prior Account");
             }
