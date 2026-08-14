@@ -1,5 +1,4 @@
-// 🏢 Master Data for Towers Database
-// ⚠️ يمكنك إضافة بقية الأبراج هنا بنفس الطريقة داخل هذا الكائن
+// 🏢 FULL TOWERS MASTER DATABASE (SPC AGENT HELPER)
 const towersData = {
     "Bali Residence": {
         billing: "25 AED",
@@ -8,12 +7,12 @@ const towersData = {
         disconnection: "100 AED",
         noc: "150 AED",
         final: "50 AED",
-        client: "<span class='client-badge'>Smart Collection</span>",
+        client: "Smart Collection",
         location: "Abu Dhabi",
         bank: "ADCB - 123456789",
         online: "Available",
         deposit: "Refundable",
-        deposit_amount: "<div class='deposit-badge-container'><div class='deposit-badge-row'><span class='badge-label'>Amount:</span><span class='badge-val'>Capacity charges*8</span></div></div>"
+        deposit_amount: "Capacity charges*8"
     },
     "Al Reem Bay Tower 1": {
         billing: "25 AED",
@@ -22,7 +21,7 @@ const towersData = {
         disconnection: "100 AED",
         noc: "150 AED",
         final: "50 AED",
-        client: "<span class='client-badge'>Smart Collection</span>",
+        client: "Smart Collection",
         location: "Abu Dhabi",
         bank: "ADCB - 123456789",
         online: "Available",
@@ -36,7 +35,7 @@ const towersData = {
         disconnection: "100 AED",
         noc: "150 AED",
         final: "50 AED",
-        client: "<span class='client-badge'>Smart Collection</span>",
+        client: "Smart Collection",
         location: "Abu Dhabi",
         bank: "ADCB - 123456789",
         online: "Available",
@@ -50,7 +49,7 @@ const towersData = {
         disconnection: "100 AED",
         noc: "150 AED",
         final: "50 AED",
-        client: "<span class='client-badge'>ORO24</span>",
+        client: "ORO24",
         location: "Dubai",
         bank: "ENBD - 987654321",
         online: "Available",
@@ -64,12 +63,12 @@ const towersData = {
         disconnection: "100 AED",
         noc: "150 AED",
         final: "50 AED",
-        client: "<span class='client-badge'>Smart Collection Corp</span>",
+        client: "Smart Collection Corp",
         location: "Abu Dhabi",
         bank: "ADCB - 123456789",
         online: "Available",
         deposit: "Refundable",
-        deposit_amount: "<div class='deposit-badge-container'><div class='deposit-badge-row'><span class='badge-label'>Amount:</span><span class='badge-val'>Check Prior Account</span></div></div>"
+        deposit_amount: "Check Prior Account"
     },
     "Danube Tower": {
         billing: "20 AED",
@@ -78,21 +77,21 @@ const towersData = {
         disconnection: "80 AED",
         noc: "100 AED",
         final: "40 AED",
-        client: "<span class='client-badge'>Danube Properties</span>",
+        client: "Danube Properties",
         location: "Dubai",
         bank: "ENBD - 987654321",
         online: "Available",
         deposit: "Refundable",
-        deposit_amount: "<div class='deposit-badge-container'><div class='deposit-badge-row'><span class='badge-label'>Amount:</span><span class='badge-val'>Check Prior Account</span></div></div>"
+        deposit_amount: "Check Prior Account"
     }
 };
 
-// Initialize Application
+// 🚀 Initialize Application
 document.addEventListener("DOMContentLoaded", () => {
     populateTowerLists();
 });
 
-// Populate DataLists and Select dropdowns
+// 📌 Populate DataLists and Select Dropdowns
 function populateTowerLists() {
     const towersList = document.getElementById("towersList");
     const nocTowerSelect = document.getElementById("nocTowerSelect");
@@ -102,13 +101,13 @@ function populateTowerLists() {
     towersList.innerHTML = "";
     nocTowerSelect.innerHTML = '<option value="">-- Choose Tower --</option>';
 
-    Object.keys(towersData).forEach((towerName) => {
-        // Populate Datalist for Search
+    Object.keys(towersData).sort().forEach((towerName) => {
+        // Search List
         const option = document.createElement("option");
         option.value = towerName;
         towersList.appendChild(option);
 
-        // Populate NOC Select Dropdown
+        // NOC Dropdown
         const selectOption = document.createElement("option");
         selectOption.value = towerName;
         selectOption.textContent = towerName;
@@ -116,7 +115,7 @@ function populateTowerLists() {
     });
 }
 
-// Navigation Handler
+// 🔄 Navigation System
 function navigateTo(pageId) {
     const pages = document.querySelectorAll(".page");
     pages.forEach((page) => {
@@ -131,13 +130,12 @@ function navigateTo(pageId) {
     }
 }
 
-// 🔓 Direct Login (No credentials required)
+// 🔓 Direct Login (Bypass username/password requirement)
 function handleLogin(event) {
-    event.preventDefault();
+    if (event) event.preventDefault();
     const errorMsg = document.getElementById("login-error");
     if (errorMsg) errorMsg.style.display = "none";
     
-    // Direct Access to Dashboard
     navigateTo("home-page");
 }
 
@@ -149,43 +147,72 @@ function handleLogout() {
     navigateTo("login-page");
 }
 
-// Tower Master Data Search & Render
+// 🔍 Search & Render Tower Details + Formatting Badges
 function handleSelection() {
     const input = document.getElementById("towerInput");
     const clearBtn = document.getElementById("clearBtn");
-    const selectedValue = input.value.trim();
+    const selectedValue = input ? input.value.trim() : "";
 
     if (selectedValue.length > 0) {
-        clearBtn.style.display = "block";
+        if (clearBtn) clearBtn.style.display = "block";
     } else {
-        clearBtn.style.display = "none";
+        if (clearBtn) clearBtn.style.display = "none";
         clearTowerDetails();
         return;
     }
 
     if (towersData[selectedValue]) {
         const data = towersData[selectedValue];
-        document.getElementById("billing").innerText = data.billing;
-        document.getElementById("late").innerText = data.late;
-        document.getElementById("activation").innerText = data.activation;
-        document.getElementById("disconnection").innerText = data.disconnection;
-        document.getElementById("noc").innerText = data.noc;
-        document.getElementById("final").innerText = data.final;
 
-        document.getElementById("client").innerHTML = data.client;
-        document.getElementById("location").innerText = data.location;
-        document.getElementById("bank").innerText = data.bank;
-        document.getElementById("online").innerText = data.online;
+        // Service Fees
+        setFieldValue("billing", data.billing);
+        setFieldValue("late", data.late);
+        setFieldValue("activation", data.activation);
+        setFieldValue("disconnection", data.disconnection);
+        setFieldValue("noc", data.noc);
+        setFieldValue("final", data.final);
 
-        document.getElementById("deposit").innerText = data.deposit;
-        document.getElementById("deposit_amount").innerHTML = data.deposit_amount;
+        // Building & Management Details
+        const clientEl = document.getElementById("client");
+        if (clientEl) {
+            clientEl.innerHTML = `<span class="client-badge">${data.client}</span>`;
+        }
+
+        setFieldValue("location", data.location);
+        setFieldValue("bank", data.bank);
+        setFieldValue("online", data.online);
+
+        // Security Deposit & Badges Formatting
+        setFieldValue("deposit", data.deposit);
+
+        const depositAmountEl = document.getElementById("deposit_amount");
+        if (depositAmountEl) {
+            if (data.deposit_amount === "-") {
+                depositAmountEl.innerText = "-";
+            } else {
+                depositAmountEl.innerHTML = `
+                    <div class="deposit-badge-container">
+                        <div class="deposit-badge-row">
+                            <span class="badge-label">Amount:</span>
+                            <span class="badge-val">${data.deposit_amount}</span>
+                        </div>
+                    </div>
+                `;
+            }
+        }
     }
+}
+
+function setFieldValue(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.innerText = val || "-";
 }
 
 function clearSearch() {
     const input = document.getElementById("towerInput");
-    input.value = "";
-    document.getElementById("clearBtn").style.display = "none";
+    if (input) input.value = "";
+    const clearBtn = document.getElementById("clearBtn");
+    if (clearBtn) clearBtn.style.display = "none";
     clearTowerDetails();
 }
 
@@ -197,13 +224,15 @@ function clearTowerDetails() {
     });
 }
 
-// NOC Rules Dynamic Viewer
+// 📑 NOC Process Rules Handler
 function handleNocChange() {
-    const towerSelect = document.getElementById("nocTowerSelect").value;
-    const userType = document.getElementById("nocUserType").value;
+    const towerSelect = document.getElementById("nocTowerSelect") ? document.getElementById("nocTowerSelect").value : "";
+    const userType = document.getElementById("nocUserType") ? document.getElementById("nocUserType").value : "";
     const resultArea = document.getElementById("noc-result-area");
     const ownerCard = document.getElementById("owner-checklist-card");
     const tenantCard = document.getElementById("tenant-checklist-card");
+
+    if (!resultArea || !ownerCard || !tenantCard) return;
 
     if (towerSelect && userType) {
         resultArea.classList.remove("hidden-page");
