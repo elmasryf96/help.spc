@@ -13,7 +13,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <link rel="stylesheet" href="style.css?v=10.0">
+    <link rel="stylesheet" href="style.css?v=11.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -53,10 +53,10 @@
         </div>
     </div>
 
-    <!-- 🏠 الصفحة الرئيسية -->
-    <div id="home-page" class="page hidden-page">
-        <div class="container text-center">
-            <div class="brand-header justify-center relative-header">
+    <!-- 🏢 صفحة بحث الأبراج والرسوم (الصفحة الأساسية) -->
+    <div id="towers-page" class="page hidden-page">
+        <div class="container">
+            <div class="brand-header relative-header">
                 <div class="logo-container">
                     <svg class="logo-svg" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <circle cx="35" cy="18" r="5" fill="#E8D567"/>
@@ -72,45 +72,6 @@
                 <button class="logout-btn" onclick="handleLogout()" title="Log out">
                     <i class="fa-solid fa-right-from-bracket"></i> Logout
                 </button>
-            </div>
-
-            <div class="system-title">🚀 MAIN CONTROL DASHBOARD</div>
-
-            <div class="dashboard-grid">
-                <div class="menu-card" onclick="navigateTo('towers-page')">
-                    <div class="menu-icon"><i class="fa-solid fa-building"></i></div>
-                    <h3>Towers Fees & Search</h3>
-                    <p>Search tower database, service fees, security deposits, and management info.</p>
-                    <button class="btn-primary">Open Portal</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 🏢 صفحة بحث الأبراج والرسوم -->
-    <div id="towers-page" class="page hidden-page">
-        <div class="container">
-            <div class="top-bar-controls">
-                <button class="back-btn" onclick="navigateTo('home-page')">
-                    <i class="fa-solid fa-arrow-left"></i> Back to Main Dashboard
-                </button>
-                <button class="logout-btn" onclick="handleLogout()">
-                    <i class="fa-solid fa-right-from-bracket"></i> Logout
-                </button>
-            </div>
-
-            <div class="brand-header">
-                <div class="logo-container">
-                    <svg class="logo-svg" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="35" cy="18" r="5" fill="#E8D567"/>
-                        <circle cx="68" cy="18" r="5" fill="#E8D567"/>
-                        <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
-                        <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
-                        <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
-                        <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
-                    </svg>
-                    <div class="logo-text">Smart <span>Collection</span></div>
-                </div>
             </div>
 
             <div class="system-title">🏢 Towers Data & Service Fees Search Portal</div>
@@ -156,6 +117,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=10.0"></script>
+    <script src="script.js?v=11.0"></script>
 </body>
 </html>
