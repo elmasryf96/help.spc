@@ -1,138 +1,166 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SPC - Building Management Portal</title>
-
-    <!-- Tailwind CSS (CDN) -->
-    <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- Font Awesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <!-- Google Fonts (Cairo) -->
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
-
-    <!-- Custom Style Sheet (مع حيلة الـ v=2.0 للـ Cache) -->
+    <title>Smart Collection - Portal Login</title>
+    <!-- ربط الاستايل الأصلي مع حيلة منع الكاش -->
     <link rel="stylesheet" href="style.css?v=2.0">
-
-    <style>
-        body {
-            font-family: 'Cairo', sans-serif;
-        }
-    </style>
+    <!-- Font Awesome للأيقونات -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="bg-gray-100 text-gray-800 min-h-screen flex flex-col justify-between">
+<body>
 
-    <!-- 1️⃣ SCREEN: LOGIN SECTION -->
-    <div id="login-screen" class="flex items-center justify-center min-h-screen p-4">
-        <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-gray-100 text-center">
-            <!-- Header / Logo -->
-            <div class="mb-6">
-                <div class="w-20 h-20 bg-blue-900 text-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
-                    <i class="fa-solid me-0 fa-building text-3xl"></i>
+    <!-- 🔒 صفحة تسجيل الدخول (Login Page) -->
+    <div id="login-page" class="page active-page">
+        <div class="login-container">
+            <div class="logo-container justify-center margin-bottom-20">
+                <svg class="logo-svg" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+                    <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+                    <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+                    <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+                    <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+                    <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+                </svg>
+                <div class="logo-text">
+                    Smart
+                    <span>Collection</span>
                 </div>
-                <h1 class="text-2xl font-bold text-gray-800">Smart Payments Collection</h1>
-                <p class="text-sm text-gray-500 mt-1">بوابة إدارة العقارات والتحصيل</p>
             </div>
 
-            <!-- Login Form -->
-            <form id="login-form" class="space-y-4 text-right">
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-1">اسم المستخدم</label>
-                    <div class="relative">
-                        <input type="text" id="username" required placeholder="أدخل اسم المستخدم" 
-                            class="w-full pl-4 pr-10 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 transition">
-                        <i class="fa-solid fa-user absolute right-3 top-3.5 text-gray-400"></i>
-                    </div>
+            <h2 class="login-title">Portal Access Login</h2>
+            
+            <form onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="username"><i class="fa-solid fa-user"></i> Username</label>
+                    <input type="text" id="username" class="login-input" placeholder="Enter username" required>
                 </div>
 
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-1">كلمة المرور</label>
-                    <div class="relative">
-                        <input type="password" id="password" required placeholder="••••••••" 
-                            class="w-full pl-4 pr-10 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 transition">
-                        <i class="fa-solid fa-lock absolute right-3 top-3.5 text-gray-400"></i>
-                    </div>
+                <div class="form-group">
+                    <label for="password"><i class="fa-solid fa-lock"></i> Password</label>
+                    <input type="password" id="password" class="login-input" placeholder="Enter password" required>
                 </div>
 
-                <!-- Error Alert -->
-                <div id="login-error" class="hidden text-red-600 text-sm font-semibold bg-red-50 p-2.5 rounded-lg border border-red-200">
-                    <i class="fa-solid fa-circle-exclamation me-1"></i> اسم المستخدم أو كلمة المرور غير صحيحة!
+                <div id="login-error" class="login-error-msg">
+                    ❌ Invalid Username or Password!
                 </div>
 
-                <button type="submit" 
-                    class="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold py-3 rounded-lg shadow-md transition duration-200">
-                    تسجيل الدخول <i class="fa-solid fa-right-to-bracket ms-2"></i>
-                </button>
+                <button type="submit" class="btn-login">Sign In</button>
             </form>
         </div>
     </div>
 
-    <!-- 2️⃣ SCREEN: DASHBOARD SECTION (Hidden by default) -->
-    <div id="dashboard-screen" class="hidden min-h-screen flex-col">
-        <!-- Navbar -->
-        <nav class="bg-blue-900 text-white shadow-md">
-            <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-                <div class="flex items-center space-x-3 space-x-reverse">
-                    <i class="fa-solid fa-building text-2xl"></i>
-                    <span class="font-bold text-lg">SPC Portal</span>
-                </div>
-                <button id="logout-btn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-lg text-sm transition">
-                    خروج <i class="fa-solid fa-right-from-bracket ms-1"></i>
-                </button>
-            </div>
-        </nav>
-
-        <!-- Main Content Container -->
-        <main class="max-w-7xl mx-auto p-4 md:p-6 flex-grow w-full">
-            <!-- Search & Filter Controls -->
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="relative">
-                    <input type="text" id="search-input" placeholder="بحث باسم البناية أو المالك..." 
-                        class="w-full pl-4 pr-10 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-600 focus:outline-none">
-                    <i class="fa-solid fa-magnifying-glass absolute right-3 top-3.5 text-gray-400"></i>
-                </div>
-                <div>
-                    <select id="filter-status" class="w-full py-2.5 px-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-600 focus:outline-none">
-                        <option value="all">جميع الحالات</option>
-                        <option value="active">نشط / محصل</option>
-                        <option value="pending">مستحق / معلق</option>
-                    </select>
-                </div>
-                <div class="flex items-center justify-end text-sm text-gray-500 font-semibold">
-                    إجمالي النتائج: <span id="record-count" class="text-blue-900 mx-1">0</span>
+    <!-- 🏠 الصفحة الرئيسية (Dashboard) -->
+    <div id="home-page" class="page hidden-page">
+        <div class="container text-center">
+            <div class="brand-header justify-center">
+                <div class="logo-container">
+                    <svg class="logo-svg" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+                        <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+                        <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+                        <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+                    </svg>
+                    <div class="logo-text">
+                        Smart
+                        <span>Collection</span>
+                    </div>
                 </div>
             </div>
 
-            <!-- Data Table -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
-                <table class="w-full text-right border-collapse">
-                    <thead class="bg-gray-50 border-b border-gray-200 text-gray-600 text-sm">
-                        <tr>
-                            <th class="p-4">اسم البناية</th>
-                            <th class="p-4">رقم الوحدة</th>
-                            <th class="p-4">اسم العميل / المالك</th>
-                            <th class="p-4">المبلغ المستحق</th>
-                            <th class="p-4">الحالة</th>
-                            <th class="p-4 text-center">إجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody id="data-table-body" class="divide-y divide-gray-100 text-sm">
-                        <!-- البيانات هتنزل هنا ديناميكيًا من script.js -->
-                    </tbody>
-                </table>
+            <div class="system-title">
+                🚀 MAIN CONTROL DASHBOARD
             </div>
-        </main>
 
-        <!-- Footer -->
-        <footer class="bg-gray-800 text-gray-400 text-center py-3 text-xs border-t border-gray-700">
-            Smart Payments Collection &copy; 2026 - جميع الحقوق محفوظة
-        </footer>
+            <div class="dashboard-grid">
+                <!-- كارت Towers Fees -->
+                <div class="menu-card" onclick="navigateTo('towers-page')">
+                    <div class="menu-icon">
+                        <i class="fa-solid fa-building"></i>
+                    </div>
+                    <h3>Towers Fees & Search</h3>
+                    <p>Search tower database, service fees, security deposits, and management info.</p>
+                    <button class="btn-primary">Open Portal</button>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Custom JavaScript Sheet (مع حيلة الـ v=2.0 للـ Cache) -->
+    <!-- 🏢 صفحة Towers Fees Search Portal -->
+    <div id="towers-page" class="page hidden-page">
+        <div class="container">
+            <button class="back-btn" onclick="navigateTo('home-page')">
+                <i class="fa-solid fa-arrow-left"></i> Back to Main Dashboard
+            </button>
+
+            <div class="brand-header">
+                <div class="logo-container">
+                    <svg class="logo-svg" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+                        <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+                        <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+                        <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+                    </svg>
+                    <div class="logo-text">
+                        Smart
+                        <span>Collection</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="system-title">
+                🏢 Towers Data & Service Fees Search Portal
+            </div>
+            
+            <div class="search-box">
+                <label for="towerInput">🔍 Search & Select Tower Name:</label>
+                <div class="input-wrapper">
+                    <input type="text" id="towerInput" list="towersList" class="combo-input" placeholder="Type tower name (e.g. Al Dana, Danube, Lamar)..." oninput="handleSelection()">
+                    <button type="button" id="clearBtn" class="clear-btn" onclick="clearSearch()" title="Clear text">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <datalist id="towersList"></datalist>
+            </div>
+
+            <div class="cards-wrapper">
+                <div class="card card-fees-top">
+                    <h3>🏷️ APPLICABLE SERVICE FEES</h3>
+                    <div class="fees-grid">
+                        <div class="row"><span class="title">Billing Fee:</span><span class="val" id="billing">-</span></div>
+                        <div class="row"><span class="title">Late Fee:</span><span class="val" id="late">-</span></div>
+                        <div class="row"><span class="title">Activation Fee:</span><span class="val" id="activation">-</span></div>
+                        <div class="row"><span class="title">Disconnection Fee:</span><span class="val" id="disconnection">-</span></div>
+                        <div class="row"><span class="title">NOC Fee:</span><span class="val" id="noc">-</span></div>
+                        <div class="row"><span class="title">Final Bill Fee:</span><span class="val" id="final">-</span></div>
+                    </div>
+                </div>
+
+                <div class="bottom-cards-row">
+                    <div class="card">
+                        <h3>🏛️ BUILDING & MANAGEMENT DETAILS</h3>
+                        <div class="row"><span class="title">Client Details:</span><span class="val" id="client">-</span></div>
+                        <div class="row"><span class="title">Location:</span><span class="val" id="location">-</span></div>
+                        <div class="row"><span class="title">Bank Account:</span><span class="val" id="bank">-</span></div>
+                        <div class="row"><span class="title">Online Payment Availability:</span><span class="val" id="online">-</span></div>
+                    </div>
+
+                    <div class="card card-deposit">
+                        <h3>🛡️ SECURITY DEPOSIT</h3>
+                        <div class="row"><span class="title">Security Deposit Refund:</span><span class="val" id="deposit">-</span></div>
+                        <div class="row"><span class="title">Security Deposit Amount:</span><span class="val" id="deposit_amount">-</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ربط السكريبت الأصلي مع حيلة منع الكاش -->
     <script src="script.js?v=2.0"></script>
 </body>
 </html>
