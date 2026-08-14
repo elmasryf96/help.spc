@@ -160,9 +160,16 @@ function updateFields(data, towerName = "") {
         fields.forEach(f => {
             document.getElementById(f).innerText = data[f] !== undefined ? data[f] : "-";
         });
+        
         const lowerName = towerName.toLowerCase();
+        
+        // 🛡️ Security Deposit Calculation logic based on project rules
         if (lowerName.includes("danube") || lowerName.includes("lamar")) {
             document.getElementById("deposit_amount").innerText = "1,000 AED (Fixed for all units)";
+        } else if (data.deposit === "SPC for new customer") {
+            document.getElementById("deposit_amount").innerText = "Collect deposit (New Customers Only)";
+        } else if (data.deposit === "Client") {
+            document.getElementById("deposit_amount").innerText = "Handled Directly by Client / Owner";
         } else {
             document.getElementById("deposit_amount").innerText = "Check the prior owner or tenant account";
         }
