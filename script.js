@@ -1,32 +1,79 @@
-// Sample Master Data for Towers Database
+// Master Data for Towers Database
 const towersData = {
-    "Al Dana Tower": {
+    "Bali Residence": {
         billing: "25 AED",
         late: "50 AED",
         activation: "100 AED",
         disconnection: "100 AED",
         noc: "150 AED",
         final: "50 AED",
-        client: "<span class='client-badge'>Smart Collection Corp</span>",
+        client: "<span class='client-badge'>Smart Collection</span>",
         location: "Abu Dhabi",
         bank: "ADCB - 123456789",
         online: "Available",
         deposit: "Refundable",
-        deposit_amount: "<div class='deposit-badge-container'><div class='deposit-badge-row'><span class='badge-label'>Residential:</span><span class='badge-val'>1000 AED</span></div></div>"
+        // 1. Bali Residence: Capacity charges*8
+        deposit_amount: "<div class='deposit-badge-container'><div class='deposit-badge-row'><span class='badge-label'>Amount:</span><span class='badge-val'>Capacity charges*8</span></div></div>"
     },
-    "Danube Tower": {
-        billing: "20 AED",
-        late: "40 AED",
-        activation: "80 AED",
-        disconnection: "80 AED",
-        noc: "100 AED",
-        final: "40 AED",
-        client: "<span class='client-badge'>Danube Properties</span>",
+    "Al Reem Bay Tower 1": {
+        billing: "25 AED",
+        late: "50 AED",
+        activation: "100 AED",
+        disconnection: "100 AED",
+        noc: "150 AED",
+        final: "50 AED",
+        client: "<span class='client-badge'>Smart Collection</span>",
+        location: "Abu Dhabi",
+        bank: "ADCB - 123456789",
+        online: "Available",
+        deposit: "N/A",
+        // 3. Al Reem Bay Tower 1: '-'
+        deposit_amount: "-"
+    },
+    "Al Reem Bay Tower 2": {
+        billing: "25 AED",
+        late: "50 AED",
+        activation: "100 AED",
+        disconnection: "100 AED",
+        noc: "150 AED",
+        final: "50 AED",
+        client: "<span class='client-badge'>Smart Collection</span>",
+        location: "Abu Dhabi",
+        bank: "ADCB - 123456789",
+        online: "Available",
+        deposit: "N/A",
+        // 3. Al Reem Bay Tower 2: '-'
+        deposit_amount: "-"
+    },
+    "Torino by ORO24": {
+        billing: "25 AED",
+        late: "50 AED",
+        activation: "100 AED",
+        disconnection: "100 AED",
+        noc: "150 AED",
+        final: "50 AED",
+        client: "<span class='client-badge'>ORO24</span>",
         location: "Dubai",
         bank: "ENBD - 987654321",
         online: "Available",
+        deposit: "N/A",
+        // 3. Torino by ORO24: '-'
+        deposit_amount: "-"
+    },
+    "Standard Tower Example": {
+        billing: "25 AED",
+        late: "50 AED",
+        activation: "100 AED",
+        disconnection: "100 AED",
+        noc: "150 AED",
+        final: "50 AED",
+        client: "<span class='client-badge'>Smart Collection</span>",
+        location: "Abu Dhabi",
+        bank: "ADCB - 123456789",
+        online: "Available",
         deposit: "Refundable",
-        deposit_amount: "<div class='deposit-badge-container'><div class='deposit-badge-row'><span class='badge-label'>Residential:</span><span class='badge-val'>1500 AED</span></div></div>"
+        // 2. Defaulting Client / Owner cases to Check Prior Account
+        deposit_amount: "<div class='deposit-badge-container'><div class='deposit-badge-row'><span class='badge-label'>Amount:</span><span class='badge-val'>Check Prior Account</span></div></div>"
     }
 };
 
