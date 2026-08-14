@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Collection - Portal Login</title>
-    <!-- غيرنا الـ Version لـ 3.0 عشان نلغي الكاش القديم فوراً -->
-    <link rel="stylesheet" href="style.css?v=3.0">
+    <!-- تحديث رقم الإصدار لـ v=4.0 لكسر الكاش فوراً -->
+    <link rel="stylesheet" href="style.css?v=4.0">
     <!-- Font Awesome للأيقونات -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -54,7 +54,7 @@
     <!-- 🏠 الصفحة الرئيسية (Dashboard) -->
     <div id="home-page" class="page hidden-page">
         <div class="container text-center">
-            <div class="brand-header justify-center">
+            <div class="brand-header justify-center relative-header">
                 <div class="logo-container">
                     <svg class="logo-svg" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <circle cx="35" cy="18" r="5" fill="#E8D567"/>
@@ -69,6 +69,11 @@
                         <span>Collection</span>
                     </div>
                 </div>
+
+                <!-- زرار Logout في الصفحة الرئيسية -->
+                <button class="logout-btn" onclick="handleLogout()" title="Log out">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
             </div>
 
             <div class="system-title">
@@ -92,9 +97,14 @@
     <!-- 🏢 صفحة Towers Fees Search Portal -->
     <div id="towers-page" class="page hidden-page">
         <div class="container">
-            <button class="back-btn" onclick="navigateTo('home-page')">
-                <i class="fa-solid fa-arrow-left"></i> Back to Main Dashboard
-            </button>
+            <div class="top-bar-controls">
+                <button class="back-btn" onclick="navigateTo('home-page')">
+                    <i class="fa-solid fa-arrow-left"></i> Back to Main Dashboard
+                </button>
+                <button class="logout-btn" onclick="handleLogout()" title="Log out">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
 
             <div class="brand-header">
                 <div class="logo-container">
@@ -160,7 +170,6 @@
         </div>
     </div>
 
-    <!-- السكريبت برضه آخد v=3.0 -->
-    <script src="script.js?v=3.0"></script>
+    <script src="script.js?v=4.0"></script>
 </body>
 </html>
