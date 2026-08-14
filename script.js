@@ -1,4 +1,4 @@
-// 🔓 دخول مباشر للداشبورد فور الضغط على Sign In بدون شروط
+// 🔓 دخول مباشر للداشبورد فور الضغط على Sign In بدون اشتراط إدخال بيانات
 function handleLogin(event) {
     if (event) event.preventDefault();
     const errorMsg = document.getElementById("login-error");
