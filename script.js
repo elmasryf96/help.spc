@@ -155,13 +155,26 @@ const towersData = {
 };
 
 function updateFields(data, towerName = "") {
-    const fields = ["client", "location", "bank", "deposit", "online", "billing", "late", "activation", "disconnection", "noc", "final"];
+    const feeFields = ["billing", "late", "activation", "disconnection", "noc", "final"];
+    const detailFields = ["client", "location", "bank", "online", "deposit"];
     const depositRow = document.getElementById("deposit_amount").closest('.row');
     const depositVal = document.getElementById("deposit_amount");
 
     if (data) {
-        fields.forEach(f => {
-            document.getElementById(f).innerText = data[f] !== undefined ? data[f] : "-";
+        // 💰 Format Fees as Badges
+        feeFields.forEach(f => {
+            const val = data[f] !== undefined ? data[f] : "-";
+            document.getElementById(f).innerHTML = `<span class="custom-badge">${val}</span>`;
+        });
+
+        // 🏢 Format Building Details
+        detailFields.forEach(f => {
+            const val = data[f] !== undefined ? data[f] : "-";
+            if (f === "client") {
+                document.getElementById(f).innerText = val; // نص عادي بدون بَادج للأسماء الطويلة
+            } else {
+                document.getElementById(f).innerHTML = `<span class="custom-badge">${val}</span>`;
+            }
         });
         
         const lowerName = towerName.toLowerCase();
@@ -194,21 +207,23 @@ function updateFields(data, towerName = "") {
                     </div>
                 </div>`;
         } else {
-            depositRow.style.alignItems = "baseline";
+            depositRow.style.alignItems = "center";
             if (lowerName.includes("lamar")) {
-                depositVal.innerText = "1,000 AED (Fixed for all units)";
+                depositVal.innerHTML = `<span class="custom-badge">1,000 AED (Fixed)</span>`;
             } else if (lowerName.includes("maison")) {
-                depositVal.innerHTML = `<span style="background: #eef6ff; color: #1e88e5; border: 1px solid #90caf9; padding: 5px 12px; border-radius: 8px; font-weight: 800; font-size: 13px;">Unit Capacity × 62.5 × 8</span>`;
+                depositVal.innerHTML = `<span class="custom-badge custom-badge-blue">Unit Capacity × 62.5 × 8</span>`;
             } else if (data.deposit === "SPC for new customer") {
-                depositVal.innerText = "Collect deposit (New Customers Only)";
+                depositVal.innerHTML = `<span class="custom-badge">New Customers Only</span>`;
             } else if (data.deposit === "Client") {
-                depositVal.innerText = "Handled Directly by Client / Owner";
+                depositVal.innerHTML = `<span class="custom-badge">Client / Owner</span>`;
             } else {
-                depositVal.innerText = "Check the prior owner or tenant account";
+                depositVal.innerHTML = `<span class="custom-badge">Check Prior Account</span>`;
             }
         }
     } else {
-        fields.forEach(f => document.getElementById(f).innerText = "-");
+        [...feeFields, ...detailFields].forEach(f => {
+            document.getElementById(f).innerText = "-";
+        });
         depositRow.style.alignItems = "baseline";
         depositVal.innerText = "-";
     }
