@@ -1,258 +1,469 @@
-function handleLogin(event) {
-    event.preventDefault();
-    const user = document.getElementById("username").value.trim();
-    const pass = document.getElementById("password").value.trim();
-    const errorMsg = document.getElementById("login-error");
-
-    if (user === "SPC" && pass === "SPC@2026") {
-        errorMsg.style.display = "none";
-        navigateTo('home-page');
-    } else {
-        errorMsg.style.display = "block";
-    }
+:root {
+    --primary-yellow: #e8d567;
+    --dark-navy: #1a252f;
+    --coral-red: #ee6c6a;
+    --bg-light: #fffdf0;
+    --text-muted: #5a6a75;
 }
 
-function handleLogout() {
-    document.getElementById("username").value = "";
-    document.getElementById("password").value = "";
-    document.getElementById("login-error").style.display = "none";
-    if (document.getElementById("towerInput")) { clearSearch(); }
-    navigateTo('login-page');
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #fefae0 0%, #f7eeaa 100%);
+    margin: 0;
+    padding: 30px 15px;
+    color: var(--dark-navy);
+    direction: ltr;
+    text-align: left;
+    min-height: 100vh;
 }
 
-function navigateTo(pageId) {
-    const pages = document.querySelectorAll('.page');
-    pages.forEach(page => {
-        page.classList.remove('active-page');
-        page.classList.add('hidden-page');
-    });
-
-    const targetPage = document.getElementById(pageId);
-    if (targetPage) {
-        targetPage.classList.remove('hidden-page');
-        targetPage.classList.add('active-page');
-    }
+.page { 
+    display: none; 
+    animation: fadeIn 0.3s ease-in-out; 
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-    const datalist = document.getElementById("towersList");
-    const nocSelect = document.getElementById("nocTowerSelect");
-
-    if (datalist || nocSelect) {
-        Object.keys(towersData).sort().forEach(tower => {
-            if (datalist) {
-                let option = document.createElement("option");
-                option.value = tower;
-                datalist.appendChild(option);
-            }
-            if (nocSelect) {
-                let opt = document.createElement("option");
-                opt.value = tower;
-                opt.textContent = tower;
-                nocSelect.appendChild(opt);
-            }
-        });
-    }
-});
-
-function handleNocChange() {
-    const tower = document.getElementById("nocTowerSelect").value;
-    const userType = document.getElementById("nocUserType").value;
-
-    const resultArea = document.getElementById("noc-result-area");
-    const ownerCard = document.getElementById("owner-checklist-card");
-    const tenantCard = document.getElementById("tenant-checklist-card");
-
-    if (tower && userType) {
-        resultArea.classList.remove("hidden-page");
-        if (userType === "owner") {
-            ownerCard.classList.remove("hidden-page");
-            tenantCard.classList.add("hidden-page");
-        } else if (userType === "tenant") {
-            tenantCard.classList.remove("hidden-page");
-            ownerCard.classList.add("hidden-page");
-        }
-    } else {
-        resultArea.classList.add("hidden-page");
-        ownerCard.classList.add("hidden-page");
-        tenantCard.classList.add("hidden-page");
-    }
+.active-page { 
+    display: block; 
 }
 
-const towersData = {
-  "Al Dana Towers": { "client": "ADCP/Nine Yard", "location": "Abudhabi", "bank": "SPC", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "40.00 AED", "activation": "200.00 AED", "disconnection": "500.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Al Mamzar Gate": { "client": "H S H Real Estate", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "40.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Al Nuaimiya Tower C": { "client": "Aqaar Community Management", "location": "Ajman", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "20.00 AED", "late": "35.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "150.00 AED" },
-  "Al Raha Beach Towers": { "client": "Emirates Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "500.00 AED", "noc": "100.00 AED", "final": "35.00 AED" },
-  "Al Reem Bay Tower 1": { "client": "FAB Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "Client", "online": "Yes", "billing": "28.00 AED", "late": "25.00 AED", "activation": "50.00 AED", "disconnection": "250.00 AED", "noc": "50.00 AED", "final": "25.00 AED" },
-  "Al Reem Bay Tower 2": { "client": "FAB Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "Client", "online": "Yes", "billing": "28.00 AED", "late": "25.00 AED", "activation": "50.00 AED", "disconnection": "250.00 AED", "noc": "50.00 AED", "final": "25.00 AED" },
-  "Al Wifaq Tower": { "client": "ADCP/Nine Yard", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC for new customer", "online": "No", "billing": "25.00 AED", "late": "50.00 AED", "activation": "250.00 AED", "disconnection": "250.00 AED", "noc": "100.00 AED", "final": "35.00 AED" },
-  "Amaya Tower 1": { "client": "Dhafir development", "location": "Abudhabi", "bank": "Client", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "35.00 AED", "activation": "100.00 AED", "disconnection": "500.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Amaya Tower 2": { "client": "Dhafir development", "location": "Abudhabi", "bank": "Client", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "35.00 AED", "activation": "100.00 AED", "disconnection": "500.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Aria Residence": { "client": "Stratum Owners Association Management", "location": "Dubai", "bank": "Client", "deposit": "Client", "online": "No", "billing": "20.00 AED", "late": "25.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Ayedh Tower": { "client": "Dajeem Properties", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "20.00 AED", "late": "30.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Bali Residence": { "client": "Stratum Owner Association Management Services LLC", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Binghatti East": { "client": "Kaizen Owners Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "20.00 AED", "late": "20.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Binghatti West": { "client": "Kaizen Owner Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "20.00 AED", "late": "20.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Building H": { "client": "National Investment Cooperation", "location": "Abudhabi", "bank": "SPC", "deposit": "N/A", "online": "Yes", "billing": "37.00 AED", "late": "n/a", "activation": "100.00 AED", "disconnection": "200.00 AED", "noc": "50.00 AED", "final": "30.00 AED" },
-  "Centurion Star Tower A": { "client": "Reliance Owners Association Management", "location": "Dubai", "bank": "Client", "deposit": "Client", "online": "Yes", "billing": "40.00 AED", "late": "50.00 AED", "activation": "250.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Centurion Star Tower B": { "client": "Reliance Owners Association Management", "location": "Dubai", "bank": "Client", "deposit": "Client", "online": "Yes", "billing": "40.00 AED", "late": "50.00 AED", "activation": "250.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Clover Bay": { "client": "Stratum Owner Association Management Services LLC", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Condor Marina Star": { "client": "King Royal Community Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "30.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Corniche Tower": { "client": "Aqaar Community Management", "location": "Ajman", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "20.00 AED", "late": "35.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "150.00 AED" },
-  "Creek Vistas Grande": { "client": "Sobha Community Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "25.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "DG Building 110": { "client": "Modo Property Management Services LLC", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "35.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "DG Building 111": { "client": "Modo Property Management Services LLC", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "35.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "DG Building 112": { "client": "Modo Property Management Services LLC", "location": "Dubai", "bank": "SPC", "deposit": "SPC for new customer", "online": "Yes", "billing": "35.00 AED", "late": "40.00 AED", "activation": "150.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "DG Building 132": { "client": "Modo Property Management Services LLC", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "35.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "East Coast": { "client": "Saeed Mohammed Abdulla Alraqbani Hamdan Bin Abdullah", "location": "Dubai", "bank": "SPC", "deposit": "Client", "online": "Yes", "billing": "30.00 AED", "late": "25.00 AED", "activation": "60.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Eastern Mangrooves": { "client": "Aldar Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "25.00 AED", "activation": "150.00 AED", "disconnection": "150.00 AED", "noc": "100.00 AED", "final": "35.00 AED" },
-  "Eastern Star": { "client": "DGM Properties LLC", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "40.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Elz by Danube": { "client": "Stratum Owners Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Fairmont Marina Residences": { "client": "National Investment Cooperation", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "37.00 AED", "late": "30.00 AED", "activation": "100.00 AED", "disconnection": "200.00 AED", "noc": "50.00 AED", "final": "30.00 AED" },
-  "Gemini Splendor": { "client": "Stratum Owner Association Management Services LLC", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Glamz by Danube": { "client": "Stratum Owners Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Grosvenor Business Tower": { "client": "Stratum Owners Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "35.00 AED", "late": "50.00 AED", "activation": "250.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Hthree by Aurora": { "client": "Better Communities Owner Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "40.00 AED", "activation": "250.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Hussain Ibrahim Mohamed Ibrahim Alhammadi": { "client": "Curve Real Estate LLC", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "20.00 AED", "late": "75.00 AED", "activation": "150.00 AED", "disconnection": "250.00 AED", "noc": "50.00 AED", "final": "50.00 AED" },
-  "Julphar Residence": { "client": "Stratum Owner Association Management", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "35.00 AED", "late": "35.00 AED", "activation": "50.00 AED", "disconnection": "250.00 AED", "noc": "100.00 AED", "final": "50.00 AED" },
-  "Lawnz by Danube": { "client": "Stratum Owners Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Maison VI Residence": { "client": "Khyber Investments Limited", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "35.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Makeen Residence": { "client": "Makeen Properties", "location": "Dubai", "bank": "SPC", "deposit": "SPC for new customer", "online": "Yes", "billing": "30.00 AED", "late": "35.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Marina Sunset": { "client": "National Investment Cooperation", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "28.00 AED", "late": "30.00 AED", "activation": "100.00 AED", "disconnection": "500.00 AED", "noc": "50.00 AED", "final": "30.00 AED" },
-  "Miraclz by Danube": { "client": "Stratum Owner Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Muhaimat Tower": { "client": "Arabian Falcon Group", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "250.00 AED", "noc": "100.00 AED", "final": "0.00 AED" },
-  "Nation Tower Commercial": { "client": "ICT", "location": "Abudhabi", "bank": "Client", "deposit": "Client", "online": "No", "billing": "23.00 AED", "late": "0.00 AED", "activation": "50.00 AED", "disconnection": "500.00 AED", "noc": "30.00 AED", "final": "0.00 AED" },
-  "Palace Tower": { "client": "Reliance Owners Association Management", "location": "Dubai", "bank": "Client", "deposit": "Client", "online": "Yes", "billing": "25.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Pearl Coast": { "client": "Al Khaimah Real Estate", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "40.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Raha C6": { "client": "Saeed Mohammed Abdulla Alraqbani Hamdan Bin Abdullah", "location": "Abudhabi", "bank": "SPC", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "25.00 AED", "activation": "60.00 AED", "disconnection": "250.00 AED", "noc": "100.00 AED", "final": "25.00 AED" },
-  "Raha C7": { "client": "Saeed Mohammed Abdulla Alraqbani Hamdan Bin Abdullah", "location": "Abudhabi", "bank": "SPC", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "25.00 AED", "activation": "60.00 AED", "disconnection": "250.00 AED", "noc": "100.00 AED", "final": "25.00 AED" },
-  "Resortz by Danube": { "client": "Stratum Owners Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Shams Meera Tower 1": { "client": "Aldar Properties/Provis OA Management", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "25.00 AED", "activation": "50.00 AED", "disconnection": "150.00 AED", "noc": "100.00 AED", "final": "35.00 AED" },
-  "Shams Meera Tower 2": { "client": "Aldar Properties/Provis OA Management", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "25.00 AED", "activation": "50.00 AED", "disconnection": "150.00 AED", "noc": "100.00 AED", "final": "35.00 AED" },
-  "Silverene Tower": { "client": "Palma Community Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "50.00 AED", "late": "25.00 AED", "activation": "250.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Skyview Tower": { "client": "Stratum Owners Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "35.00 AED", "late": "50.00 AED", "activation": "250.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Sobha Waves": { "client": "Sobha Community Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "25.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Sobha Waves Grande": { "client": "Sobha Community Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "25.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Starz by Danube": { "client": "Stratum Owners Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Sway Residence": { "client": "Kaizen Owner Association Management Services LLC", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "35.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "The 7 By Aurora": { "client": "Aurora Real Estate Development LLC", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "23.00 AED", "late": "40.00 AED", "activation": "250.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "The Bridges 4": { "client": "Aldar Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "25.00 AED", "activation": "50.00 AED", "disconnection": "150.00 AED", "noc": "100.00 AED", "final": "35.00 AED" },
-  "The Bridges 5": { "client": "Aldar Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "25.00 AED", "activation": "50.00 AED", "disconnection": "150.00 AED", "noc": "100.00 AED", "final": "35.00 AED" },
-  "The Bridges 6": { "client": "Aldar Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "25.00 AED", "activation": "50.00 AED", "disconnection": "150.00 AED", "noc": "100.00 AED", "final": "35.00 AED" },
-  "The Dunes Tower": { "client": "Reliance Owners Association Management", "location": "Dubai", "bank": "Client", "deposit": "Client", "online": "Yes", "billing": "34.00 AED", "late": "50.00 AED", "activation": "250.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "The Lamar Residence Tower A": { "client": "Al Saqer Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "35.00 AED", "activation": "0.00 AED", "disconnection": "500.00 AED", "noc": "150.00 AED", "final": "20.00 AED" },
-  "The Lamar Residence Tower B": { "client": "Al Saqer Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "35.00 AED", "activation": "0.00 AED", "disconnection": "500.00 AED", "noc": "150.00 AED", "final": "20.00 AED" },
-  "The Lamar Residence Tower C": { "client": "Al Saqer Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "35.00 AED", "activation": "0.00 AED", "disconnection": "500.00 AED", "noc": "150.00 AED", "final": "20.00 AED" },
-  "The Lamar Residence Tower D": { "client": "Al Saqer Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "35.00 AED", "activation": "0.00 AED", "disconnection": "500.00 AED", "noc": "150.00 AED", "final": "20.00 AED" },
-  "The Lamar Residence Townhouse": { "client": "Al Saqer Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "35.00 AED", "activation": "0.00 AED", "disconnection": "500.00 AED", "noc": "150.00 AED", "final": "20.00 AED" },
-  "Torino by ORO24": { "client": "ORO24 Developments", "location": "Dubai", "bank": "SPC", "deposit": "Client", "online": "Yes", "billing": "30.00 AED", "late": "35.00 AED", "activation": "0.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Water Front Trident": { "client": "Stratum Owners Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "35.00 AED", "late": "50.00 AED", "activation": "250.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Waves Tower-Damac": { "client": "Damac", "location": "Dubai", "bank": "Client", "deposit": "SPC", "online": "Yes", "billing": "45.00 AED", "late": "0.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Westwood By Imtiaz": { "client": "Better Community Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "30.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Yasmina Towers 1": { "client": "Dhafir development", "location": "Abudhabi", "bank": "Client", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "35.00 AED", "activation": "100.00 AED", "disconnection": "500.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Yasmina Towers 2": { "client": "Dhafir development", "location": "Abudhabi", "bank": "Client", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "35.00 AED", "activation": "100.00 AED", "disconnection": "500.00 AED", "noc": "0.00 AED", "final": "0.00 AED" }
-};
-
-// Helper function to render uniform badge HTML
-function renderBadge(val) {
-    if (!val || val === "-") return "-";
-    return `<span class="spc-badge">${val}</span>`;
+.hidden-page { 
+    display: none; 
 }
 
-function updateFields(data, towerName = "") {
-    const feeFields = ["billing", "late", "activation", "disconnection", "noc", "final"];
-    const detailFields = ["location", "bank", "online", "deposit"];
-    const depositRow = document.getElementById("deposit_amount").closest('.row');
-    const depositVal = document.getElementById("deposit_amount");
-
-    if (data) {
-        // 1. Client name (Keep text readable for long names)
-        document.getElementById("client").innerText = data["client"] || "-";
-
-        // 2. Format All Fees as Golden Badges
-        feeFields.forEach(f => {
-            const val = data[f] !== undefined ? data[f] : "-";
-            document.getElementById(f).innerHTML = renderBadge(val);
-        });
-
-        // 3. Format Building Details as Golden Badges
-        detailFields.forEach(f => {
-            const val = data[f] !== undefined ? data[f] : "-";
-            document.getElementById(f).innerHTML = renderBadge(val);
-        });
-        
-        const lowerName = towerName.toLowerCase();
-        
-        // 🏰 Danube Towers Check
-        const isDanube = lowerName.includes("danube") || 
-                         lowerName.includes("gemini") || 
-                         lowerName.includes("elz") || 
-                         lowerName.includes("glamz") || 
-                         lowerName.includes("lawnz") || 
-                         lowerName.includes("miraclz") || 
-                         lowerName.includes("resortz") || 
-                         lowerName.includes("starz");
-
-        if (isDanube) {
-            depositRow.style.alignItems = "center";
-            depositVal.innerHTML = `
-                <div class="deposit-badge-container">
-                    <div class="deposit-badge-row">
-                        <span class="badge-label">Studio & 1BHK:</span>
-                        <span class="badge-val">1,000 AED</span>
-                    </div>
-                    <div class="deposit-badge-row">
-                        <span class="badge-label">2BHK:</span>
-                        <span class="badge-val">2,000 AED</span>
-                    </div>
-                    <div class="deposit-badge-row">
-                        <span class="badge-label">3BHK+:</span>
-                        <span class="badge-val">3,000 AED</span>
-                    </div>
-                </div>`;
-        } else {
-            depositRow.style.alignItems = "center";
-            if (lowerName.includes("lamar")) {
-                depositVal.innerHTML = renderBadge("1,000 AED (Fixed)");
-            } else if (lowerName.includes("maison")) {
-                depositVal.innerHTML = renderBadge("Unit Capacity × 62.5 × 8");
-            } else if (data.deposit === "SPC for new customer") {
-                depositVal.innerHTML = renderBadge("New Customers Only");
-            } else if (data.deposit === "Client") {
-                depositVal.innerHTML = renderBadge("Client / Owner");
-            } else {
-                depositVal.innerHTML = renderBadge("Check Prior Account");
-            }
-        }
-    } else {
-        ["client", ...feeFields, ...detailFields].forEach(f => {
-            document.getElementById(f).innerText = "-";
-        });
-        depositRow.style.alignItems = "baseline";
-        depositVal.innerText = "-";
-    }
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
-function handleSelection() {
-    const val = document.getElementById("towerInput").value.trim();
-    const clearBtn = document.getElementById("clearBtn");
-    if (val.length > 0) { clearBtn.style.display = "block"; } else { clearBtn.style.display = "none"; }
-    
-    if (towersData[val]) {
-        updateFields(towersData[val], val);
-    } else {
-        const matchedKey = Object.keys(towersData).find(key => key.toLowerCase() === val.toLowerCase());
-        if (matchedKey) { updateFields(matchedKey, matchedKey); } else { updateFields(null); }
-    }
+.login-container {
+    max-width: 420px;
+    margin: 60px auto;
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 12px 35px rgba(232, 213, 103, 0.4);
+    border: 4px solid var(--primary-yellow);
+    padding: 40px 30px;
+    text-align: center;
 }
 
-function clearSearch() {
-    const input = document.getElementById("towerInput");
-    if (input) {
-        input.value = ""; 
-        document.getElementById("clearBtn").style.display = "none"; 
-        updateFields(null); 
-        input.focus();
-    }
+.login-title { 
+    font-size: 20px; 
+    font-weight: 800; 
+    margin-bottom: 25px; 
+}
+
+.form-group { 
+    margin-bottom: 20px; 
+    text-align: left; 
+}
+
+.form-group label { 
+    display: block; 
+    font-size: 14px; 
+    font-weight: 700; 
+    margin-bottom: 8px; 
+}
+
+.login-input {
+    width: 100%;
+    padding: 12px 15px;
+    font-size: 15px;
+    border: 2px solid var(--primary-yellow);
+    border-radius: 8px;
+    outline: none;
+    box-sizing: border-box;
+    font-weight: 600;
+}
+
+.login-error-msg {
+    display: none;
+    color: var(--coral-red);
+    font-weight: 700;
+    font-size: 13.5px;
+    margin-bottom: 15px;
+    background: #fff0f0;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid var(--coral-red);
+}
+
+.btn-login {
+    width: 100%;
+    background-color: var(--primary-yellow);
+    color: var(--dark-navy);
+    border: 2px solid var(--dark-navy);
+    padding: 14px;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.container {
+    max-width: 1150px;
+    margin: auto;
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 12px 35px rgba(232, 213, 103, 0.35);
+    overflow: hidden;
+    border: 4px solid var(--primary-yellow);
+    padding-bottom: 20px;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+    padding: 40px;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.menu-card {
+    border: 3px solid var(--primary-yellow);
+    border-radius: 18px;
+    padding: 35px 25px;
+    background: #ffffff;
+    cursor: pointer;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.menu-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px rgba(232, 213, 103, 0.4);
+}
+
+.menu-icon { 
+    font-size: 3.2rem; 
+    margin-bottom: 15px; 
+    color: var(--dark-navy); 
+}
+
+.menu-card h3 { 
+    font-size: 19px; 
+    font-weight: 800; 
+    margin-bottom: 10px; 
+}
+
+.menu-card p { 
+    font-size: 13.5px; 
+    color: var(--text-muted); 
+    margin-bottom: 20px; 
+    line-height: 1.5; 
+}
+
+.btn-primary {
+    background-color: var(--primary-yellow);
+    color: var(--dark-navy);
+    border: 2px solid var(--dark-navy);
+    padding: 12px 22px;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 14.5px;
+    cursor: pointer;
+}
+
+.back-btn {
+    background: var(--dark-navy);
+    color: #ffffff;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 700;
+    position: absolute;
+    left: 40px;
+}
+
+.logout-btn {
+    background: var(--coral-red);
+    color: #ffffff;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 700;
+    position: absolute;
+    right: 40px;
+}
+
+.brand-header {
+    background-color: #ffffff;
+    padding: 25px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 5px solid var(--primary-yellow);
+}
+
+.logo-container { 
+    display: flex; 
+    align-items: center; 
+    gap: 16px; 
+}
+
+.logo-svg { 
+    height: 65px; 
+    width: auto; 
+}
+
+.logo-text { 
+    font-size: 32px; 
+    font-weight: 800; 
+    line-height: 0.95; 
+}
+
+.logo-text span { 
+    display: block; 
+    font-weight: 700; 
+    color: #4a5568; 
+    font-size: 22px; 
+}
+
+.system-title {
+    background: linear-gradient(90deg, #e8d567 0%, #f1e285 100%);
+    padding: 20px;
+    text-align: center;
+    font-size: 22px;
+    font-weight: 800;
+    border-bottom: 2px solid #d4c255;
+}
+
+.search-box {
+    margin: 30px 40px;
+    background: var(--bg-light);
+    padding: 25px;
+    border-radius: 16px;
+    border: 2px solid var(--primary-yellow);
+    text-align: center;
+}
+
+.form-row-2col {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.input-group-field {
+    flex: 1;
+    min-width: 250px;
+    text-align: left;
+}
+
+.input-group-field label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 8px;
+    font-size: 14.5px;
+}
+
+.input-wrapper { 
+    position: relative; 
+    display: inline-block; 
+    width: 85%; 
+    max-width: 650px; 
+}
+
+.combo-input { 
+    width: 100%; 
+    padding: 14px 18px; 
+    font-size: 15px; 
+    border: 2px solid var(--primary-yellow); 
+    border-radius: 10px; 
+    outline: none; 
+    box-sizing: border-box; 
+    font-weight: 600; 
+    background: #ffffff; 
+}
+
+.clear-btn { 
+    position: absolute; 
+    right: 15px; 
+    top: 50%; 
+    transform: translateY(-50%); 
+    background: none; 
+    border: none; 
+    font-size: 18px; 
+    display: none; 
+    cursor: pointer; 
+}
+
+.cards-wrapper { 
+    padding: 0 40px 40px 40px; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 24px; 
+}
+
+.card { 
+    border: 2px solid var(--primary-yellow); 
+    border-radius: 16px; 
+    padding: 24px; 
+    background: #ffffff; 
+    border-top: 6px solid var(--primary-yellow); 
+}
+
+.card h3 { 
+    font-size: 16px; 
+    font-weight: 800; 
+    border-bottom: 3px solid var(--primary-yellow); 
+    padding-bottom: 12px; 
+    margin-bottom: 18px; 
+}
+
+.card-warning { 
+    border-top-color: #f39c12; 
+}
+
+.card-warning h3 { 
+    border-bottom-color: #f39c12; 
+}
+
+.checklist-items {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.checklist-items li {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    background: #fdfbf2;
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid #f1e285;
+}
+
+.check-icon {
+    font-size: 1.4rem;
+    color: #d4ac0d;
+    margin-top: 3px;
+}
+
+.checklist-items strong {
+    display: block;
+    font-size: 15px;
+    color: var(--dark-navy);
+    margin-bottom: 4px;
+}
+
+.checklist-items p {
+    margin: 0;
+    font-size: 13.5px;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+.fees-grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+    gap: 12px 30px; 
+}
+
+.bottom-cards-row { 
+    display: flex; 
+    gap: 24px; 
+    flex-wrap: wrap; 
+}
+
+.bottom-cards-row .card { 
+    flex: 1; 
+    min-width: 300px; 
+}
+
+/* 🔄 Center Alignment for all data rows */
+.row { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    padding: 10px 0; 
+    border-bottom: 1px dashed #e2e8f0; 
+    font-size: 14.5px; 
+}
+
+.margin-bottom-20 { 
+    margin-bottom: 20px; 
+}
+
+.justify-center { 
+    justify-content: center !important; 
+}
+
+.text-center { 
+    text-align: center; 
+}
+
+.relative-header { 
+    position: relative; 
+}
+
+/* 🏷️ Unified Golden Badge Design across all cards */
+.spc-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff8d6;
+    border: 1.5px solid #e8d567;
+    border-radius: 8px;
+    padding: 4px 12px;
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #b8860b;
+    box-shadow: 0 2px 4px rgba(232, 213, 103, 0.15);
+}
+
+/* 🏢 Special Badge for Client Details (Handles long names nicely) */
+.client-badge {
+    display: inline-block;
+    background: #fff8d6;
+    border: 1.5px solid #e8d567;
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-size: 13px;
+    font-weight: 800;
+    color: #b8860b;
+    box-shadow: 0 2px 4px rgba(232, 213, 103, 0.15);
+    max-width: 260px;
+    text-align: right;
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+/* 🛡️ Danube Deposit Badges Styling */
+.deposit-badge-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-end;
+}
+
+.deposit-badge-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fff8d6;
+    border: 1.5px solid #e8d567;
+    border-radius: 8px;
+    padding: 5px 12px;
+    width: 230px;
+    box-sizing: border-box;
+    font-size: 13px;
+    box-shadow: 0 2px 4px rgba(232, 213, 103, 0.15);
+}
+
+.deposit-badge-row .badge-label {
+    font-weight: 700;
+    color: var(--dark-navy);
+}
+
+.deposit-badge-row .badge-val {
+    font-weight: 800;
+    color: #b8860b;
 }
