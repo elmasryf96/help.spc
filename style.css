@@ -419,7 +419,7 @@ body {
     box-shadow: 0 2px 4px rgba(232, 213, 103, 0.15);
 }
 
-/* 🏢 Special Badge for Client Details (Handles long names nicely) */
+/* 🏢 Client Details Badge (Guaranteed Auto Wrap) */
 .client-badge {
     display: inline-block;
     background: #fff8d6;
@@ -430,9 +430,9 @@ body {
     font-weight: 800;
     color: #b8860b;
     box-shadow: 0 2px 4px rgba(232, 213, 103, 0.15);
-    max-width: 260px;
+    max-width: 250px;
     text-align: right;
-    line-height: 1.3;
+    line-height: 1.35;
     word-break: break-word;
 }
 
