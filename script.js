@@ -156,7 +156,8 @@ const towersData = {
 
 function updateFields(data, towerName = "") {
     const fields = ["client", "location", "bank", "deposit", "online", "billing", "late", "activation", "disconnection", "noc", "final"];
-    const depositElem = document.getElementById("deposit_amount");
+    const depositRow = document.getElementById("deposit_amount").closest('.row');
+    const depositVal = document.getElementById("deposit_amount");
 
     if (data) {
         fields.forEach(f => {
@@ -176,26 +177,38 @@ function updateFields(data, towerName = "") {
                          lowerName.includes("starz");
 
         if (isDanube) {
-            depositElem.innerHTML = `
-                <div style="display: flex; flex-direction: column; gap: 4px; text-align: right; font-size: 13.5px;">
-                    <div><span style="background: #fff8d6; padding: 2px 8px; border-radius: 4px; border: 1px solid #e8d567; font-weight: bold;">Studio & 1BHK:</span> 1,000 AED</div>
-                    <div><span style="background: #fff8d6; padding: 2px 8px; border-radius: 4px; border: 1px solid #e8d567; font-weight: bold;">2BHK:</span> 2,000 AED</div>
-                    <div><span style="background: #fff8d6; padding: 2px 8px; border-radius: 4px; border: 1px solid #e8d567; font-weight: bold;">3BHK+:</span> 3,000 AED</div>
+            // ضبط الصف ليكون مرناً في منتصف النص تماماً
+            depositRow.style.alignItems = "center";
+            depositVal.innerHTML = `
+                <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-end;">
+                    <div style="background: #fefae0; border: 1.5px solid #e8d567; padding: 4px 12px; border-radius: 8px; font-size: 13px; font-weight: 700; color: #1a252f;">
+                        Studio & 1BHK: <span style="color: #d4a373;">1,000 AED</span>
+                    </div>
+                    <div style="background: #fefae0; border: 1.5px solid #e8d567; padding: 4px 12px; border-radius: 8px; font-size: 13px; font-weight: 700; color: #1a252f;">
+                        2BHK: <span style="color: #d4a373;">2,000 AED</span>
+                    </div>
+                    <div style="background: #fefae0; border: 1.5px solid #e8d567; padding: 4px 12px; border-radius: 8px; font-size: 13px; font-weight: 700; color: #1a252f;">
+                        3BHK+: <span style="color: #d4a373;">3,000 AED</span>
+                    </div>
                 </div>`;
-        } else if (lowerName.includes("lamar")) {
-            depositElem.innerText = "1,000 AED (Fixed for all units)";
-        } else if (lowerName.includes("maison")) {
-            depositElem.innerHTML = `<span style="background: #eef6ff; padding: 4px 10px; border-radius: 6px; border: 1px solid #2196f3; font-weight: bold; color: #1565c0;">Unit Capacity × 62.5 × 8</span>`;
-        } else if (data.deposit === "SPC for new customer") {
-            depositElem.innerText = "Collect deposit (New Customers Only)";
-        } else if (data.deposit === "Client") {
-            depositElem.innerText = "Handled Directly by Client / Owner";
         } else {
-            depositElem.innerText = "Check the prior owner or tenant account";
+            depositRow.style.alignItems = "baseline";
+            if (lowerName.includes("lamar")) {
+                depositVal.innerText = "1,000 AED (Fixed for all units)";
+            } else if (lowerName.includes("maison")) {
+                depositVal.innerHTML = `<span style="background: #e8f4fd; color: #1e88e5; border: 1px solid #90caf9; padding: 4px 12px; border-radius: 8px; font-weight: 800; font-size: 13px;">Unit Capacity × 62.5 × 8</span>`;
+            } else if (data.deposit === "SPC for new customer") {
+                depositVal.innerText = "Collect deposit (New Customers Only)";
+            } else if (data.deposit === "Client") {
+                depositVal.innerText = "Handled Directly by Client / Owner";
+            } else {
+                depositVal.innerText = "Check the prior owner or tenant account";
+            }
         }
     } else {
         fields.forEach(f => document.getElementById(f).innerText = "-");
-        depositElem.innerText = "-";
+        depositRow.style.alignItems = "baseline";
+        depositVal.innerText = "-";
     }
 }
 
