@@ -1,9 +1,8 @@
+// 🔓 السماح بالدخول المباشر عند الضغط على Login بدون شروط
 function handleLogin(event) {
     if (event) event.preventDefault();
     const errorMsg = document.getElementById("login-error");
     if (errorMsg) errorMsg.style.display = "none";
-
-    // 🔓 دخول مباشر فور الضغط على Sign In
     navigateTo('home-page');
 }
 
@@ -34,6 +33,7 @@ function navigateTo(pageId) {
     }
 }
 
+// 🏢 ملء القوائم المنسدلة فور تحميل الصفحة
 document.addEventListener("DOMContentLoaded", () => {
     const datalist = document.getElementById("towersList");
     const nocSelect = document.getElementById("nocTowerSelect");
