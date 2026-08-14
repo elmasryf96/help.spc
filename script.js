@@ -156,6 +156,8 @@ const towersData = {
 
 function updateFields(data, towerName = "") {
     const fields = ["client", "location", "bank", "deposit", "online", "billing", "late", "activation", "disconnection", "noc", "final"];
+    const depositElem = document.getElementById("deposit_amount");
+
     if (data) {
         fields.forEach(f => {
             document.getElementById(f).innerText = data[f] !== undefined ? data[f] : "-";
@@ -173,23 +175,28 @@ function updateFields(data, towerName = "") {
                          lowerName.includes("resortz") || 
                          lowerName.includes("starz");
 
-        // 🛡️ Security Deposit Calculation logic based on project rules
+        // 🛡️ Security Deposit Calculation logic formatted as HTML list
         if (isDanube) {
-            document.getElementById("deposit_amount").innerText = "Studio & 1BHK: 1,000 AED | 2BHK: 2,000 AED | 3BHK+: 3,000 AED";
+            depositElem.innerHTML = `
+                <ul style="margin: 0; padding-left: 18px; text-align: left;">
+                    <li><strong>Studio & 1BHK:</strong> 1,000 AED</li>
+                    <li><strong>2BHK:</strong> 2,000 AED</li>
+                    <li><strong>3BHK+:</strong> 3,000 AED</li>
+                </ul>`;
         } else if (lowerName.includes("lamar")) {
-            document.getElementById("deposit_amount").innerText = "1,000 AED (Fixed for all units)";
+            depositElem.innerText = "1,000 AED (Fixed for all units)";
         } else if (lowerName.includes("maison")) {
-            document.getElementById("deposit_amount").innerText = "Unit Capacity * 62.5 * 8";
+            depositElem.innerText = "Unit Capacity * 62.5 * 8";
         } else if (data.deposit === "SPC for new customer") {
-            document.getElementById("deposit_amount").innerText = "Collect deposit (New Customers Only)";
+            depositElem.innerText = "Collect deposit (New Customers Only)";
         } else if (data.deposit === "Client") {
-            document.getElementById("deposit_amount").innerText = "Handled Directly by Client / Owner";
+            depositElem.innerText = "Handled Directly by Client / Owner";
         } else {
-            document.getElementById("deposit_amount").innerText = "Check the prior owner or tenant account";
+            depositElem.innerText = "Check the prior owner or tenant account";
         }
     } else {
         fields.forEach(f => document.getElementById(f).innerText = "-");
-        document.getElementById("deposit_amount").innerText = "-";
+        depositElem.innerText = "-";
     }
 }
 
