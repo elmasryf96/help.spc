@@ -133,6 +133,47 @@ body {
     padding-bottom: 20px;
 }
 
+.relative-header {
+    position: relative;
+}
+
+.top-bar-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 40px 0 40px;
+}
+
+.top-bar-controls .back-btn {
+    margin: 0;
+}
+
+/* 🚪 زرار تسجيل الخروج Logout Button */
+.logout-btn {
+    background: var(--coral-red);
+    color: #ffffff;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.logout-btn:hover {
+    background: #d9534f;
+    transform: translateY(-2px);
+}
+
+.brand-header .logout-btn {
+    position: absolute;
+    right: 40px;
+}
+
 /* زر الرجوع */
 .back-btn {
     background: var(--dark-navy);
@@ -439,6 +480,13 @@ body {
         text-align: center;
         padding: 20px;
     }
+    .brand-header .logout-btn {
+        position: static;
+        margin-top: 10px;
+    }
+    .top-bar-controls {
+        padding: 15px 20px 0 20px;
+    }
     .cards-wrapper {
         padding: 0 20px 30px 20px;
     }
@@ -450,6 +498,6 @@ body {
         width: 100%;
     }
     .back-btn {
-        margin: 15px 20px 0 20px;
+        margin: 0;
     }
 }
