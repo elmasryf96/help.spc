@@ -378,12 +378,11 @@ body {
     min-width: 300px; 
 }
 
-/* 🔄 Center Alignment for all data rows */
 .row { 
     display: flex; 
     justify-content: space-between; 
     align-items: center; 
-    padding: 10px 0; 
+    padding: 12px 0; 
     border-bottom: 1px dashed #e2e8f0; 
     font-size: 14.5px; 
 }
@@ -404,7 +403,7 @@ body {
     position: relative; 
 }
 
-/* 🏷️ Unified Golden Badge Design across all cards */
+/* 🏷️ Unified Golden Badges System */
 .spc-badge {
     display: inline-flex;
     align-items: center;
@@ -419,7 +418,6 @@ body {
     box-shadow: 0 2px 4px rgba(232, 213, 103, 0.15);
 }
 
-/* 🏢 Client Details Badge (Guaranteed Auto Wrap) */
 .client-badge {
     display: inline-block;
     background: #fff8d6;
@@ -436,7 +434,6 @@ body {
     word-break: break-word;
 }
 
-/* 🛡️ Danube Deposit Badges Styling */
 .deposit-badge-container {
     display: flex;
     flex-direction: column;
