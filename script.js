@@ -190,12 +190,17 @@ function updateFields(data, towerName = "") {
         
         const lowerName = towerName.toLowerCase();
         
-        // 1. فحص برج Bali أولاً
-        if (lowerName.includes("bali")) {
+        // 1. فحص أبراج Al Reem Bay لتكون -
+        if (lowerName.includes("reem bay")) {
+            depositRow.style.alignItems = "baseline";
+            depositVal.innerText = "-";
+        }
+        // 2. فحص برج Bali
+        else if (lowerName.includes("bali")) {
             depositRow.style.alignItems = "center";
             depositVal.innerHTML = renderBadge("Unit Capacity × 8");
         } 
-        // 2. فحص أبراج Danube
+        // 3. فحص أبراج Danube
         else if (lowerName.includes("danube") || 
                  lowerName.includes("gemini") || 
                  lowerName.includes("elz") || 
@@ -221,7 +226,7 @@ function updateFields(data, towerName = "") {
                     </div>
                 </div>`;
         } 
-        // 3. باقي الحالات الخاصة والأبراج العادية
+        // 4. باقي الحالات الخاصة والأبراج العادية
         else {
             depositRow.style.alignItems = "center";
             if (lowerName.includes("lamar")) {
@@ -231,7 +236,6 @@ function updateFields(data, towerName = "") {
             } else if (data.deposit === "SPC for new customer") {
                 depositVal.innerHTML = renderBadge("New Customers Only");
             } else {
-                // استبدال شامل لأي نص قديم مثل Client / Owner أو غيره بـ Check Prior Account
                 depositVal.innerHTML = renderBadge("Check Prior Account");
             }
         }
