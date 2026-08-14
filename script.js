@@ -165,7 +165,7 @@ function updateFields(data, towerName = "") {
         
         const lowerName = towerName.toLowerCase();
         
-        // 🏰 Danube Towers List Check
+        // 🏰 Danube Towers Check
         const isDanube = lowerName.includes("danube") || 
                          lowerName.includes("gemini") || 
                          lowerName.includes("elz") || 
@@ -175,18 +175,17 @@ function updateFields(data, towerName = "") {
                          lowerName.includes("resortz") || 
                          lowerName.includes("starz");
 
-        // 🛡️ Security Deposit Calculation logic formatted as HTML list
         if (isDanube) {
             depositElem.innerHTML = `
-                <ul style="margin: 0; padding-left: 18px; text-align: left;">
-                    <li><strong>Studio & 1BHK:</strong> 1,000 AED</li>
-                    <li><strong>2BHK:</strong> 2,000 AED</li>
-                    <li><strong>3BHK+:</strong> 3,000 AED</li>
-                </ul>`;
+                <div style="display: flex; flex-direction: column; gap: 4px; text-align: right; font-size: 13.5px;">
+                    <div><span style="background: #fff8d6; padding: 2px 8px; border-radius: 4px; border: 1px solid #e8d567; font-weight: bold;">Studio & 1BHK:</span> 1,000 AED</div>
+                    <div><span style="background: #fff8d6; padding: 2px 8px; border-radius: 4px; border: 1px solid #e8d567; font-weight: bold;">2BHK:</span> 2,000 AED</div>
+                    <div><span style="background: #fff8d6; padding: 2px 8px; border-radius: 4px; border: 1px solid #e8d567; font-weight: bold;">3BHK+:</span> 3,000 AED</div>
+                </div>`;
         } else if (lowerName.includes("lamar")) {
             depositElem.innerText = "1,000 AED (Fixed for all units)";
         } else if (lowerName.includes("maison")) {
-            depositElem.innerText = "Unit Capacity * 62.5 * 8";
+            depositElem.innerHTML = `<span style="background: #eef6ff; padding: 4px 10px; border-radius: 6px; border: 1px solid #2196f3; font-weight: bold; color: #1565c0;">Unit Capacity × 62.5 × 8</span>`;
         } else if (data.deposit === "SPC for new customer") {
             depositElem.innerText = "Collect deposit (New Customers Only)";
         } else if (data.deposit === "Client") {
