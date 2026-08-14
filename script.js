@@ -218,7 +218,9 @@ function updateFields(data, towerName = "") {
                 </div>`;
         } else {
             depositRow.style.alignItems = "center";
-            if (lowerName.includes("lamar")) {
+            if (lowerName.includes("bali")) {
+                depositVal.innerHTML = renderBadge("Unit Capacity × 8");
+            } else if (lowerName.includes("lamar")) {
                 depositVal.innerHTML = renderBadge("1,000 AED (Fixed)");
             } else if (lowerName.includes("maison")) {
                 depositVal.innerHTML = renderBadge("Unit Capacity × 62.5 × 8");
