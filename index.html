@@ -3,29 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <!-- 📌 عنوان التبويب -->
     <title>SPC - Agent Helper</title>
 
-    <!-- 🌐 لوجو الشركة في التبويب (Favicon) -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'><circle cx='35' cy='18' r='5' fill='%23E8D567'/><circle cx='68' cy='18' r='5' fill='%23E8D567'/><circle cx='51.5' cy='7' r='5.5' fill='%23E8D567'/><path d='M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z' fill='%23E8D567'/><circle cx='51.5' cy='42.5' r='6' fill='%231A252F'/><path d='M47 75L56 75L53.5 115L49.5 115L47 75Z' fill='%23E8D567'/></svg>">
 
-    <!-- 🚫 أوامر منع المتصفح من حفظ الصفحة في الكاش -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <!-- تحديث رقم الإصدار لـ v=7.0 -->
-    <link rel="stylesheet" href="style.css?v=7.0">
-    <!-- Font Awesome للأيقونات -->
+    <link rel="stylesheet" href="style.css?v=8.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- 🖨️ مكتبة تحويل HTML إلى PDF مباشرة -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
-    <!-- 🔒 صفحة تسجيل الدخول (Login Page) -->
+    <!-- 🔒 Login Page -->
     <div id="login-page" class="page active-page">
         <div class="login-container">
             <div class="logo-container justify-center margin-bottom-20">
@@ -37,35 +29,25 @@
                     <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
                     <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
                 </svg>
-                <div class="logo-text">
-                    Smart
-                    <span>Collection</span>
-                </div>
+                <div class="logo-text">Smart <span>Collection</span></div>
             </div>
-
             <h2 class="login-title">Portal Access Login</h2>
-            
             <form onsubmit="handleLogin(event)">
                 <div class="form-group">
                     <label for="username"><i class="fa-solid fa-user"></i> Username</label>
                     <input type="text" id="username" class="login-input" placeholder="Enter username" required>
                 </div>
-
                 <div class="form-group">
                     <label for="password"><i class="fa-solid fa-lock"></i> Password</label>
                     <input type="password" id="password" class="login-input" placeholder="Enter password" required>
                 </div>
-
-                <div id="login-error" class="login-error-msg">
-                    ❌ Invalid Username or Password!
-                </div>
-
+                <div id="login-error" class="login-error-msg">❌ Invalid Username or Password!</div>
                 <button type="submit" class="btn-login">Sign In</button>
             </form>
         </div>
     </div>
 
-    <!-- 🏠 الصفحة الرئيسية (Dashboard) -->
+    <!-- 🏠 Dashboard -->
     <div id="home-page" class="page hidden-page">
         <div class="container text-center">
             <div class="brand-header justify-center relative-header">
@@ -78,57 +60,35 @@
                         <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
                         <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
                     </svg>
-                    <div class="logo-text">
-                        Smart
-                        <span>Collection</span>
-                    </div>
+                    <div class="logo-text">Smart <span>Collection</span></div>
                 </div>
-
-                <button class="logout-btn" onclick="handleLogout()" title="Log out">
-                    <i class="fa-solid fa-right-from-bracket"></i> Logout
-                </button>
+                <button class="logout-btn" onclick="handleLogout()" title="Log out"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
             </div>
-
-            <div class="system-title">
-                🚀 MAIN CONTROL DASHBOARD
-            </div>
-
+            <div class="system-title">🚀 MAIN CONTROL DASHBOARD</div>
             <div class="dashboard-grid">
-                <!-- 1️⃣ كارت Towers Fees -->
                 <div class="menu-card" onclick="navigateTo('towers-page')">
-                    <div class="menu-icon">
-                        <i class="fa-solid fa-building"></i>
-                    </div>
+                    <div class="menu-icon"><i class="fa-solid fa-building"></i></div>
                     <h3>Towers Fees & Search</h3>
                     <p>Search tower database, service fees, security deposits, and management info.</p>
                     <button class="btn-primary">Open Portal</button>
                 </div>
-
-                <!-- 2️⃣ كارت Tenant NOC Generator الجديد -->
                 <div class="menu-card" onclick="navigateTo('noc-page')">
-                    <div class="menu-icon">
-                        <i class="fa-solid fa-file-contract"></i>
-                    </div>
+                    <div class="menu-icon"><i class="fa-solid fa-file-contract"></i></div>
                     <h3>Tenant NOC Generator</h3>
-                    <p>Generate & export official No Objection Certificates (PDF) instantly for exiting tenants.</p>
+                    <p>Generate & export official No Objection Certificates (PDF) matching Word format.</p>
                     <button class="btn-primary">Create NOC</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 🏢 صفحة Towers Fees Search Portal -->
+    <!-- 🏢 Towers Page -->
     <div id="towers-page" class="page hidden-page">
         <div class="container">
             <div class="top-bar-controls">
-                <button class="back-btn" onclick="navigateTo('home-page')">
-                    <i class="fa-solid fa-arrow-left"></i> Back to Main Dashboard
-                </button>
-                <button class="logout-btn" onclick="handleLogout()" title="Log out">
-                    <i class="fa-solid fa-right-from-bracket"></i> Logout
-                </button>
+                <button class="back-btn" onclick="navigateTo('home-page')"><i class="fa-solid fa-arrow-left"></i> Back to Main Dashboard</button>
+                <button class="logout-btn" onclick="handleLogout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
             </div>
-
             <div class="brand-header">
                 <div class="logo-container">
                     <svg class="logo-svg" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -139,28 +99,18 @@
                         <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
                         <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
                     </svg>
-                    <div class="logo-text">
-                        Smart
-                        <span>Collection</span>
-                    </div>
+                    <div class="logo-text">Smart <span>Collection</span></div>
                 </div>
             </div>
-
-            <div class="system-title">
-                🏢 Towers Data & Service Fees Search Portal
-            </div>
-            
+            <div class="system-title">🏢 Towers Data & Service Fees Search Portal</div>
             <div class="search-box">
                 <label for="towerInput">🔍 Search & Select Tower Name:</label>
                 <div class="input-wrapper">
-                    <input type="text" id="towerInput" list="towersList" class="combo-input" placeholder="Type tower name (e.g. Al Dana, Danube, Lamar)..." oninput="handleSelection()">
-                    <button type="button" id="clearBtn" class="clear-btn" onclick="clearSearch()" title="Clear text">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
+                    <input type="text" id="towerInput" list="towersList" class="combo-input" placeholder="Type tower name..." oninput="handleSelection()">
+                    <button type="button" id="clearBtn" class="clear-btn" onclick="clearSearch()"><i class="fa-solid fa-xmark"></i></button>
                 </div>
                 <datalist id="towersList"></datalist>
             </div>
-
             <div class="cards-wrapper">
                 <div class="card card-fees-top">
                     <h3>🏷️ APPLICABLE SERVICE FEES</h3>
@@ -173,7 +123,6 @@
                         <div class="row"><span class="title">Final Bill Fee:</span><span class="val" id="final">-</span></div>
                     </div>
                 </div>
-
                 <div class="bottom-cards-row">
                     <div class="card">
                         <h3>🏛️ BUILDING & MANAGEMENT DETAILS</h3>
@@ -182,7 +131,6 @@
                         <div class="row"><span class="title">Bank Account:</span><span class="val" id="bank">-</span></div>
                         <div class="row"><span class="title">Online Payment Availability:</span><span class="val" id="online">-</span></div>
                     </div>
-
                     <div class="card card-deposit">
                         <h3>🛡️ SECURITY DEPOSIT</h3>
                         <div class="row"><span class="title">Security Deposit Refund:</span><span class="val" id="deposit">-</span></div>
@@ -193,18 +141,13 @@
         </div>
     </div>
 
-    <!-- 📄 صفحة Tenant NOC Generator الجديد -->
+    <!-- 📄 NOC Page Form -->
     <div id="noc-page" class="page hidden-page">
         <div class="container">
             <div class="top-bar-controls">
-                <button class="back-btn" onclick="navigateTo('home-page')">
-                    <i class="fa-solid fa-arrow-left"></i> Back to Main Dashboard
-                </button>
-                <button class="logout-btn" onclick="handleLogout()" title="Log out">
-                    <i class="fa-solid fa-right-from-bracket"></i> Logout
-                </button>
+                <button class="back-btn" onclick="navigateTo('home-page')"><i class="fa-solid fa-arrow-left"></i> Back to Main Dashboard</button>
+                <button class="logout-btn" onclick="handleLogout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
             </div>
-
             <div class="brand-header">
                 <div class="logo-container">
                     <svg class="logo-svg" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -215,58 +158,45 @@
                         <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
                         <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
                     </svg>
-                    <div class="logo-text">
-                        Smart
-                        <span>Collection</span>
-                    </div>
+                    <div class="logo-text">Smart <span>Collection</span></div>
                 </div>
             </div>
 
-            <div class="system-title">
-                📄 Tenant No Objection Certificate (NOC) Generator
-            </div>
+            <div class="system-title">📄 Tenant No Objection Certificate (NOC) Generator</div>
 
-            <!-- فورم إدخال البيانات -->
             <div class="noc-form-wrapper">
                 <form onsubmit="generatePDF(event)" class="noc-grid-form">
                     <div class="form-group">
                         <label for="noc_tenant_name">Tenant Consumer Name *</label>
                         <input type="text" id="noc_tenant_name" class="login-input" placeholder="e.g. Andreas Efrain Yudistira" required>
                     </div>
-
                     <div class="form-group">
                         <label for="noc_tenant_contract">Tenant Contract Number *</label>
                         <input type="text" id="noc_tenant_contract" class="login-input" placeholder="e.g. ATD-718-T2" required>
                     </div>
-
                     <div class="form-group">
                         <label for="noc_tower_name">Tower / Building Name *</label>
                         <input type="text" id="noc_tower_name" class="login-input" placeholder="e.g. Ayedh Tower" required>
                     </div>
-
                     <div class="form-group">
                         <label for="noc_unit_no">Unit Number *</label>
                         <input type="text" id="noc_unit_no" class="login-input" placeholder="e.g. Unit 718" required>
                     </div>
-
                     <div class="form-group">
                         <label for="noc_owner_name">Owner Name (Optional)</label>
                         <input type="text" id="noc_owner_name" class="login-input" placeholder="Leave empty for N/A">
                     </div>
-
                     <div class="form-group">
                         <label for="noc_owner_contract">Owner Contract Number (Optional)</label>
                         <input type="text" id="noc_owner_contract" class="login-input" placeholder="Leave empty for N/A">
                     </div>
-
                     <div class="form-group">
                         <label for="noc_date">Issue Date *</label>
                         <input type="text" id="noc_date" class="login-input" placeholder="DD/MM/YYYY" required>
                     </div>
-
                     <div class="form-submit-row">
                         <button type="submit" class="btn-primary btn-generate">
-                            <i class="fa-solid fa-file-pdf"></i> Generate & Download NOC PDF
+                            <i class="fa-solid fa-file-pdf"></i> Generate Official Word-Format PDF
                         </button>
                     </div>
                 </form>
@@ -274,98 +204,125 @@
         </div>
     </div>
 
-    <!-- 🖨️ قالب شهادة الـ NOC المنسق للطباعة (مخفي برمجياً وينزل كـ PDF) -->
+    <!-- 🖨️ قالب الـ PDF المتطابق 100% مع ملف الـ Word -->
     <div id="noc-pdf-template" class="pdf-template-hidden">
-        <!-- Header Section -->
-        <div class="pdf-header">
-            <div class="pdf-logo-brand">
-                <svg viewBox="0 0 100 120" fill="none" class="pdf-svg-logo">
-                    <circle cx="35" cy="18" r="5" fill="#E8D567"/>
-                    <circle cx="68" cy="18" r="5" fill="#E8D567"/>
-                    <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
-                    <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
-                    <circle cx="51.5" cy="42.5" r="6" fill="#1A252F"/>
-                    <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
-                </svg>
-                <div class="pdf-brand-text">
-                    <strong>Smart</strong>
-                    <span>Collection</span>
-                </div>
-            </div>
+        <!-- Header Info Table -->
+        <table class="word-header-table">
+            <tr>
+                <td style="width: 35%;">
+                    <div class="word-logo-wrap">
+                        <svg viewBox="0 0 100 120" fill="none" class="word-logo-svg">
+                            <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+                            <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+                            <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+                            <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+                            <circle cx="51.5" cy="42.5" r="6" fill="#1A252F"/>
+                            <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+                        </svg>
+                        <div class="word-logo-text">Smart<span>Collection</span></div>
+                    </div>
+                </td>
+                <td style="width: 65%; text-align: right;">
+                    <div class="word-contact-grid">
+                        <span><i class="fa-solid fa-phone"></i> 024935100</span>
+                        <span>Contact center</span>
+                        <span>Customer Support</span>
+                        <span><i class="fa-solid fa-envelope"></i> info@smartcollection.co</span>
+                        <span>Via email</span>
+                        <span><i class="fa-solid fa-globe"></i> www.smartcollection.co</span>
+                    </div>
+                </td>
+            </tr>
+        </table>
 
-            <div class="pdf-contact-info">
-                <div><i class="fa-solid fa-phone"></i> 024935100</div>
-                <div><i class="fa-solid fa-headset"></i> Customer Support</div>
-                <div><i class="fa-solid fa-envelope"></i> info@smartcollection.co</div>
-                <div><i class="fa-solid fa-globe"></i> www.smartcollection.co</div>
-            </div>
-        </div>
+        <!-- Blue Top Info Rows -->
+        <table class="word-blue-bar-table">
+            <tr>
+                <td style="width: 45%; font-weight: bold; font-size: 14px;" id="word_pdf_tenant_top"></td>
+                <td style="width: 25%; font-weight: bold; font-size: 13px;" id="word_pdf_tower"></td>
+                <td style="width: 30%; text-align: right;">Date: <span id="word_pdf_date_1"></span></td>
+            </tr>
+            <tr>
+                <td style="font-weight: bold; font-size: 13px;" id="word_pdf_contract_top"></td>
+                <td style="font-weight: bold; font-size: 13px;" id="word_pdf_unit"></td>
+                <td style="text-align: right;">Date: <span id="word_pdf_date_2"></span></td>
+            </tr>
+        </table>
 
-        <hr class="pdf-divider">
+        <div class="word-title">No Objection Certificate</div>
 
-        <!-- Header Info Bar -->
-        <div class="pdf-info-bar">
-            <div><strong>Tower:</strong> <span id="pdf_out_tower"></span></div>
-            <div><strong>Unit:</strong> <span id="pdf_out_unit"></span></div>
-            <div><strong>Date:</strong> <span id="pdf_out_date"></span></div>
-        </div>
-
-        <h1 class="pdf-title">No Objection Certificate</h1>
-
-        <p class="pdf-body-text">
-            The Customer Service Department in <strong>Smart Payments Collection LLC</strong> certifies that the above customer has paid all outstanding debts for chilled water of the mentioned contract.
+        <div class="word-body-paragraph">
+            The Customer Service Department in Smart Payments Collection LLC certifies that the above customer has paid all outstanding debts for chilled water of the mentioned contract.
             <br><br>
             Once issuance of the no objection certificate, the premise will be automatically transferred to the (Landlord/Properties Management Company) who will be responsible for any future chilled water consumption and district cooling (capacity charge) on the given account number.
-        </p>
-
-        <!-- Tables Section -->
-        <div class="pdf-tables-row">
-            <div class="pdf-table-block">
-                <div class="pdf-table-header">Tenant Information</div>
-                <table class="pdf-table">
-                    <tr><td>Consumer Name</td><td id="pdf_out_tenant_name"></td></tr>
-                    <tr><td>Contract Number</td><td id="pdf_out_tenant_contract"></td></tr>
-                </table>
-            </div>
-
-            <div class="pdf-table-block">
-                <div class="pdf-table-header">Owner Information</div>
-                <table class="pdf-table">
-                    <tr><td>Consumer Name</td><td id="pdf_out_owner_name">N/A</td></tr>
-                    <tr><td>Contract Number</td><td id="pdf_out_owner_contract">N/A</td></tr>
-                </table>
-            </div>
         </div>
 
-        <!-- Footer & Official Stamp Section -->
-        <div class="pdf-footer-section">
-            <div class="pdf-regards">
-                <strong>Regards,</strong><br>
-                Customer Service Division<br>
-                <strong>Smart Payments Collection LLC</strong>
-            </div>
+        <!-- 2 Information Tables Side-by-Side -->
+        <table class="word-side-tables">
+            <tr>
+                <td style="width: 48%; vertical-align: top;">
+                    <div class="word-tbl-header">Tenant Information</div>
+                    <table class="word-inner-tbl">
+                        <tr>
+                            <td class="lbl-col">Consumer Name</td>
+                            <td id="word_pdf_tenant_name"></td>
+                        </tr>
+                        <tr>
+                            <td class="lbl-col">Contract Number</td>
+                            <td id="word_pdf_tenant_contract"></td>
+                        </tr>
+                    </table>
+                </td>
+                <td style="width: 4%;"></td>
+                <td style="width: 48%; vertical-align: top;">
+                    <div class="word-tbl-header">Owner Information</div>
+                    <table class="word-inner-tbl">
+                        <tr>
+                            <td class="lbl-col">Consumer Name</td>
+                            <td id="word_pdf_owner_name">N/A</td>
+                        </tr>
+                        <tr>
+                            <td class="lbl-col">Contract Number</td>
+                            <td id="word_pdf_owner_contract">N/A</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
 
-            <!-- الختم الدائري الأزرق الرسمي للشركة -->
-            <div class="pdf-stamp-container">
-                <div class="pdf-stamp-circle">
-                    <div class="stamp-top">سمارت لتحصيل الرسوم ذ.م.م</div>
-                    <div class="stamp-center">
-                        <svg viewBox="0 0 100 120" fill="none" class="stamp-svg">
-                            <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#1b4285"/>
-                        </svg>
-                        <strong>Smart Collection</strong>
-                        <span>Abu Dhabi-U.A.E.</span>
+        <!-- Stamp & Regards -->
+        <table class="word-footer-table">
+            <tr>
+                <td style="width: 60%; vertical-align: bottom;">
+                    <div class="word-regards">
+                        Regards<br>
+                        <strong>Customer Service Division</strong><br>
+                        Smart Payments Collection LLC
                     </div>
-                    <div class="stamp-bottom">SMART PAYMENTS COLLECTION L.L.C.</div>
-                </div>
-            </div>
-        </div>
+                </td>
+                <td style="width: 40%; text-align: right;">
+                    <div class="pdf-stamp-container">
+                        <div class="pdf-stamp-circle">
+                            <div class="stamp-top">سمارت لتحصيل الرسوم ذ.م.م</div>
+                            <div class="stamp-center">
+                                <svg viewBox="0 0 100 120" fill="none" class="stamp-svg">
+                                    <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#1b4285"/>
+                                </svg>
+                                <strong>Smart Collection</strong>
+                                <span>Abu Dhabi-U.A.E.</span>
+                            </div>
+                            <div class="stamp-bottom">SMART PAYMENTS COLLECTION L.L.C.</div>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        </table>
 
-        <div class="pdf-footer-address">
+        <div class="word-address-footer">
             2nd floor Office 213 Ali & Sons Business Center Plot no.29 Al Ain Rd, Umm Al Anar Abu Dhabi, UAE - Po Box 129865
         </div>
     </div>
 
-    <script src="script.js?v=7.0"></script>
+    <script src="script.js?v=8.0"></script>
 </body>
 </html>
