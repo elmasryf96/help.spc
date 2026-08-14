@@ -6,13 +6,28 @@ function handleLogin(event) {
     const pass = document.getElementById("password").value.trim();
     const errorMsg = document.getElementById("login-error");
 
-    // البيانات المطلوبة بالضبط
     if (user === "SPC" && pass === "SPC@2026") {
         errorMsg.style.display = "none";
-        navigateTo('home-page'); // التوجيه للـ Dashboard الرئيسية
+        navigateTo('home-page');
     } else {
-        errorMsg.style.display = "block"; // إظهار رسالة الخطأ
+        errorMsg.style.display = "block";
     }
+}
+
+// 🚪 دالة تسجيل الخروج Logout
+function handleLogout() {
+    // تصفير خانات تسجيل الدخول
+    document.getElementById("username").value = "";
+    document.getElementById("password").value = "";
+    document.getElementById("login-error").style.display = "none";
+
+    // تصفير خانة البحث وتصنيفات الأبراج
+    if (document.getElementById("towerInput")) {
+        clearSearch();
+    }
+
+    // العودة لصفحة تسجيل الدخول
+    navigateTo('login-page');
 }
 
 // دالة التنقل بين الصفحات
@@ -164,8 +179,10 @@ function handleSelection() {
 // دالة مسح النص وإعادة إظهار القائمة
 function clearSearch() {
     const input = document.getElementById("towerInput");
-    input.value = ""; 
-    document.getElementById("clearBtn").style.display = "none"; 
-    updateFields(null); 
-    input.focus();
+    if (input) {
+        input.value = ""; 
+        document.getElementById("clearBtn").style.display = "none"; 
+        updateFields(null); 
+        input.focus();
+    }
 }
