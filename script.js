@@ -6,7 +6,7 @@ function handleLogin(event) {
 
     if (user === "SPC" && pass === "SPC@2026") {
         errorMsg.style.display = "none";
-        navigateTo('towers-page');
+        navigateTo('home-page'); // توجيه للشاشة الرئيسية أولاً
     } else {
         errorMsg.style.display = "block";
     }
