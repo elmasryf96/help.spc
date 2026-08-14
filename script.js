@@ -190,8 +190,8 @@ function updateFields(data, towerName = "") {
         
         const lowerName = towerName.toLowerCase();
         
-        // 1. فحص شامل لأبراج الريم باي (سواء بالمسافة أو بدونها)
-        if (lowerName.includes("reem") && lowerName.includes("bay")) {
+        // 1. فحص أبراج Al Reem Bay و Torino لإظهار -
+        if ((lowerName.includes("reem") && lowerName.includes("bay")) || lowerName.includes("torino")) {
             depositRow.style.alignItems = "baseline";
             depositVal.innerText = "-";
         }
