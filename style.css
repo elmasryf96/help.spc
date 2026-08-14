@@ -87,13 +87,6 @@ body {
     padding-bottom: 20px;
 }
 
-.top-bar-controls {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px 40px 0 40px;
-}
-
 .logout-btn {
     background: var(--coral-red);
     color: #ffffff;
@@ -102,46 +95,8 @@ body {
     border-radius: 8px;
     cursor: pointer;
     font-weight: 700;
-}
-
-.back-btn {
-    background: var(--dark-navy);
-    color: #ffffff;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 700;
-}
-
-.dashboard-grid {
-    display: flex;
-    justify-content: center;
-    padding: 40px;
-    max-width: 500px;
-    margin: 0 auto;
-}
-
-.menu-card {
-    border: 3px solid var(--primary-yellow);
-    border-radius: 16px;
-    padding: 35px 25px;
-    background: #ffffff;
-    cursor: pointer;
-    text-align: center;
-    width: 100%;
-}
-
-.menu-icon { font-size: 3.2rem; margin-bottom: 15px; }
-
-.btn-primary {
-    background-color: var(--primary-yellow);
-    color: var(--dark-navy);
-    border: 2px solid var(--dark-navy);
-    padding: 12px 28px;
-    border-radius: 8px;
-    font-weight: 800;
-    cursor: pointer;
+    position: absolute;
+    right: 40px;
 }
 
 .brand-header {
@@ -189,7 +144,5 @@ body {
 .row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed #e2e8f0; font-size: 14.5px; }
 
 .margin-bottom-20 { margin-bottom: 20px; }
-.justify-center { justify-center: center !important; }
-.text-center { text-align: center; }
+.justify-center { justify-content: center !important; }
 .relative-header { position: relative; }
-.brand-header .logout-btn { position: absolute; right: 40px; }
