@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <!-- 📌 عنوان التبويب الجديد -->
+    <!-- 📌 عنوان التبويب -->
     <title>SPC - Agent Helper</title>
 
-    <!-- 🌐 لوجو الشركة الأصلي في تبويب المتصفح (Favicon) -->
+    <!-- 🌐 لوجو الشركة في التبويب (Favicon) -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'><circle cx='35' cy='18' r='5' fill='%23E8D567'/><circle cx='68' cy='18' r='5' fill='%23E8D567'/><circle cx='51.5' cy='7' r='5.5' fill='%23E8D567'/><path d='M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z' fill='%23E8D567'/><circle cx='51.5' cy='42.5' r='6' fill='%231A252F'/><path d='M47 75L56 75L53.5 115L49.5 115L47 75Z' fill='%23E8D567'/></svg>">
 
     <!-- 🚫 أوامر منع المتصفح من حفظ الصفحة في الكاش -->
@@ -15,10 +15,13 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <!-- تحديث رقم الإصدار لـ v=6.0 لكسر الكاش القديم فوراً -->
-    <link rel="stylesheet" href="style.css?v=6.0">
+    <!-- تحديث رقم الإصدار لـ v=7.0 -->
+    <link rel="stylesheet" href="style.css?v=7.0">
     <!-- Font Awesome للأيقونات -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- 🖨️ مكتبة تحويل HTML إلى PDF مباشرة -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
@@ -81,7 +84,6 @@
                     </div>
                 </div>
 
-                <!-- زرار Logout -->
                 <button class="logout-btn" onclick="handleLogout()" title="Log out">
                     <i class="fa-solid fa-right-from-bracket"></i> Logout
                 </button>
@@ -92,7 +94,7 @@
             </div>
 
             <div class="dashboard-grid">
-                <!-- كارت Towers Fees -->
+                <!-- 1️⃣ كارت Towers Fees -->
                 <div class="menu-card" onclick="navigateTo('towers-page')">
                     <div class="menu-icon">
                         <i class="fa-solid fa-building"></i>
@@ -100,6 +102,16 @@
                     <h3>Towers Fees & Search</h3>
                     <p>Search tower database, service fees, security deposits, and management info.</p>
                     <button class="btn-primary">Open Portal</button>
+                </div>
+
+                <!-- 2️⃣ كارت Tenant NOC Generator الجديد -->
+                <div class="menu-card" onclick="navigateTo('noc-page')">
+                    <div class="menu-icon">
+                        <i class="fa-solid fa-file-contract"></i>
+                    </div>
+                    <h3>Tenant NOC Generator</h3>
+                    <p>Generate & export official No Objection Certificates (PDF) instantly for exiting tenants.</p>
+                    <button class="btn-primary">Create NOC</button>
                 </div>
             </div>
         </div>
@@ -181,7 +193,179 @@
         </div>
     </div>
 
-    <!-- ربط السكريبت مع تحديث رقم الاصدار v=6.0 -->
-    <script src="script.js?v=6.0"></script>
+    <!-- 📄 صفحة Tenant NOC Generator الجديد -->
+    <div id="noc-page" class="page hidden-page">
+        <div class="container">
+            <div class="top-bar-controls">
+                <button class="back-btn" onclick="navigateTo('home-page')">
+                    <i class="fa-solid fa-arrow-left"></i> Back to Main Dashboard
+                </button>
+                <button class="logout-btn" onclick="handleLogout()" title="Log out">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+
+            <div class="brand-header">
+                <div class="logo-container">
+                    <svg class="logo-svg" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+                        <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+                        <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+                        <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+                    </svg>
+                    <div class="logo-text">
+                        Smart
+                        <span>Collection</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="system-title">
+                📄 Tenant No Objection Certificate (NOC) Generator
+            </div>
+
+            <!-- فورم إدخال البيانات -->
+            <div class="noc-form-wrapper">
+                <form onsubmit="generatePDF(event)" class="noc-grid-form">
+                    <div class="form-group">
+                        <label for="noc_tenant_name">Tenant Consumer Name *</label>
+                        <input type="text" id="noc_tenant_name" class="login-input" placeholder="e.g. Andreas Efrain Yudistira" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="noc_tenant_contract">Tenant Contract Number *</label>
+                        <input type="text" id="noc_tenant_contract" class="login-input" placeholder="e.g. ATD-718-T2" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="noc_tower_name">Tower / Building Name *</label>
+                        <input type="text" id="noc_tower_name" class="login-input" placeholder="e.g. Ayedh Tower" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="noc_unit_no">Unit Number *</label>
+                        <input type="text" id="noc_unit_no" class="login-input" placeholder="e.g. Unit 718" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="noc_owner_name">Owner Name (Optional)</label>
+                        <input type="text" id="noc_owner_name" class="login-input" placeholder="Leave empty for N/A">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="noc_owner_contract">Owner Contract Number (Optional)</label>
+                        <input type="text" id="noc_owner_contract" class="login-input" placeholder="Leave empty for N/A">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="noc_date">Issue Date *</label>
+                        <input type="text" id="noc_date" class="login-input" placeholder="DD/MM/YYYY" required>
+                    </div>
+
+                    <div class="form-submit-row">
+                        <button type="submit" class="btn-primary btn-generate">
+                            <i class="fa-solid fa-file-pdf"></i> Generate & Download NOC PDF
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🖨️ قالب شهادة الـ NOC المنسق للطباعة (مخفي برمجياً وينزل كـ PDF) -->
+    <div id="noc-pdf-template" class="pdf-template-hidden">
+        <!-- Header Section -->
+        <div class="pdf-header">
+            <div class="pdf-logo-brand">
+                <svg viewBox="0 0 100 120" fill="none" class="pdf-svg-logo">
+                    <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+                    <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+                    <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+                    <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+                    <circle cx="51.5" cy="42.5" r="6" fill="#1A252F"/>
+                    <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+                </svg>
+                <div class="pdf-brand-text">
+                    <strong>Smart</strong>
+                    <span>Collection</span>
+                </div>
+            </div>
+
+            <div class="pdf-contact-info">
+                <div><i class="fa-solid fa-phone"></i> 024935100</div>
+                <div><i class="fa-solid fa-headset"></i> Customer Support</div>
+                <div><i class="fa-solid fa-envelope"></i> info@smartcollection.co</div>
+                <div><i class="fa-solid fa-globe"></i> www.smartcollection.co</div>
+            </div>
+        </div>
+
+        <hr class="pdf-divider">
+
+        <!-- Header Info Bar -->
+        <div class="pdf-info-bar">
+            <div><strong>Tower:</strong> <span id="pdf_out_tower"></span></div>
+            <div><strong>Unit:</strong> <span id="pdf_out_unit"></span></div>
+            <div><strong>Date:</strong> <span id="pdf_out_date"></span></div>
+        </div>
+
+        <h1 class="pdf-title">No Objection Certificate</h1>
+
+        <p class="pdf-body-text">
+            The Customer Service Department in <strong>Smart Payments Collection LLC</strong> certifies that the above customer has paid all outstanding debts for chilled water of the mentioned contract.
+            <br><br>
+            Once issuance of the no objection certificate, the premise will be automatically transferred to the (Landlord/Properties Management Company) who will be responsible for any future chilled water consumption and district cooling (capacity charge) on the given account number.
+        </p>
+
+        <!-- Tables Section -->
+        <div class="pdf-tables-row">
+            <div class="pdf-table-block">
+                <div class="pdf-table-header">Tenant Information</div>
+                <table class="pdf-table">
+                    <tr><td>Consumer Name</td><td id="pdf_out_tenant_name"></td></tr>
+                    <tr><td>Contract Number</td><td id="pdf_out_tenant_contract"></td></tr>
+                </table>
+            </div>
+
+            <div class="pdf-table-block">
+                <div class="pdf-table-header">Owner Information</div>
+                <table class="pdf-table">
+                    <tr><td>Consumer Name</td><td id="pdf_out_owner_name">N/A</td></tr>
+                    <tr><td>Contract Number</td><td id="pdf_out_owner_contract">N/A</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer & Official Stamp Section -->
+        <div class="pdf-footer-section">
+            <div class="pdf-regards">
+                <strong>Regards,</strong><br>
+                Customer Service Division<br>
+                <strong>Smart Payments Collection LLC</strong>
+            </div>
+
+            <!-- الختم الدائري الأزرق الرسمي للشركة -->
+            <div class="pdf-stamp-container">
+                <div class="pdf-stamp-circle">
+                    <div class="stamp-top">سمارت لتحصيل الرسوم ذ.م.م</div>
+                    <div class="stamp-center">
+                        <svg viewBox="0 0 100 120" fill="none" class="stamp-svg">
+                            <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#1b4285"/>
+                        </svg>
+                        <strong>Smart Collection</strong>
+                        <span>Abu Dhabi-U.A.E.</span>
+                    </div>
+                    <div class="stamp-bottom">SMART PAYMENTS COLLECTION L.L.C.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="pdf-footer-address">
+            2nd floor Office 213 Ali & Sons Business Center Plot no.29 Al Ain Rd, Umm Al Anar Abu Dhabi, UAE - Po Box 129865
+        </div>
+    </div>
+
+    <script src="script.js?v=7.0"></script>
 </body>
 </html>
