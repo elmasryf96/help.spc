@@ -231,7 +231,7 @@ function updateFields(data, towerName = "") {
             } else if (data.deposit === "SPC for new customer") {
                 depositVal.innerHTML = renderBadge("New Customers Only");
             } else {
-                // إظهار Check Prior Account لجميع الأبراج العادية وأبراج Client
+                // استبدال شامل لأي نص قديم مثل Client / Owner أو غيره بـ Check Prior Account
                 depositVal.innerHTML = renderBadge("Check Prior Account");
             }
         }
