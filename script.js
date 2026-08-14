@@ -190,16 +190,20 @@ function updateFields(data, towerName = "") {
         
         const lowerName = towerName.toLowerCase();
         
-        const isDanube = lowerName.includes("danube") || 
-                         lowerName.includes("gemini") || 
-                         lowerName.includes("elz") || 
-                         lowerName.includes("glamz") || 
-                         lowerName.includes("lawnz") || 
-                         lowerName.includes("miraclz") || 
-                         lowerName.includes("resortz") || 
-                         lowerName.includes("starz");
-
-        if (isDanube) {
+        // 1. فحص برج Bali أولاً
+        if (lowerName.includes("bali")) {
+            depositRow.style.alignItems = "center";
+            depositVal.innerHTML = renderBadge("Unit Capacity × 8");
+        } 
+        // 2. فحص أبراج Danube
+        else if (lowerName.includes("danube") || 
+                 lowerName.includes("gemini") || 
+                 lowerName.includes("elz") || 
+                 lowerName.includes("glamz") || 
+                 lowerName.includes("lawnz") || 
+                 lowerName.includes("miraclz") || 
+                 lowerName.includes("resortz") || 
+                 lowerName.includes("starz")) {
             depositRow.style.alignItems = "center";
             depositVal.innerHTML = `
                 <div class="deposit-badge-container">
@@ -216,19 +220,18 @@ function updateFields(data, towerName = "") {
                         <span class="badge-val">3,000 AED</span>
                     </div>
                 </div>`;
-        } else {
+        } 
+        // 3. باقي الحالات الخاصة والأبراج العادية
+        else {
             depositRow.style.alignItems = "center";
-            if (lowerName.includes("bali")) {
-                depositVal.innerHTML = renderBadge("Unit Capacity × 8");
-            } else if (lowerName.includes("lamar")) {
+            if (lowerName.includes("lamar")) {
                 depositVal.innerHTML = renderBadge("1,000 AED (Fixed)");
             } else if (lowerName.includes("maison")) {
                 depositVal.innerHTML = renderBadge("Unit Capacity × 62.5 × 8");
             } else if (data.deposit === "SPC for new customer") {
                 depositVal.innerHTML = renderBadge("New Customers Only");
-            } else if (data.deposit === "Client") {
-                depositVal.innerHTML = renderBadge("Client / Owner");
             } else {
+                // إظهار Check Prior Account لجميع الأبراج العادية وأبراج Client
                 depositVal.innerHTML = renderBadge("Check Prior Account");
             }
         }
