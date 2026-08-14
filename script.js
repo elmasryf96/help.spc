@@ -166,6 +166,8 @@ function updateFields(data, towerName = "") {
         // 🛡️ Security Deposit Calculation logic based on project rules
         if (lowerName.includes("danube") || lowerName.includes("lamar")) {
             document.getElementById("deposit_amount").innerText = "1,000 AED (Fixed for all units)";
+        } else if (lowerName.includes("maison")) {
+            document.getElementById("deposit_amount").innerText = "Unit Capacity * 62.5 * 8";
         } else if (data.deposit === "SPC for new customer") {
             document.getElementById("deposit_amount").innerText = "Collect deposit (New Customers Only)";
         } else if (data.deposit === "Client") {
