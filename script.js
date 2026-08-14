@@ -154,7 +154,6 @@ const towersData = {
   "Yasmina Towers 2": { "client": "Dhafir development", "location": "Abudhabi", "bank": "Client", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "35.00 AED", "activation": "100.00 AED", "disconnection": "500.00 AED", "noc": "0.00 AED", "final": "0.00 AED" }
 };
 
-// Helper function to render uniform badge HTML
 function renderBadge(val) {
     if (!val || val === "-") return "-";
     return `<span class="spc-badge">${val}</span>`;
@@ -167,14 +166,12 @@ function updateFields(data, towerName = "") {
     const depositVal = document.getElementById("deposit_amount");
 
     if (data) {
-        // 1. Force Client Details into Golden Badge (Bypasses any HTML override)
         const clientElem = document.getElementById("client");
         if (clientElem) {
             const clientVal = data["client"] || "-";
             clientElem.innerHTML = `<span class="client-badge">${clientVal}</span>`;
         }
 
-        // 2. Format All Fees as Golden Badges
         feeFields.forEach(f => {
             const el = document.getElementById(f);
             if (el) {
@@ -183,7 +180,6 @@ function updateFields(data, towerName = "") {
             }
         });
 
-        // 3. Format Building Details as Golden Badges
         detailFields.forEach(f => {
             const el = document.getElementById(f);
             if (el) {
@@ -194,7 +190,6 @@ function updateFields(data, towerName = "") {
         
         const lowerName = towerName.toLowerCase();
         
-        // 🏰 Danube Towers Check
         const isDanube = lowerName.includes("danube") || 
                          lowerName.includes("gemini") || 
                          lowerName.includes("elz") || 
