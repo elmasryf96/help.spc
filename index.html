@@ -12,7 +12,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <link rel="stylesheet" href="style.css?v=2026.6">
+    <link rel="stylesheet" href="style.css?v=2026.103">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -75,7 +75,23 @@
 
             <div class="system-title">🚀 AGENT ASSISTANT DASHBOARD</div>
 
-            <div class="dashboard-grid">
+            <!-- 🟢 LIVE ACTIVE SHIFT STATUS WIDGET (DASHBOARD SUMMARY) -->
+            <div class="home-live-widget-card">
+                <div class="hl-header-bar">
+                    <div class="hl-title">
+                        <span class="live-dot-pulse"></span>
+                        <i class="fa-solid fa-user-clock"></i>
+                        <h3>Active On Shift Right Now (UAE Time)</h3>
+                    </div>
+                    <div class="hl-clock" id="homeClockText">--:--:-- -- (GST)</div>
+                </div>
+                <div id="homeActiveAgentsGrid" class="hl-agents-container">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </div>
+
+            <div class="dashboard-grid3">
+                <!-- 🏢 Master Data Card -->
                 <div class="menu-card" onclick="navigateTo('towers-page')">
                     <div class="menu-icon"><i class="fa-solid fa-database"></i></div>
                     <h3>Master Data & Towers Portal</h3>
@@ -83,12 +99,34 @@
                     <button class="btn-primary">Access Master Data <i class="fa-solid fa-arrow-right"></i></button>
                 </div>
 
-                <div class="menu-card" onclick="navigateTo('noc-page')">
-                    <div class="menu-icon"><i class="fa-solid fa-file-contract"></i></div>
-                    <h3>NOC Process</h3>
-                    <p>Check requirements, MOU, owner & tenant conditions, and clearance rules.</p>
-                    <button class="btn-primary">Start NOC Process <i class="fa-solid fa-arrow-right"></i></button>
+                <!-- 🛠️ Technical Department Card -->
+                <div class="menu-card" onclick="navigateTo('tech-page')">
+                    <div class="menu-icon"><i class="fa-solid fa-screwdriver-wrench"></i></div>
+                    <h3>Technical Department</h3>
+                    <p>View building inspection schedules, field maintenance days, and technical operations.</p>
+                    <button class="btn-primary">View Schedule <i class="fa-solid fa-calendar-days"></i></button>
                 </div>
+
+                <!-- 📅 Duty Roster Card -->
+                <div class="menu-card" onclick="navigateTo('roster-page')">
+                    <div class="menu-icon"><i class="fa-solid fa-users-gear"></i></div>
+                    <h3>Team Duty Roster</h3>
+                    <p>View live active teams right now, search by agent, or inspect full monthly schedules.</p>
+                    <button class="btn-primary">Check Roster <i class="fa-solid fa-clock"></i></button>
+                </div>
+            </div>
+
+            <!-- 💖 Simple Bottom Developer Note with Love -->
+            <div class="dev-banner-card">
+                <div class="dev-banner-header">
+                    <i class="fa-solid fa-heart"></i>
+                    <h3>Welcome to SPC - Agent Helper</h3>
+                </div>
+                <p>
+                    This portal was made with love to help our team, created by 
+                    <span class="dev-name-badge"><i class="fa-solid fa-user-gear"></i> Faris Elmasry</span>.
+                    If you have any ideas or suggestions to make it better, feel free to contact him directly!
+                </p>
             </div>
         </div>
     </div>
@@ -130,6 +168,16 @@
             </div>
 
             <div class="cards-wrapper">
+                <!-- 💳 Online Payment Card -->
+                <div class="card card-fees-top">
+                    <h3>💳 ONLINE PAYMENT AVAILABILITY</h3>
+                    <div class="row">
+                        <span class="title">Status:</span>
+                        <span class="val" id="online">-</span>
+                    </div>
+                </div>
+
+                <!-- 🏷️ Service Fees Card -->
                 <div class="card card-fees-top">
                     <h3>🏷️ APPLICABLE SERVICE FEES</h3>
                     <div class="fees-grid">
@@ -140,6 +188,18 @@
                         <div class="row"><span class="title">NOC Fee:</span><span class="val" id="noc">-</span></div>
                         <div class="row"><span class="title">Final Bill Fee:</span><span class="val" id="final">-</span></div>
                     </div>
+
+                    <!-- 🛠️ Alert Maintenance Box -->
+                    <div id="maintenance_row" class="maintenance-alert-box hidden-page">
+                        <div class="maintenance-info">
+                            <span class="m-icon"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                            <div class="m-text">
+                                <strong>Monthly Maintenance Charge Applies:</strong>
+                                <span class="m-subtext">Additional mandatory maintenance fee billed monthly.</span>
+                            </div>
+                        </div>
+                        <div class="m-badge" id="maintenance">-</div>
+                    </div>
                 </div>
 
                 <div class="bottom-cards-row">
@@ -148,21 +208,20 @@
                         <div class="row"><span class="title">Client Details:</span><span class="val" id="client">-</span></div>
                         <div class="row"><span class="title">Location:</span><span class="val" id="location">-</span></div>
                         <div class="row"><span class="title">Bank Account:</span><span class="val" id="bank">-</span></div>
-                        <div class="row"><span class="title">Online Payment Availability:</span><span class="val" id="online">-</span></div>
                     </div>
 
                     <div class="card card-deposit">
                         <h3>🛡️ SECURITY DEPOSIT</h3>
                         <div class="row"><span class="title">Security Deposit Refund:</span><span class="val" id="deposit">-</span></div>
-                        <div class="row"><span class="title">Security Deposit Amount:</span><span class="val" id="deposit_amount">-</span></div>
+                        <div class="row top-align"><span class="title">Security Deposit Amount:</span><div class="val-container" id="deposit_amount"><span class="val">-</span></div></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 📑 NOC Process Page -->
-    <div id="noc-page" class="page hidden-page">
+    <!-- 🛠️ Technical Department Page -->
+    <div id="tech-page" class="page hidden-page">
         <div class="container">
             <div class="brand-header relative-header">
                 <button class="back-btn" onclick="navigateTo('home-page')">
@@ -186,86 +245,194 @@
                 </button>
             </div>
 
-            <div class="system-title">📑 NOC Requirements & Clearance Checker</div>
+            <div class="system-title">📋 Technical Department - Inspection Schedule</div>
 
-            <div class="search-box">
-                <div class="form-row-2col">
-                    <div class="input-group-field">
-                        <label for="nocTowerSelect">🏢 Select Tower Name:</label>
-                        <select id="nocTowerSelect" class="combo-input" onchange="handleNocChange()">
-                            <option value="">-- Choose Tower --</option>
-                        </select>
+            <!-- 📝 SharePoint Tracker Link Banner -->
+            <div class="sheet-tracker-card">
+                <div class="sheet-tracker-content">
+                    <div class="sheet-icon-wrapper">
+                        <i class="fa-solid fa-file-excel"></i>
                     </div>
-
-                    <div class="input-group-field">
-                        <label for="nocUserType">👤 Select User Type:</label>
-                        <select id="nocUserType" class="combo-input" onchange="handleNocChange()">
-                            <option value="">-- Select Owner / Tenant --</option>
-                            <option value="owner">Owner (مالك)</option>
-                            <option value="tenant">Tenant (مستأجر)</option>
-                        </select>
+                    <div class="sheet-text-info">
+                        <h3>Submit Technical Requests</h3>
+                        <p>To submit a request for <strong>Inspection</strong>, <strong>Disconnection</strong>, or <strong>Reconnection</strong>, please log your entry directly in the online SharePoint tracker sheet:</p>
                     </div>
+                </div>
+                <div class="sheet-btn-wrapper">
+                    <a href="https://smartcollectionco021-my.sharepoint.com/:x:/g/personal/technical_smartcollection_co/IQBoi6BqcB49QLHKDVIEd8ekAbpwHfUm2TIeh-Iy-U1WsI8?e=kgwsC4&wdExp=TEAMS-TREATMENT&web=1" target="_blank" rel="noopener noreferrer" class="btn-sheet-link">
+                        <i class="fa-solid fa-up-right-from-square"></i> Open Technical Tracker Sheet
+                    </a>
                 </div>
             </div>
 
-            <div id="noc-result-area" class="cards-wrapper hidden-page">
-                <div id="owner-checklist-card" class="card card-warning hidden-page">
-                    <h3>⚠️ OWNER NOC MANDATORY CHECKLIST</h3>
-                    <ul class="checklist-items">
-                        <li>
-                            <i class="fa-solid fa-file-signature check-icon"></i>
-                            <div>
-                                <strong>MOU Verification:</strong>
-                                <p>Ensure the owner has provided a valid, signed <strong>MOU (Memorandum of Understanding)</strong>.</p>
-                            </div>
-                        </li>
-                        <li>
-                            <i class="fa-solid fa-address-book check-icon"></i>
-                            <div>
-                                <strong>New Owner Contact Information:</strong>
-                                <p>Verify and capture the new owner's <strong>Mobile Number</strong> and <strong>Email Address</strong>.</p>
-                            </div>
-                        </li>
-                        <li>
-                            <i class="fa-solid fa-file-invoice-dollar check-icon"></i>
-                            <div>
-                                <strong>Interim Billing (No Active Tenant):</strong>
-                                <p>Issue a final invoice for actual chilled water consumption up to <strong>today's date</strong> if no active tenant exists.</p>
-                            </div>
-                        </li>
-                        <li>
-                            <i class="fa-solid fa-scale-balanced check-icon"></i>
-                            <div>
-                                <strong>Zero Outstanding Balance Rule:</strong>
-                                <p>All active and closed accounts linked to this unit/apartment (including prior owners and previous tenants) MUST have an outstanding balance of exactly <strong>0.00 AED</strong>.</p>
-                            </div>
-                        </li>
-                    </ul>
+            <!-- 📍 ABU DHABI DIRECT INSTRUCTION BANNER -->
+            <div class="abudhabi-notice-box">
+                <div class="ad-header">
+                    <i class="fa-solid fa-building-user"></i>
+                    <h3>Abu Dhabi Towers Inspection Protocol</h3>
                 </div>
+                <p>
+                    For any inspection requests in <strong>Abu Dhabi</strong>, please contact 
+                    <span class="person-highlight"><i class="fa-solid fa-user-tie"></i> Charles Vincent</span> 
+                    directly to schedule and confirm the appropriate inspection time.
+                </p>
+            </div>
 
-                <div id="tenant-checklist-card" class="card hidden-page">
-                    <h3>📋 TENANT NOC CLEARANCE CHECKLIST</h3>
-                    <ul class="checklist-items">
-                        <li>
-                            <i class="fa-solid fa-receipt check-icon"></i>
-                            <div>
-                                <strong>Tenant Final Settlement:</strong>
-                                <p>Ensure all outstanding invoices for chilled water consumption up to the move-out date are fully settled.</p>
-                            </div>
-                        </li>
-                        <li>
-                            <i class="fa-solid fa-vault check-icon"></i>
-                            <div>
-                                <strong>Security Deposit Verification:</strong>
-                                <p>Check security deposit status and clearance as per building specifications.</p>
-                            </div>
-                        </li>
-                    </ul>
+            <div class="section-divider">
+                <span><i class="fa-solid fa-city"></i> Dubai & Ajman Inspection Schedule</span>
+            </div>
+
+            <!-- Search Controls -->
+            <div class="search-box margin-bottom-25">
+                <label for="schedSearchInput">🔍 Quick Search Building or Day (Dubai & Ajman):</label>
+                <div class="input-wrapper">
+                    <input type="text" id="schedSearchInput" class="combo-input" placeholder="Type building name or day (e.g. Monday, Damac, Skyview)..." oninput="filterScheduleCards()">
+                    <button type="button" id="clearSchedBtn" class="clear-btn" onclick="clearSchedSearch()"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+
+            <!-- Modern Card Grid for Dubai & Ajman Days -->
+            <div class="cards-wrapper">
+                <div id="schedGridContainer" class="days-schedule-grid">
+                    <!-- Cards rendered dynamically via JS -->
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="script.js?v=2026.6"></script>
+    <!-- 📅 Team Duty Roster Page -->
+    <div id="roster-page" class="page hidden-page">
+        <div class="container">
+            <div class="brand-header relative-header">
+                <button class="back-btn" onclick="navigateTo('home-page')">
+                    <i class="fa-solid fa-arrow-left"></i> Dashboard
+                </button>
+
+                <div class="logo-container">
+                    <svg class="logo-svg" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+                        <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+                        <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+                        <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+                    </svg>
+                    <div class="logo-text">Smart <span>Collection</span></div>
+                </div>
+
+                <button class="logout-btn" onclick="handleLogout()" title="Log out">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+
+            <div class="system-title">📅 Monthly Duty Roster - August 2026</div>
+
+            <!-- LIVE UAE TIME BANNER -->
+            <div class="live-status-banner">
+                <div class="live-clock-box">
+                    <div class="live-dot-pulse"></div>
+                    <div class="clock-info">
+                        <span class="clock-label">UAE Current Time (GST):</span>
+                        <span id="uaeClockText" class="clock-time">--:--:-- --</span>
+                    </div>
+                </div>
+                <div class="shift-timings-legend">
+                    <span class="shift-tag s1"><i class="fa-solid fa-sun"></i> Shift 1: 09:00 AM - 05:00 PM</span>
+                    <span class="shift-tag s2"><i class="fa-solid fa-cloud-sun"></i> Shift 2: 11:00 AM - 07:00 PM</span>
+                    <span class="shift-tag s3"><i class="fa-solid fa-moon"></i> Shift 3: 01:00 PM - 09:00 PM</span>
+                </div>
+            </div>
+
+            <!-- NAVIGATION TABS -->
+            <div class="roster-tabs-bar">
+                <button class="tab-btn active" id="tabLiveBtn" onclick="switchRosterTab('live-view')">
+                    <i class="fa-solid fa-bolt"></i> Daily & Live Shift Status
+                </button>
+                <button class="tab-btn" id="tabAgentBtn" onclick="switchRosterTab('agent-view')">
+                    <i class="fa-solid fa-id-badge"></i> Personal Agent Lookup
+                </button>
+                <button class="tab-btn" id="tabFullBtn" onclick="switchRosterTab('full-sheet-view')">
+                    <i class="fa-solid fa-table"></i> Full Monthly Roster Table
+                </button>
+            </div>
+
+            <!-- TAB 1: DAILY & LIVE SHIFT STATUS VIEW -->
+            <div id="tab-live-view" class="roster-tab-content active-tab">
+                <div class="roster-controls-wrapper">
+                    <div class="date-picker-card">
+                        <label for="rosterDateInput"><i class="fa-solid fa-calendar-day"></i> Select Date (August 2026):</label>
+                        <input type="date" id="rosterDateInput" min="2026-08-01" max="2026-08-31" class="date-input" onchange="renderRosterView()">
+                        <button class="btn-today-quick" onclick="resetRosterToToday()"><i class="fa-solid fa-rotate-left"></i> Today</button>
+                    </div>
+
+                    <div class="active-summary-card">
+                        <div class="summary-header">
+                            <i class="fa-solid fa-user-clock"></i>
+                            <h4 id="activeSummaryTitle">Active On Shift Right Now</h4>
+                        </div>
+                        <div id="activeAgentsSummary" class="active-tags-grid">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cards-wrapper">
+                    <div id="rosterDeptContainer" class="roster-dept-grid">
+                        <!-- Dynamic rendering by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: PERSONAL AGENT LOOKUP VIEW -->
+            <div id="tab-agent-view" class="roster-tab-content hidden-tab">
+                <div class="agent-lookup-card">
+                    <div class="lookup-header-box">
+                        <i class="fa-solid fa-user-gear"></i>
+                        <h3>Select Your Name to Track Your Schedule</h3>
+                    </div>
+                    <div class="lookup-controls-row">
+                        <div class="form-group flex-1">
+                            <label for="agentDropdown"><i class="fa-solid fa-user-ninja"></i> Select Agent:</label>
+                            <select id="agentDropdown" class="combo-input" onchange="renderAgentLookup()">
+                                <option value="">-- Choose Agent --</option>
+                            </select>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="agentDateFilter"><i class="fa-solid fa-filter"></i> Specific Date Filter (Optional):</label>
+                            <input type="date" id="agentDateFilter" min="2026-08-01" max="2026-08-31" class="date-input" onchange="renderAgentLookup()">
+                        </div>
+                        <button class="btn-today-quick align-self-end" onclick="clearAgentDateFilter()"><i class="fa-solid fa-arrows-rotate"></i> Show All Month</button>
+                    </div>
+                </div>
+
+                <div class="cards-wrapper">
+                    <div id="agentResultContainer" class="agent-result-box">
+                        <div class="no-sched-results">
+                            <i class="fa-solid fa-arrow-up"></i>
+                            <p>Please select an agent name above to view their shifts.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: FULL MONTHLY ROSTER TABLE VIEW -->
+            <div id="tab-full-sheet-view" class="roster-tab-content hidden-tab">
+                <div class="full-table-card">
+                    <div class="full-table-header">
+                        <i class="fa-solid fa-calendar-days"></i>
+                        <h3>Full Team Monthly Schedule - August 2026</h3>
+                    </div>
+                    <div class="table-scroll-wrapper">
+                        <table id="monthlyRosterTable" class="roster-full-table">
+                            <!-- Populated dynamically via JS -->
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="script.js?v=2026.103"></script>
 </body>
 </html>
