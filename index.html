@@ -8,11 +8,12 @@
     <!-- 🌐 Logo -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'><circle cx='35' cy='18' r='5' fill='%23E8D567'/><circle cx='68' cy='18' r='5' fill='%23E8D567'/><circle cx='51.5' cy='7' r='5.5' fill='%23E8D567'/><path d='M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z' fill='%23E8D567'/><circle cx='51.5' cy='42.5' r='6' fill='%231A252F'/><path d='M47 75L56 75L53.5 115L49.5 115L47 75Z' fill='%23E8D567'/></svg>">
 
+    <!-- 🚫 Prevent Caching Directives -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <link rel="stylesheet" href="style.css?v=2026.110">
+    <link rel="stylesheet" href="style.css?v=2026.115">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -34,20 +35,20 @@
 
             <h2 class="login-title">Portal Access Login</h2>
             
-            <form onsubmit="handleLogin(event)">
+            <form onsubmit="handleLogin(event); return false;">
                 <div class="form-group">
                     <label for="username"><i class="fa-solid fa-user"></i> Username</label>
-                    <input type="text" id="username" class="login-input" placeholder="Enter username" required>
+                    <input type="text" id="username" class="login-input" placeholder="Enter username" required autocomplete="off">
                 </div>
 
                 <div class="form-group">
                     <label for="password"><i class="fa-solid fa-lock"></i> Password</label>
-                    <input type="password" id="password" class="login-input" placeholder="Enter password" required>
+                    <input type="password" id="password" class="login-input" placeholder="Enter password" required autocomplete="off">
                 </div>
 
                 <div id="login-error" class="login-error-msg">❌ Invalid Username or Password!</div>
 
-                <button type="submit" class="btn-login">Sign In</button>
+                <button type="button" onclick="handleLogin(event)" class="btn-login">Sign In</button>
             </form>
         </div>
     </div>
@@ -507,6 +508,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=2026.110"></script>
+    <script src="script.js?v=2026.115"></script>
 </body>
 </html>
