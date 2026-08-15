@@ -94,96 +94,99 @@ body {
     padding-bottom: 20px;
 }
 
-/* 🟢 HOME DASHBOARD LIVE WIDGET STYLES */
+/* 🟢 HOME DASHBOARD LIVE WIDGET STYLES (ELEGANT LIGHT THEME) */
 .home-live-widget-card {
-    margin: 25px 40px 10px 40px;
-    background: var(--dark-navy);
-    border: 3px solid var(--primary-yellow);
-    border-radius: 18px;
-    padding: 20px 25px;
-    color: #ffffff;
+    margin: 20px 40px 0px 40px;
+    background: #ffffff;
+    border: 2px solid var(--primary-yellow);
+    border-radius: 16px;
+    padding: 14px 18px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
 }
 
 .hl-header-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 2px solid rgba(232, 213, 103, 0.3);
-    padding-bottom: 12px;
-    margin-bottom: 18px;
+    border-bottom: 1.5px dashed #e2e8f0;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
     flex-wrap: wrap;
     gap: 10px;
 }
 
-.hl-title { display: flex; align-items: center; gap: 10px; }
-.hl-title i { font-size: 20px; color: var(--primary-yellow); }
-.hl-title h3 { margin: 0; font-size: 17px; font-weight: 800; color: var(--primary-yellow); }
-.hl-clock { font-size: 15px; font-weight: 800; color: #ffffff; background: rgba(255,255,255,0.1); padding: 5px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); }
+.hl-title { display: flex; align-items: center; gap: 8px; }
+.hl-title i { font-size: 16px; color: var(--dark-navy); }
+.hl-title h3 { margin: 0; font-size: 15px; font-weight: 800; color: var(--dark-navy); }
+.hl-clock { font-size: 13px; font-weight: 800; color: var(--dark-navy); background: var(--badge-bg); padding: 3px 10px; border-radius: 6px; border: 1px solid var(--primary-yellow); }
 
 .hl-agents-container {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
 }
 
 .hl-team-box {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1.5px solid rgba(232, 213, 103, 0.4);
-    border-radius: 12px;
-    padding: 14px 18px;
+    background: #fafafa;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 10px 12px;
 }
 
 .hl-team-title {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 14.5px;
+    font-size: 13px;
     font-weight: 800;
-    color: #ffffff;
-    margin-bottom: 12px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    padding-bottom: 8px;
+    color: var(--dark-navy);
+    margin-bottom: 8px;
+    border-bottom: 1px solid #edf2f7;
+    padding-bottom: 5px;
 }
+
+.hl-tt-left { display: flex; align-items: center; gap: 6px; }
+.hl-tt-left i { font-size: 13px; color: var(--dark-navy); }
 
 .hl-team-badge {
     background: var(--primary-yellow);
     color: var(--dark-navy);
-    padding: 2px 8px;
-    border-radius: 6px;
-    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 10.5px;
     font-weight: 800;
 }
 
-.hl-team-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.hl-team-list { display: flex; flex-wrap: wrap; gap: 6px; }
 
 .hl-agent-chip {
     background: #f0fdf4;
-    border: 1px solid #22c55e;
-    color: #15803d;
-    padding: 5px 10px;
-    border-radius: 8px;
-    font-size: 13px;
+    border: 1px solid #bbf7d0;
+    color: #166534;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 12px;
     font-weight: 800;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
 }
 
 .hl-chip-shift {
-    background: #15803d;
+    background: #166534;
     color: #ffffff;
-    padding: 1px 5px;
-    border-radius: 4px;
-    font-size: 10px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 9.5px;
 }
 
-.hl-none-text { font-size: 12.5px; color: #94a3b8; font-weight: 700; }
+.hl-none-text { font-size: 11.5px; color: #94a3b8; font-weight: 700; }
 
 .dashboard-grid3 {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 25px;
-    padding: 30px 40px 40px 40px;
+    padding: 25px 40px 35px 40px;
     max-width: 1050px;
     margin: 0 auto;
 }
@@ -191,7 +194,7 @@ body {
 .menu-card {
     border: 3px solid var(--primary-yellow);
     border-radius: 18px;
-    padding: 30px 22px;
+    padding: 28px 20px;
     background: #ffffff;
     cursor: pointer;
     text-align: center;
@@ -207,18 +210,18 @@ body {
     box-shadow: 0 15px 30px rgba(232, 213, 103, 0.4);
 }
 
-.menu-icon { font-size: 3rem; margin-bottom: 12px; color: var(--dark-navy); }
-.menu-card h3 { font-size: 18px; font-weight: 800; margin-bottom: 10px; }
-.menu-card p { font-size: 13.5px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5; }
+.menu-icon { font-size: 2.8rem; margin-bottom: 10px; color: var(--dark-navy); }
+.menu-card h3 { font-size: 17px; font-weight: 800; margin-bottom: 8px; }
+.menu-card p { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; line-height: 1.5; }
 
 .btn-primary {
     background-color: var(--primary-yellow);
     color: var(--dark-navy);
     border: 2px solid var(--dark-navy);
-    padding: 12px 22px;
+    padding: 10px 18px;
     border-radius: 8px;
     font-weight: 800;
-    font-size: 14.5px;
+    font-size: 14px;
     cursor: pointer;
     width: 100%;
 }
@@ -251,9 +254,9 @@ body {
 
 .system-title {
     background: linear-gradient(90deg, #e8d567 0%, #f1e285 100%);
-    padding: 20px;
+    padding: 18px;
     text-align: center;
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 800;
     border-bottom: 2px solid #d4c255;
 }
@@ -431,22 +434,22 @@ body {
 
 /* 💖 Dev Banner Card */
 .dev-banner-card {
-    margin: 10px 40px 30px 40px;
+    margin: 0px 40px 25px 40px;
     background: #fffbe6;
     border: 2px solid var(--primary-yellow);
     border-radius: 16px;
-    padding: 20px 25px;
+    padding: 16px 20px;
     text-align: center;
 }
 
-.dev-banner-header { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 8px; }
-.dev-banner-header i { color: var(--coral-red); font-size: 18px; }
-.dev-banner-header h3 { margin: 0; font-size: 17px; font-weight: 800; }
-.dev-banner-card p { margin: 0; font-size: 14px; line-height: 1.6; color: #4a5568; font-weight: 600; }
+.dev-banner-header { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 6px; }
+.dev-banner-header i { color: var(--coral-red); font-size: 16px; }
+.dev-banner-header h3 { margin: 0; font-size: 16px; font-weight: 800; }
+.dev-banner-card p { margin: 0; font-size: 13.5px; line-height: 1.5; color: #4a5568; font-weight: 600; }
 
 .dev-name-badge {
     background: var(--primary-yellow); color: var(--dark-navy); border: 1px solid #d4c255;
-    padding: 2px 10px; border-radius: 6px; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; margin: 0 4px;
+    padding: 2px 8px; border-radius: 6px; font-weight: 800; display: inline-flex; align-items: center; gap: 5px; margin: 0 4px;
 }
 
 /* 🇦🇪 Abu Dhabi Notice Section */
@@ -531,7 +534,7 @@ body {
 
 .live-clock-box { display: flex; align-items: center; gap: 12px; }
 .live-dot-pulse {
-    width: 12px; height: 12px; background-color: #10b981; border-radius: 50%;
+    width: 10px; height: 10px; background-color: #10b981; border-radius: 50%;
     box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
     animation: pulseGlow 1.6s infinite;
 }
