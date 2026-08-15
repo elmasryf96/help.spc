@@ -1,84 +1,3 @@
-function handleLogin(event) {
-    event.preventDefault();
-    const user = document.getElementById("username").value.trim();
-    const pass = document.getElementById("password").value.trim();
-    const errorMsg = document.getElementById("login-error");
-
-    if (user === "SPC" && pass === "SPC@2026") {
-        errorMsg.style.display = "none";
-        navigateTo('home-page');
-    } else {
-        errorMsg.style.display = "block";
-    }
-}
-
-function handleLogout() {
-    document.getElementById("username").value = "";
-    document.getElementById("password").value = "";
-    document.getElementById("login-error").style.display = "none";
-    if (document.getElementById("towerInput")) { clearSearch(); }
-    navigateTo('login-page');
-}
-
-function navigateTo(pageId) {
-    const pages = document.querySelectorAll('.page');
-    pages.forEach(page => {
-        page.classList.remove('active-page');
-        page.classList.add('hidden-page');
-    });
-
-    const targetPage = document.getElementById(pageId);
-    if (targetPage) {
-        targetPage.classList.remove('hidden-page');
-        targetPage.classList.add('active-page');
-    }
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-    const datalist = document.getElementById("towersList");
-    const nocSelect = document.getElementById("nocTowerSelect");
-
-    if (datalist || nocSelect) {
-        Object.keys(towersData).sort().forEach(tower => {
-            if (datalist) {
-                let option = document.createElement("option");
-                option.value = tower;
-                datalist.appendChild(option);
-            }
-            if (nocSelect) {
-                let opt = document.createElement("option");
-                opt.value = tower;
-                opt.textContent = tower;
-                nocSelect.appendChild(opt);
-            }
-        });
-    }
-});
-
-function handleNocChange() {
-    const tower = document.getElementById("nocTowerSelect").value;
-    const userType = document.getElementById("nocUserType").value;
-
-    const resultArea = document.getElementById("noc-result-area");
-    const ownerCard = document.getElementById("owner-checklist-card");
-    const tenantCard = document.getElementById("tenant-checklist-card");
-
-    if (tower && userType) {
-        resultArea.classList.remove("hidden-page");
-        if (userType === "owner") {
-            ownerCard.classList.remove("hidden-page");
-            tenantCard.classList.add("hidden-page");
-        } else if (userType === "tenant") {
-            tenantCard.classList.remove("hidden-page");
-            ownerCard.classList.add("hidden-page");
-        }
-    } else {
-        resultArea.classList.add("hidden-page");
-        ownerCard.classList.add("hidden-page");
-        tenantCard.classList.add("hidden-page");
-    }
-}
-
 const towersData = {
   "Al Dana Towers": { "client": "ADCP/Nine Yard", "location": "Abudhabi", "bank": "SPC", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "40.00 AED", "activation": "200.00 AED", "disconnection": "500.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
   "Al Mamzar Gate": { "client": "H S H Real Estate", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "40.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
@@ -154,34 +73,131 @@ const towersData = {
   "Yasmina Towers 2": { "client": "Dhafir development", "location": "Abudhabi", "bank": "Client", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "35.00 AED", "activation": "100.00 AED", "disconnection": "500.00 AED", "noc": "0.00 AED", "final": "0.00 AED" }
 };
 
+function handleLogin(event) {
+    event.preventDefault();
+    const user = document.getElementById("username").value.trim();
+    const pass = document.getElementById("password").value.trim();
+    const errorMsg = document.getElementById("login-error");
+
+    if (user === "SPC" && pass === "SPC@2026") {
+        errorMsg.style.display = "none";
+        navigateTo('home-page');
+    } else {
+        errorMsg.style.display = "block";
+    }
+}
+
+function handleLogout() {
+    document.getElementById("username").value = "";
+    document.getElementById("password").value = "";
+    document.getElementById("login-error").style.display = "none";
+    clearSearch();
+    navigateTo('login-page');
+}
+
+function navigateTo(pageId) {
+    const pages = document.querySelectorAll('.page');
+    pages.forEach(page => {
+        page.classList.remove('active-page');
+        page.classList.add('hidden-page');
+    });
+
+    const targetPage = document.getElementById(pageId);
+    if (targetPage) {
+        targetPage.classList.remove('hidden-page');
+        targetPage.classList.add('active-page');
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const datalist = document.getElementById("towersList");
+    const nocSelect = document.getElementById("nocTowerSelect");
+
+    if (datalist || nocSelect) {
+        Object.keys(towersData).sort().forEach(tower => {
+            if (datalist) {
+                let option = document.createElement("option");
+                option.value = tower;
+                datalist.appendChild(option);
+            }
+            if (nocSelect) {
+                let opt = document.createElement("option");
+                opt.value = tower;
+                opt.textContent = tower;
+                nocSelect.appendChild(opt);
+            }
+        });
+    }
+});
+
+function handleNocChange() {
+    const tower = document.getElementById("nocTowerSelect").value;
+    const userType = document.getElementById("nocUserType").value;
+
+    const resultArea = document.getElementById("noc-result-area");
+    const ownerCard = document.getElementById("owner-checklist-card");
+    const tenantCard = document.getElementById("tenant-checklist-card");
+
+    if (tower && userType) {
+        resultArea.classList.remove("hidden-page");
+        if (userType === "owner") {
+            ownerCard.classList.remove("hidden-page");
+            tenantCard.classList.add("hidden-page");
+        } else if (userType === "tenant") {
+            tenantCard.classList.remove("hidden-page");
+            ownerCard.classList.add("hidden-page");
+        }
+    } else {
+        resultArea.classList.add("hidden-page");
+        ownerCard.classList.add("hidden-page");
+        tenantCard.classList.add("hidden-page");
+    }
+}
+
 function updateFields(data, towerName = "") {
     const fields = ["client", "location", "bank", "deposit", "online", "billing", "late", "activation", "disconnection", "noc", "final"];
     if (data) {
         fields.forEach(f => {
-            document.getElementById(f).innerText = data[f] !== undefined ? data[f] : "-";
+            const el = document.getElementById(f);
+            if(el) el.innerText = data[f] !== undefined ? data[f] : "-";
         });
         const lowerName = towerName.toLowerCase();
-        if (lowerName.includes("danube") || lowerName.includes("lamar")) {
-            document.getElementById("deposit_amount").innerText = "1,000 AED (Fixed for all units)";
-        } else {
-            document.getElementById("deposit_amount").innerText = "Check the prior owner or tenant account";
+        const depositAmt = document.getElementById("deposit_amount");
+        if (depositAmt) {
+            if (lowerName.includes("danube") || lowerName.includes("lamar")) {
+                depositAmt.innerText = "1,000 AED (Fixed for all units)";
+            } else {
+                depositAmt.innerText = "Check the prior owner or tenant account";
+            }
         }
     } else {
-        fields.forEach(f => document.getElementById(f).innerText = "-");
-        document.getElementById("deposit_amount").innerText = "-";
+        fields.forEach(f => {
+            const el = document.getElementById(f);
+            if(el) el.innerText = "-";
+        });
+        const depositAmt = document.getElementById("deposit_amount");
+        if (depositAmt) depositAmt.innerText = "-";
     }
 }
 
 function handleSelection() {
-    const val = document.getElementById("towerInput").value.trim();
-    const clearBtn = document.getElementById("clearBtn");
-    if (val.length > 0) { clearBtn.style.display = "block"; } else { clearBtn.style.display = "none"; }
+    const input = document.getElementById("towerInput");
+    if (!input) return;
     
+    const val = input.value.trim();
+    const clearBtn = document.getElementById("clearBtn");
+    
+    if (clearBtn) clearBtn.style.display = val.length > 0 ? "block" : "none";
+
     if (towersData[val]) {
         updateFields(towersData[val], val);
     } else {
         const matchedKey = Object.keys(towersData).find(key => key.toLowerCase() === val.toLowerCase());
-        if (matchedKey) { updateFields(towersData[matchedKey], matchedKey); } else { updateFields(null); }
+        if (matchedKey) { 
+            updateFields(towersData[matchedKey], matchedKey); 
+        } else { 
+            updateFields(null); 
+        }
     }
 }
 
@@ -189,7 +205,8 @@ function clearSearch() {
     const input = document.getElementById("towerInput");
     if (input) {
         input.value = ""; 
-        document.getElementById("clearBtn").style.display = "none"; 
+        const clearBtn = document.getElementById("clearBtn");
+        if (clearBtn) clearBtn.style.display = "none"; 
         updateFields(null); 
         input.focus();
     }
