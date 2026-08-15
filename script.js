@@ -1,19 +1,21 @@
 // ============================================================
-// 🔄 AUTOMATIC CACHE SYNC MECHANISM & FORCE REFRESH
+// 🌐 FIREBASE INITIALIZATION & CLOUD INTEGRATION
 // ============================================================
-const APP_VERSION = "2026.115";
-(function checkAppVersion() {
-  const savedVersion = localStorage.getItem("spc_app_version");
-  if (savedVersion !== APP_VERSION) {
-    localStorage.removeItem("spc_towers_data");
-    localStorage.removeItem("spc_schedule_data");
-    localStorage.removeItem("spc_roster_data");
-    localStorage.setItem("spc_app_version", APP_VERSION);
-  }
-})();
+const firebaseConfig = {
+  apiKey: "AIzaSyDQe4gUhY4T3lOkNSRU1aTs8WXLnXIOQc0",
+  authDomain: "spc-helper.firebaseapp.com",
+  projectId: "spc-helper",
+  storageBucket: "spc-helper.firebasestorage.app",
+  messagingSenderId: "221572052220",
+  appId: "1:221572052220:web:a72317e88b3cac59cc5379",
+  measurementId: "G-LNRN5XVN0B"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
 // ============================================================
-// 🏢 TOWERS DATA
+// 🏢 TOWERS DATA & DEFAULTS
 // ============================================================
 
 const defaultTowersData = {
@@ -91,22 +93,16 @@ const defaultTowersData = {
   "Yasmina Towers 2": { "client": "Dhafir development", "location": "Abudhabi", "bank": "Client", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "35.00 AED", "activation": "100.00 AED", "disconnection": "500.00 AED", "noc": "0.00 AED", "final": "0.00 AED" }
 };
 
-function loadTowersData() {
-  const saved = localStorage.getItem("spc_towers_data");
-  if (saved) {
-    try { return JSON.parse(saved); } catch (e) { console.error("Error loading towersData", e); }
-  }
-  return JSON.parse(JSON.stringify(defaultTowersData));
-}
+let towersData = JSON.parse(JSON.stringify(defaultTowersData));
 
 function saveTowersToStorage() {
-  localStorage.setItem("spc_towers_data", JSON.stringify(towersData));
+  db.collection("settings").doc("towersData").set(towersData)
+    .then(() => console.log("✅ Towers saved to Firestore"))
+    .catch((err) => console.error("❌ Firestore Save Error (Towers):", err));
 }
 
-let towersData = loadTowersData();
-
 // ============================================================
-// 📋 INSPECTION SCHEDULE DATA
+// 📋 INSPECTION SCHEDULE DATA & DEFAULTS
 // ============================================================
 
 const defaultScheduleData = [
@@ -118,22 +114,16 @@ const defaultScheduleData = [
   { day: "Saturday", buildings: ["Corniche", "Nuaimiya", "Horizon"] }
 ];
 
-function loadScheduleData() {
-  const saved = localStorage.getItem("spc_schedule_data");
-  if (saved) {
-    try { return JSON.parse(saved); } catch (e) { console.error("Error loading scheduleData", e); }
-  }
-  return JSON.parse(JSON.stringify(defaultScheduleData));
-}
+let scheduleData = JSON.parse(JSON.stringify(defaultScheduleData));
 
 function saveScheduleToStorage() {
-  localStorage.setItem("spc_schedule_data", JSON.stringify(scheduleData));
+  db.collection("settings").doc("scheduleData").set({ data: scheduleData })
+    .then(() => console.log("✅ Schedule saved to Firestore"))
+    .catch((err) => console.error("❌ Firestore Save Error (Schedule):", err));
 }
 
-let scheduleData = loadScheduleData();
-
 // ============================================================
-// 📅 AUGUST 2026 MONTHLY DUTY ROSTER DATA
+// 📅 AUGUST 2026 MONTHLY DUTY ROSTER DATA & DEFAULTS
 // ============================================================
 
 const defaultRosterData = [
@@ -153,19 +143,59 @@ const defaultRosterData = [
   { dept: "Emails", lang: "Eng", name: "Charles", schedule: { 1:"Shift 1", 2:"OFF+", 3:"Shift 1", 4:"Shift 1", 5:"Shift 1", 6:"Shift 1", 7:"Shift 1", 8:"Shift 1", 9:"OFF+", 10:"Shift 1", 11:"Shift 1", 12:"Shift 1", 13:"Shift 1", 14:"Shift 1", 15:"Shift 1", 16:"OFF+", 17:"Shift 1", 18:"Shift 1", 19:"Shift 1", 20:"Shift 1", 21:"Shift 1", 22:"Shift 1", 23:"OFF+", 24:"Shift 1", 25:"Shift 1", 26:"Shift 1", 27:"Shift 1", 28:"Shift 1", 29:"Shift 1", 30:"OFF+", 31:"Shift 1" }}
 ];
 
-function loadRosterData() {
-  const saved = localStorage.getItem("spc_roster_data");
-  if (saved) {
-    try { return JSON.parse(saved); } catch (e) { console.error("Error loading rosterData", e); }
-  }
-  return JSON.parse(JSON.stringify(defaultRosterData));
-}
+let rosterData = JSON.parse(JSON.stringify(defaultRosterData));
 
 function saveRosterToStorage() {
-  localStorage.setItem("spc_roster_data", JSON.stringify(rosterData));
+  db.collection("settings").doc("rosterData").set({ data: rosterData })
+    .then(() => console.log("✅ Roster saved to Firestore"))
+    .catch((err) => console.error("❌ Firestore Save Error (Roster):", err));
 }
 
-let rosterData = loadRosterData();
+// ============================================================
+// 🔄 REALTIME CLOUD LISTENERS (FIRESTORE)
+// ============================================================
+
+function initFirestoreRealtimeListeners() {
+  // Listen to Towers Data
+  db.collection("settings").doc("towersData").onSnapshot((doc) => {
+    if (doc.exists) {
+      towersData = doc.data();
+    } else {
+      saveTowersToStorage();
+    }
+    populateDatalist();
+    handleSelection();
+    if (!document.getElementById("admin-page").classList.contains("hidden-page")) {
+      renderAdminTable();
+    }
+  });
+
+  // Listen to Schedule Data
+  db.collection("settings").doc("scheduleData").onSnapshot((doc) => {
+    if (doc.exists && doc.data().data) {
+      scheduleData = doc.data().data;
+    } else {
+      saveScheduleToStorage();
+    }
+    renderScheduleCards();
+  });
+
+  // Listen to Roster Data
+  db.collection("settings").doc("rosterData").onSnapshot((doc) => {
+    if (doc.exists && doc.data().data) {
+      rosterData = doc.data().data;
+    } else {
+      saveRosterToStorage();
+    }
+    populateAgentDropdown();
+    renderRosterView();
+    renderFullMonthlyTable();
+    updateDashboardLiveWidget();
+    if (!document.getElementById("admin-page").classList.contains("hidden-page")) {
+      renderAdminAgentsTable();
+    }
+  });
+}
 
 // ============================================================
 // 🗓 HELPER FUNCTIONS
@@ -203,7 +233,7 @@ let editingTower = null;
 let editingAgent = null;
 
 // ============================================================
-// 🔐 LOGIN & AUTHENTICATION (SUPPORT ENTER KEY & PREVENT REFRESH)
+// 🔐 LOGIN & AUTHENTICATION
 // ============================================================
 
 function handleLogin(event) {
@@ -313,8 +343,7 @@ function populateDatalist() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  populateDatalist();
-  renderScheduleCards();
+  initFirestoreRealtimeListeners();
   startGlobalLiveClock();
   updateDashboardLiveWidget();
   
@@ -498,7 +527,7 @@ function saveDirectTowerChanges() {
   }
 
   saveTowersToStorage();
-  alert(`✅ All changes for "${towerName}" saved successfully!`);
+  alert(`✅ All changes for "${towerName}" synced to Cloud successfully!`);
   handleSelection();
 }
 
@@ -1215,7 +1244,6 @@ function showAddAgentForm() {
     defaultSchedule[d] = "OFF+";
   }
   rosterData.push({ dept: "Calls", lang: "Ara", name: trimmed, schedule: defaultSchedule });
-  saveRosterTab = saveRosterToStorage();
   saveRosterToStorage();
   renderAdminAgentsTable(document.getElementById("adminAgentSearchInput")?.value || "");
   renderFullMonthlyTable();
