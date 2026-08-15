@@ -83,32 +83,36 @@ const scheduleData = [
   { day: "Saturday", buildings: ["Corniche", "Nuaimiya", "Horizon"] }
 ];
 
-// 📅 AUGUST 2026 Monthly Duty Roster Data
+// 📅 AUGUST 2026 Monthly Duty Roster Data (Accurately Corrected Days Off)
+// SATURDAYS (السبت): 1, 8, 15, 22, 29
+// SUNDAYS (الأحد): 2, 9, 16, 23, 30
+// FRIDAYS (الجمعة): 7, 14, 21, 28
 const rosterData = [
   // CALLS TEAM
   { dept: "Calls", lang: "Ara", name: "Shadi", schedule: {
-    1:"Shift 1", 2:"Shift 1", 3:"Shift 1", 4:"Shift 1", 5:"Shift 1", 6:"Shift 1", 7:"OFF+", 8:"Shift 1", 9:"Shift 1", 10:"Shift 1", 11:"Shift 1", 12:"Shift 1", 13:"Shift 1", 14:"OFF+", 15:"Shift 1",
-    16:"Shift 1", 17:"Shift 1", 18:"Shift 1", 19:"Shift 1", 20:"Shift 1", 21:"OFF+", 22:"Shift 1", 23:"Shift 1", 24:"Shift 1", 25:"Shift 1", 26:"Shift 1", 27:"Shift 1", 28:"OFF+", 29:"Shift 1", 30:"Shift 1", 31:"Shift 1"
+    1:"Shift 3", 2:"Shift 3", 3:"Shift 3", 4:"Shift 3", 5:"Shift 3", 6:"Shift 3", 7:"OFF+", 8:"Shift 3", 9:"Shift 3", 10:"Shift 3", 11:"Shift 3", 12:"Shift 3", 13:"Shift 3", 14:"OFF+", 15:"Shift 3",
+    16:"Shift 3", 17:"Shift 3", 18:"Shift 3", 19:"Shift 3", 20:"Shift 3", 21:"OFF+", 22:"Shift 3", 23:"Shift 3", 24:"Shift 3", 25:"Shift 3", 26:"Shift 3", 27:"Shift 3", 28:"OFF+", 29:"Shift 3", 30:"Shift 3", 31:"Shift 3"
   }},
   { dept: "Calls", lang: "Ara", name: "Mirna", schedule: {
-    1:"OFF+", 2:"Shift 1", 3:"Shift 1", 4:"Shift 1", 5:"Shift 1", 6:"Shift 1", 7:"Shift 1", 8:"Shift 1", 9:"OFF+", 10:"Shift 1", 11:"Shift 1", 12:"Shift 1", 13:"Shift 1", 14:"Shift 1", 15:"Shift 1",
-    16:"Shift 1", 17:"OFF+", 18:"Shift 1", 19:"Shift 1", 20:"Shift 1", 21:"Shift 1", 22:"Shift 1", 23:"Shift 1", 24:"OFF+", 25:"Shift 1", 26:"Shift 1", 27:"Shift 1", 28:"Shift 1", 29:"Shift 1", 30:"Shift 1", 31:"OFF+"
+    1:"OFF+", 2:"Shift 1", 3:"Shift 1", 4:"Shift 1", 5:"Shift 1", 6:"Shift 1", 7:"Shift 1", 8:"OFF+", 9:"Shift 1", 10:"Shift 1", 11:"Shift 1", 12:"Shift 1", 13:"Shift 1", 14:"Shift 1", 15:"OFF+",
+    16:"Shift 1", 17:"Shift 1", 18:"Shift 1", 19:"Shift 1", 20:"Shift 1", 21:"Shift 1", 22:"OFF+", 23:"Shift 1", 24:"Shift 1", 25:"Shift 1", 26:"Shift 1", 27:"Shift 1", 28:"Shift 1", 29:"OFF+", 30:"Shift 1", 31:"Shift 1"
   }},
   { dept: "Calls", lang: "Ara", name: "Hanya", schedule: {
     1:"Shift 1", 2:"Shift 1", 3:"Shift 1", 4:"Shift 1", 5:"Shift 1", 6:"Shift 1", 7:"OFF+", 8:"Shift 1", 9:"Shift 1", 10:"Shift 1", 11:"Shift 1", 12:"Shift 1", 13:"Shift 1", 14:"OFF+", 15:"Shift 1",
     16:"Shift 1", 17:"Shift 1", 18:"Shift 1", 19:"Shift 1", 20:"Shift 1", 21:"OFF+", 22:"Shift 1", 23:"Shift 1", 24:"Shift 1", 25:"Shift 1", 26:"Shift 1", 27:"Shift 1", 28:"OFF+", 29:"Shift 1", 30:"Shift 1", 31:"Shift 1"
   }},
   { dept: "Calls", lang: "Ara", name: "Mostafa", schedule: {
-    1:"Shift 1", 2:"Shift 1", 3:"Shift 1", 4:"Shift 1", 5:"Shift 1", 6:"Shift 1", 7:"OFF+", 8:"Shift 1", 9:"Shift 1", 10:"Shift 1", 11:"Shift 1", 12:"Shift 1", 13:"Shift 1", 14:"OFF+", 15:"Shift 1",
-    16:"Shift 1", 17:"Shift 1", 18:"Shift 1", 19:"Shift 1", 20:"Shift 1", 21:"OFF+", 22:"Shift 1", 23:"Shift 1", 24:"Shift 1", 25:"Shift 1", 26:"Shift 1", 27:"Shift 1", 28:"OFF+", 29:"Shift 1", 30:"Shift 1", 31:"Shift 1"
+    1:"OFF+", 2:"Shift 3", 3:"Shift 3", 4:"Shift 3", 5:"Shift 3", 6:"Shift 3", 7:"Shift 3", 8:"OFF+", 9:"Shift 3", 10:"Shift 3", 11:"Shift 3", 12:"Shift 3", 13:"Shift 3", 14:"Shift 3", 15:"OFF+",
+    16:"Shift 3", 17:"Shift 3", 18:"Shift 3", 19:"Shift 3", 20:"Shift 3", 21:"Shift 3", 22:"OFF+", 23:"Shift 3", 24:"Shift 3", 25:"Shift 3", 26:"Shift 3", 27:"Shift 3", 28:"Shift 3", 29:"OFF+", 30:"Shift 3", 31:"Shift 3"
   }},
   { dept: "Calls", lang: "Ara", name: "Salma", schedule: {
     1:"Shift 1", 2:"OFF+", 3:"Shift 1", 4:"Shift 1", 5:"Shift 1", 6:"Shift 1", 7:"Shift 1", 8:"Shift 1", 9:"OFF+", 10:"Shift 1", 11:"Shift 1", 12:"Shift 1", 13:"Shift 1", 14:"Shift 1", 15:"Shift 1",
     16:"OFF+", 17:"Shift 1", 18:"Shift 1", 19:"Shift 1", 20:"Shift 1", 21:"Shift 1", 22:"Shift 1", 23:"OFF+", 24:"Shift 1", 25:"Shift 1", 26:"Shift 1", 27:"Shift 1", 28:"Shift 1", 29:"Shift 1", 30:"OFF+", 31:"Shift 1"
   }},
+  // Priya: Off Every Sunday (2, 9, 16, 23, 30)
   { dept: "Calls", lang: "Eng", name: "Priya", schedule: {
-    1:"Shift 1", 2:"OFF+", 3:"Shift 1", 4:"Shift 1", 5:"Shift 1", 6:"Shift 1", 7:"Shift 1", 8:"Shift 1", 9:"OFF+", 10:"Shift 1", 11:"Shift 1", 12:"Shift 1", 13:"Shift 1", 14:"Shift 1", 15:"Shift 1",
-    16:"OFF+", 17:"Shift 1", 18:"Shift 1", 19:"Shift 1", 20:"Shift 1", 21:"Shift 1", 22:"Shift 1", 23:"OFF+", 24:"Shift 1", 25:"Shift 1", 26:"Shift 1", 27:"Shift 1", 28:"Shift 1", 29:"Shift 1", 30:"OFF+", 31:"Shift 1"
+    1:"Shift 3", 2:"OFF+", 3:"Shift 3", 4:"Shift 3", 5:"Shift 3", 6:"Shift 3", 7:"Shift 3", 8:"Shift 3", 9:"OFF+", 10:"Shift 3", 11:"Shift 3", 12:"Shift 3", 13:"Shift 3", 14:"Shift 3", 15:"Shift 3",
+    16:"OFF+", 17:"Shift 3", 18:"Shift 3", 19:"Shift 3", 20:"Shift 3", 21:"Shift 3", 22:"Shift 3", 23:"OFF+", 24:"Shift 3", 25:"Shift 3", 26:"Shift 3", 27:"Shift 3", 28:"Shift 3", 29:"Shift 3", 30:"OFF+", 31:"Shift 3"
   }},
   { dept: "Calls", lang: "Eng", name: "Saim", schedule: {
     1:"Shift 1", 2:"Shift 1", 3:"Shift 1", 4:"Shift 1", 5:"Shift 1", 6:"Shift 1", 7:"OFF+", 8:"Shift 1", 9:"Shift 1", 10:"Shift 1", 11:"Shift 1", 12:"Shift 1", 13:"Shift 1", 14:"OFF+", 15:"Shift 1",
@@ -116,32 +120,39 @@ const rosterData = [
   }},
 
   // CALL OUTS TEAM
+  // Janani: Off Every Sunday (2, 9, 16, 23, 30)
   { dept: "Call Outs", lang: "Eng", name: "Janani", schedule: {
     1:"Shift 2", 2:"OFF+", 3:"Shift 2", 4:"Shift 2", 5:"Shift 2", 6:"Shift 2", 7:"Shift 2", 8:"Shift 2", 9:"OFF+", 10:"Shift 2", 11:"Shift 2", 12:"Shift 2", 13:"Shift 2", 14:"Shift 2", 15:"Shift 2",
-    16:"Shift 2", 17:"OFF+", 18:"Shift 2", 19:"Shift 2", 20:"Shift 2", 21:"Shift 2", 22:"Shift 2", 23:"Shift 2", 24:"OFF+", 25:"Shift 2", 26:"Shift 2", 27:"Shift 2", 28:"Shift 2", 29:"Shift 2", 30:"Shift 2", 31:"OFF+"
+    16:"OFF+", 17:"Shift 2", 18:"Shift 2", 19:"Shift 2", 20:"Shift 2", 21:"Shift 2", 22:"Shift 2", 23:"OFF+", 24:"Shift 2", 25:"Shift 2", 26:"Shift 2", 27:"Shift 2", 28:"Shift 2", 29:"Shift 2", 30:"OFF+", 31:"Shift 2"
   }},
+  // Omar: Off Every Saturday (1, 8, 15, 22, 29)
   { dept: "Call Outs", lang: "Ara", name: "Omar", schedule: {
     1:"OFF+", 2:"Shift 2", 3:"Shift 2", 4:"Shift 2", 5:"Shift 2", 6:"Shift 2", 7:"Shift 2", 8:"OFF+", 9:"Shift 2", 10:"Shift 2", 11:"Shift 2", 12:"Shift 2", 13:"Shift 2", 14:"Shift 2", 15:"OFF+",
     16:"Shift 2", 17:"Shift 2", 18:"Shift 2", 19:"Shift 2", 20:"Shift 2", 21:"Shift 2", 22:"OFF+", 23:"Shift 2", 24:"Shift 2", 25:"Shift 2", 26:"Shift 2", 27:"Shift 2", 28:"Shift 2", 29:"OFF+", 30:"Shift 2", 31:"Shift 2"
   }},
 
   // EMAILS TEAM
+  // Faris: Off Every Saturday (1, 8, 15, 22, 29)
   { dept: "Emails", lang: "Ara", name: "Faris", schedule: {
+    1:"OFF+", 2:"Shift 3", 3:"Shift 3", 4:"Shift 3", 5:"Shift 3", 6:"Shift 3", 7:"Shift 3", 8:"OFF+", 9:"Shift 3", 10:"Shift 3", 11:"Shift 3", 12:"Shift 3", 13:"Shift 3", 14:"Shift 3", 15:"OFF+",
+    16:"Shift 3", 17:"Shift 3", 18:"Shift 3", 19:"Shift 3", 20:"Shift 3", 21:"Shift 3", 22:"OFF+", 23:"Shift 3", 24:"Shift 3", 25:"Shift 3", 26:"Shift 3", 27:"Shift 3", 28:"Shift 3", 29:"OFF+", 30:"Shift 3", 31:"Shift 3"
+  }},
+  // Ahmed: Off Every Friday (7, 14, 21, 28)
+  { dept: "Emails", lang: "Ara", name: "Ahmed", schedule: {
+    1:"Shift 3", 2:"Shift 3", 3:"Shift 3", 4:"Shift 3", 5:"Shift 3", 6:"Shift 3", 7:"OFF+", 8:"Shift 3", 9:"Shift 3", 10:"Shift 3", 11:"Shift 3", 12:"Shift 3", 13:"Shift 3", 14:"OFF+", 15:"Shift 3",
+    16:"Shift 3", 17:"Shift 3", 18:"Shift 3", 19:"Shift 3", 20:"Shift 3", 21:"OFF+", 22:"Shift 3", 23:"Shift 3", 24:"Shift 3", 25:"Shift 3", 26:"Shift 3", 27:"Shift 3", 28:"OFF+", 29:"Shift 3", 30:"Shift 3", 31:"Shift 3"
+  }},
+  // Waqas: Off Every Saturday (1, 8, 15, 22, 29)
+  { dept: "Emails", lang: "Eng", name: "Waqas", schedule: {
     1:"OFF+", 2:"Shift 1", 3:"Shift 1", 4:"Shift 1", 5:"Shift 1", 6:"Shift 1", 7:"Shift 1", 8:"OFF+", 9:"Shift 1", 10:"Shift 1", 11:"Shift 1", 12:"Shift 1", 13:"Shift 1", 14:"Shift 1", 15:"OFF+",
     16:"Shift 1", 17:"Shift 1", 18:"Shift 1", 19:"Shift 1", 20:"Shift 1", 21:"Shift 1", 22:"OFF+", 23:"Shift 1", 24:"Shift 1", 25:"Shift 1", 26:"Shift 1", 27:"Shift 1", 28:"Shift 1", 29:"OFF+", 30:"Shift 1", 31:"Shift 1"
   }},
-  { dept: "Emails", lang: "Ara", name: "Ahmed", schedule: {
-    1:"Shift 1", 2:"Shift 1", 3:"Shift 1", 4:"Shift 1", 5:"Shift 1", 6:"Shift 1", 7:"OFF+", 8:"Shift 1", 9:"Shift 1", 10:"Shift 1", 11:"Shift 1", 12:"Shift 1", 13:"Shift 1", 14:"OFF+", 15:"Shift 1",
-    16:"Shift 1", 17:"Shift 1", 18:"Shift 1", 19:"Shift 1", 20:"Shift 1", 21:"OFF+", 22:"Shift 1", 23:"Shift 1", 24:"Shift 1", 25:"Shift 1", 26:"Shift 1", 27:"Shift 1", 28:"OFF+", 29:"Shift 1", 30:"Shift 1", 31:"Shift 1"
-  }},
-  { dept: "Emails", lang: "Eng", name: "Waqas", schedule: {
-    1:"Shift 1", 2:"Shift 1", 3:"Shift 1", 4:"Shift 1", 5:"Shift 1", 6:"Shift 1", 7:"OFF+", 8:"Shift 1", 9:"Shift 1", 10:"Shift 1", 11:"Shift 1", 12:"Shift 1", 13:"Shift 1", 14:"OFF+", 15:"Shift 1",
-    16:"Shift 1", 17:"Shift 1", 18:"Shift 1", 19:"Shift 1", 20:"Shift 1", 21:"OFF+", 22:"Shift 1", 23:"Shift 1", 24:"Shift 1", 25:"Shift 1", 26:"Shift 1", 27:"Shift 1", 28:"OFF+", 29:"Shift 1", 30:"Shift 1", 31:"Shift 1"
-  }},
+  // Zunair: Off Every Friday (7, 14, 21, 28)
   { dept: "Emails", lang: "Eng", name: "Zunair", schedule: {
-    1:"Shift 1", 2:"Shift 1", 3:"Shift 1", 4:"Shift 1", 5:"Shift 1", 6:"Shift 1", 7:"OFF+", 8:"Shift 1", 9:"Shift 1", 10:"Shift 1", 11:"Shift 1", 12:"Shift 1", 13:"Shift 1", 14:"OFF+", 15:"Shift 1",
-    16:"Shift 1", 17:"Shift 1", 18:"Shift 1", 19:"Shift 1", 20:"Shift 1", 21:"OFF+", 22:"Shift 1", 23:"Shift 1", 24:"Shift 1", 25:"Shift 1", 26:"Shift 1", 27:"Shift 1", 28:"OFF+", 29:"Shift 1", 30:"Shift 1", 31:"Shift 1"
+    1:"Shift 1", 2:"Shift 1", 3:"Shift 1", 4:"Shift 1", 5:"Shift 1", 6:"Shift 1", 7:"OFF+", 8:"Shift 1", 9:"Shift 1", 10:"Shift 1", 11:"Shift 1", 12:"Shift 1", 13:"Shift 1", 14:"OFF+", 15:"Shift 2",
+    16:"Shift 1", 17:"Shift 1", 18:"Shift 1", 19:"Shift 1", 20:"Shift 1", 21:"OFF+", 22:"Shift 1", 23:"Shift 1", 24:"Shift 1", 25:"Shift 1", 26:"Shift 1", 27:"Shift 1", 28:"OFF+", 29:"Shift 1", 30:"Shift 2", 31:"Shift 1"
   }},
+  // Charles: Off Every Sunday (2, 9, 16, 23, 30)
   { dept: "Emails", lang: "Eng", name: "Charles", schedule: {
     1:"Shift 1", 2:"OFF+", 3:"Shift 1", 4:"Shift 1", 5:"Shift 1", 6:"Shift 1", 7:"Shift 1", 8:"Shift 1", 9:"OFF+", 10:"Shift 1", 11:"Shift 1", 12:"Shift 1", 13:"Shift 1", 14:"Shift 1", 15:"Shift 1",
     16:"OFF+", 17:"Shift 1", 18:"Shift 1", 19:"Shift 1", 20:"Shift 1", 21:"Shift 1", 22:"Shift 1", 23:"OFF+", 24:"Shift 1", 25:"Shift 1", 26:"Shift 1", 27:"Shift 1", 28:"Shift 1", 29:"Shift 1", 30:"OFF+", 31:"Shift 1"
@@ -508,8 +519,10 @@ function updateDashboardLiveWidget() {
         html += `
             <div class="hl-team-box">
                 <div class="hl-team-title">
-                    <i class="fa-solid ${teamName === 'Calls' ? 'fa-headset' : teamName === 'Call Outs' ? 'fa-phone-volume' : 'fa-envelope-open-text'}"></i>
-                    <span>${teamName} Team</span>
+                    <div class="hl-tt-left">
+                        <i class="fa-solid ${teamName === 'Calls' ? 'fa-headset' : teamName === 'Call Outs' ? 'fa-phone-volume' : 'fa-envelope-open-text'}"></i>
+                        <span>${teamName} Team</span>
+                    </div>
                     <span class="hl-team-badge">${agents.length} Active</span>
                 </div>
                 <div class="hl-team-list">
@@ -530,7 +543,7 @@ function initRosterPage() {
 
     if (dateInput) {
         if (!dateInput.value) {
-            let defaultDay = uaeNow.month === "08" ? uaeNow.day : "20";
+            let defaultDay = uaeNow.month === "08" ? uaeNow.day : "15";
             dateInput.value = `2026-08-${String(defaultDay).padStart(2, '0')}`;
         }
     }
@@ -559,7 +572,7 @@ function switchRosterTab(tabKey) {
 function resetRosterToToday() {
     const dateInput = document.getElementById("rosterDateInput");
     const uae = getUAECurrentDate();
-    let dayStr = uae.month === "08" ? uae.day : "20";
+    let dayStr = uae.month === "08" ? uae.day : "15";
     if (dateInput) {
         dateInput.value = `2026-08-${String(dayStr).padStart(2, '0')}`;
         renderRosterView();
