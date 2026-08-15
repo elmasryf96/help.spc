@@ -4,6 +4,9 @@
     --coral-red: #ee6c6a;
     --bg-light: #fffdf0;
     --text-muted: #5a6a75;
+    --badge-bg: #fffbe6;
+    --badge-border: #e8d567;
+    --badge-text: #8c6b00;
 }
 
 body {
@@ -302,19 +305,20 @@ body {
     border-radius: 16px; 
     padding: 24px; 
     background: #ffffff; 
-    border-top: 6px solid var(--primary-yellow); 
 }
 
 .card h3 { 
     font-size: 16px; 
     font-weight: 800; 
-    border-bottom: 3px solid var(--primary-yellow); 
+    border-bottom: 2px solid var(--primary-yellow); 
     padding-bottom: 12px; 
+    margin-top: 0;
     margin-bottom: 18px; 
+    color: var(--dark-navy);
 }
 
 .card-warning { 
-    border-top-color: #f39c12; 
+    border-color: #f39c12; 
 }
 
 .card-warning h3 { 
@@ -360,10 +364,11 @@ body {
     line-height: 1.4;
 }
 
+/* 📐 شبكة الرسوم العليا المكونة من 3 أعمدة */
 .fees-grid { 
     display: grid; 
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
-    gap: 12px 30px; 
+    grid-template-columns: repeat(3, 1fr); 
+    gap: 15px 35px; 
 }
 
 .bottom-cards-row { 
@@ -377,17 +382,49 @@ body {
     min-width: 300px; 
 }
 
+/* 🏷️ تنسيق الصفوف والقيم داخل البطاقات البادج الأصفر */
 .row { 
     display: flex; 
     justify-content: space-between; 
+    align-items: center;
     padding: 12px 0; 
     border-bottom: 1px dashed #e2e8f0; 
     font-size: 14.5px; 
 }
 
+.row:last-child {
+    border-bottom: none;
+}
+
+.row .title {
+    font-weight: 600;
+    color: var(--dark-navy);
+}
+
+.row .val {
+    background-color: var(--badge-bg);
+    color: var(--badge-text);
+    border: 1.5px solid var(--badge-border);
+    border-radius: 10px;
+    padding: 6px 14px;
+    font-weight: 800;
+    font-size: 14px;
+    display: inline-block;
+    text-align: right;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    max-width: 65%;
+    word-break: break-word;
+}
+
 .margin-bottom-20 { margin-bottom: 20px; }
 .justify-center { justify-content: center !important; }
 .text-center { text-align: center; }
+
+@media (max-width: 900px) {
+    .fees-grid {
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    }
+}
 
 @media (max-width: 768px) {
     .brand-header {
