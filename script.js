@@ -9,8 +9,15 @@ function handleLogin(event) {
     const passInput = document.getElementById('password').value.trim();
     const errorMsg = document.getElementById('login-error');
 
-    // البيانات الصحيحة للدخول
-    if (userInput.toLowerCase() === 'spc' && passInput === 'spc2026') {
+    // قبول اسم المستخدم بكلمات كبيرة أو صغيرة
+    const isValidUser = userInput.toLowerCase() === 'spc';
+    
+    // قبول كلمة السر سواء كتبت SPC@2026 أو spc@2026 أو spc2026
+    const isValidPass = passInput === 'SPC@2026' || 
+                        passInput.toLowerCase() === 'spc@2026' || 
+                        passInput.toLowerCase() === 'spc2026';
+
+    if (isValidUser && isValidPass) {
         errorMsg.style.display = 'none';
         
         // حفظ جلسة الدخول
