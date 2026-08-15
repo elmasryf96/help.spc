@@ -1,977 +1,224 @@
-/* --------------------------------------------------
-   🎨 GLOBAL RESETS & BASE STYLES
--------------------------------------------------- */
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+/* ==================================================
+   🔐 AUTHENTICATION & LOGIN SYSTEM
+================================================== */
+function handleLogin(event) {
+    // 🛑 منع إعادة تحميل الصفحة (Refresh)
+    if (event) event.preventDefault();
+
+    const userInput = document.getElementById('username').value.trim();
+    const passInput = document.getElementById('password').value.trim();
+    const errorMsg = document.getElementById('login-error');
+
+    // البيانات الصحيحة للدخول
+    if (userInput.toLowerCase() === 'spc' && passInput === 'spc2026') {
+        errorMsg.style.display = 'none';
+        
+        // حفظ جلسة الدخول
+        localStorage.setItem('spc_logged_in', 'true');
+        
+        // التنقل للداشبورد الرئيسي
+        navigateTo('home-page');
+    } else {
+        errorMsg.style.display = 'block';
+    }
+}
+
+function handleLogout() {
+    localStorage.removeItem('spc_logged_in');
+    navigateTo('login-page');
+}
+
+// Check Login Status on Page Load
+document.addEventListener('DOMContentLoaded', () => {
+    const isLoggedIn = localStorage.getItem('spc_logged_in');
+    if (isLoggedIn === 'true') {
+        navigateTo('home-page');
+    } else {
+        navigateTo('login-page');
+    }
+
+    // تشغيل الساعة والوظائف عند التحميل
+    initLiveClock();
+    populateTowersList();
+    initScheduleGrid();
+});
+
+/* ==================================================
+   🚀 NAVIGATION SYSTEM
+================================================== */
+function navigateTo(pageId) {
+    const pages = document.querySelectorAll('.page');
+    pages.forEach(page => {
+        page.classList.remove('active-page');
+        page.classList.add('hidden-page');
+    });
+
+    const targetPage = document.getElementById(pageId);
+    if (targetPage) {
+        targetPage.classList.remove('hidden-page');
+        targetPage.classList.add('active-page');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
+
+/* ==================================================
+   🏢 TOWERS MASTER DATA & SEARCH
+================================================== */
+const towersData = {
+    "Al Dana Tower": { online: "Yes", billing: "25.00 AED", late: "50.00 AED", activation: "150.00 AED", disconnection: "150.00 AED", noc: "100.00 AED", final: "35.00 AED", maintenance: "No", client: "ADCP / Nine Yard", location: "Abu Dhabi", bank: "ADCB", deposit: "SPC for new customer", deposit_amount: "500.00 AED" },
+    "Al Wifaq Tower": { online: "Yes", billing: "25.00 AED", late: "50.00 AED", activation: "250.00 AED", disconnection: "250.00 AED", noc: "100.00 AED", final: "35.00 AED", maintenance: "No", client: "ADCP / Nine Yard", location: "Abu Dhabi", bank: "SPC", deposit: "SPC for new customer", deposit_amount: "Check prior owner or tenant account" },
+    "Danube Properties": { online: "Yes", billing: "30.00 AED", late: "50.00 AED", activation: "200.00 AED", disconnection: "200.00 AED", noc: "150.00 AED", final: "50.00 AED", maintenance: "Yes (50 AED)", client: "Danube Mgt", location: "Dubai", bank: "FAB", deposit: "Standard Deposit", deposit_amount: "1000.00 AED" }
+};
+
+function populateTowersList() {
+    const datalist = document.getElementById('towersList');
+    if (!datalist) return;
+    datalist.innerHTML = '';
+    Object.keys(towersData).forEach(towerName => {
+        const option = document.createElement('option');
+        option.value = towerName;
+        datalist.appendChild(option);
+    });
+}
+
+function handleSelection() {
+    const input = document.getElementById('towerInput');
+    const clearBtn = document.getElementById('clearBtn');
+    const selected = input.value.trim();
+
+    if (selected.length > 0) {
+        clearBtn.style.display = 'block';
+    } else {
+        clearBtn.style.display = 'none';
+        resetTowerFields();
+        return;
+    }
+
+    if (towersData[selected]) {
+        const data = towersData[selected];
+        document.getElementById('online').textContent = data.online;
+        document.getElementById('billing').textContent = data.billing;
+        document.getElementById('late').textContent = data.late;
+        document.getElementById('activation').textContent = data.activation;
+        document.getElementById('disconnection').textContent = data.disconnection;
+        document.getElementById('noc').textContent = data.noc;
+        document.getElementById('final').textContent = data.final;
+        document.getElementById('client').textContent = data.client;
+        document.getElementById('location').textContent = data.location;
+        document.getElementById('bank').textContent = data.bank;
+        document.getElementById('deposit').textContent = data.deposit;
+        document.getElementById('deposit_amount').innerHTML = `<span class="val">${data.deposit_amount}</span>`;
+
+        const maintRow = document.getElementById('maintenance_row');
+        if (data.maintenance !== "No") {
+            maintRow.classList.remove('hidden-page');
+            document.getElementById('maintenance').textContent = data.maintenance;
+        } else {
+            maintRow.classList.add('hidden-page');
+        }
+    }
+}
+
+function clearSearch() {
+    document.getElementById('towerInput').value = '';
+    document.getElementById('clearBtn').style.display = 'none';
+    resetTowerFields();
+}
+
+function resetTowerFields() {
+    ['online', 'billing', 'late', 'activation', 'disconnection', 'noc', 'final', 'client', 'location', 'bank', 'deposit'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = '-';
+    });
+    const depAmt = document.getElementById('deposit_amount');
+    if (depAmt) depAmt.innerHTML = '<span class="val">-</span>';
+    const maintRow = document.getElementById('maintenance_row');
+    if (maintRow) maintRow.classList.add('hidden-page');
+}
+
+/* ==================================================
+   🛠️ TECHNICAL SCHEDULE MODULE
+================================================== */
+const techSchedule = {
+    "Monday": ["Damac Hills 1", "Damac Hills 2", "Skyview Towers", "Town Square"],
+    "Tuesday": ["Silicon Oasis", "Sports City", "Motor City", "JVC"],
+    "Wednesday": ["Business Bay", "Downtown", "MBL Royal", "Dubai Marina"],
+    "Thursday": ["Ajman One Towers", "Corniche Towers", "Pearl Towers"],
+    "Friday": ["Emergency Inspections Only"]
+};
+
+function initScheduleGrid() {
+    const grid = document.getElementById('schedGridContainer');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    Object.keys(techSchedule).forEach(day => {
+        const card = document.createElement('div');
+        card.className = 'day-card';
+        
+        let listHTML = techSchedule[day].map((item, idx) => `
+            <li class="b-item">
+                <span class="b-no">${idx + 1}</span>
+                <span>${item}</span>
+            </li>
+        `).join('');
+
+        card.innerHTML = `
+            <div class="day-card-header">
+                <h3><i class="fa-solid fa-calendar-day"></i> ${day}</h3>
+                <span class="count-badge">${techSchedule[day].length} Areas</span>
+            </div>
+            <ul class="b-list">${listHTML}</ul>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+function filterScheduleCards() {
+    const query = document.getElementById('schedSearchInput').value.toLowerCase().trim();
+    const clearBtn = document.getElementById('clearSchedBtn');
+    clearBtn.style.display = query.length > 0 ? 'block' : 'none';
+
+    const cards = document.querySelectorAll('.day-card');
+    cards.forEach(card => {
+        const text = card.textContent.toLowerCase();
+        card.style.display = text.includes(query) ? 'block' : 'none';
+    });
+}
+
+function clearSchedSearch() {
+    document.getElementById('schedSearchInput').value = '';
+    document.getElementById('clearSchedBtn').style.display = 'none';
+    filterScheduleCards();
+}
+
+/* ==================================================
+   ⏰ LIVE CLOCK & ROSTER UTILS
+================================================== */
+function initLiveClock() {
+    setInterval(() => {
+        const now = new Date();
+        const options = { timeZone: 'Asia/Dubai', hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' };
+        const timeStr = now.toLocaleTimeString('en-US', options);
+
+        const homeClock = document.getElementById('homeClockText');
+        const uaeClock = document.getElementById('uaeClockText');
+
+        if (homeClock) homeClock.textContent = `${timeStr} (GST)`;
+        if (uaeClock) uaeClock.textContent = `${timeStr} (GST)`;
+    }, 1000);
+}
+
+function switchRosterTab(tabName) {
+    const tabs = ['live-view', 'agent-view', 'full-sheet-view'];
+    tabs.forEach(t => {
+        const content = document.getElementById(`tab-${t}`);
+        const btn = document.getElementById(`tab${t.split('-')[0].charAt(0).toUpperCase() + t.split('-')[0].slice(1)}Btn`);
+        
+        if (content) content.classList.add('hidden-tab');
+        if (btn) btn.classList.remove('active');
+    });
+
+    const activeContent = document.getElementById(`tab-${tabName}`);
+    if (activeContent) activeContent.classList.remove('hidden-tab');
 }
-
-body {
-    background-color: #fffde7;
-    color: #1a252f;
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-}
-
-.page {
-    width: 100%;
-}
-
-.active-page {
-    display: block;
-}
-
-.hidden-page {
-    display: none !important;
-}
-
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-}
-
-.text-center { text-align: center; }
-.justify-center { justify-content: center; }
-.margin-bottom-20 { margin-bottom: 20px; }
-.margin-bottom-25 { margin-bottom: 25px; }
-.margin-top-20 { margin-top: 20px; }
-.flex-1 { flex: 1; }
-.align-self-end { align-self: flex-end; }
-
-/* --------------------------------------------------
-   🔒 LOGIN PAGE STYLES
--------------------------------------------------- */
-#login-page {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    width: 100%;
-    padding: 20px;
-}
-
-.login-wrapper {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    max-width: 420px;
-}
-
-.login-container {
-    width: 100%;
-    background: #ffffff;
-    border: 2px solid #e8d567;
-    border-radius: 16px;
-    padding: 32px 28px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
-}
-
-.login-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #1a252f;
-    margin-bottom: 22px;
-    text-align: center;
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 18px;
-    text-align: left;
-}
-
-.form-group label {
-    font-size: 0.88rem;
-    font-weight: 600;
-    color: #1a252f;
-}
-
-.login-input {
-    width: 100%;
-    padding: 12px 14px;
-    border: 1.5px solid #e8d567;
-    border-radius: 8px;
-    font-size: 0.95rem;
-    outline: none;
-    transition: all 0.2s ease;
-}
-
-.login-input:focus {
-    border-color: #dfc84f;
-    box-shadow: 0 0 0 3px rgba(232, 213, 103, 0.3);
-}
-
-.btn-login {
-    width: 100%;
-    padding: 12px;
-    background-color: #e8d567;
-    color: #1a252f;
-    font-weight: 700;
-    border: none;
-    border-radius: 8px;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: background 0.2s;
-    margin-top: 6px;
-}
-
-.btn-login:hover {
-    background-color: #dfc84f;
-}
-
-.login-error-msg {
-    display: none;
-    color: #e11d48;
-    font-size: 0.85rem;
-    font-weight: 600;
-    margin-bottom: 12px;
-    text-align: center;
-}
-
-.login-footer-text {
-    margin-top: 18px;
-    font-size: 14px;
-    color: #475569;
-    text-align: center;
-    width: 100%;
-}
-
-.login-footer-text i {
-    color: #e11d48;
-    margin: 0 3px;
-}
-
-.login-footer-text strong {
-    color: #1a252f;
-}
-
-/* --------------------------------------------------
-   HEADER & BRANDING
--------------------------------------------------- */
-.brand-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px 0;
-    margin-bottom: 20px;
-    border-bottom: 1px solid #fef08a;
-}
-
-.logo-container {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.logo-svg {
-    width: 38px;
-    height: 38px;
-}
-
-.logo-text {
-    font-size: 1.4rem;
-    font-weight: 800;
-    color: #1a252f;
-}
-
-.logo-text span {
-    color: #e8d567;
-}
-
-.system-title {
-    font-size: 1.4rem;
-    font-weight: 800;
-    color: #1a252f;
-    margin-bottom: 25px;
-    letter-spacing: 0.5px;
-}
-
-.logout-btn, .back-btn {
-    padding: 8px 16px;
-    border: 1px solid #e8d567;
-    background: #ffffff;
-    border-radius: 8px;
-    font-weight: 600;
-    color: #1a252f;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.logout-btn:hover, .back-btn:hover {
-    background: #fef08a;
-}
-
-/* --------------------------------------------------
-   🏠 DASHBOARD & CARDS
--------------------------------------------------- */
-.dashboard-grid3 {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
-    margin-bottom: 25px;
-}
-
-.menu-card {
-    background: #ffffff;
-    border: 1.5px solid #e8d567;
-    border-radius: 14px;
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.menu-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 20px rgba(0,0,0,0.06);
-}
-
-.menu-icon {
-    font-size: 2rem;
-    color: #1a252f;
-}
-
-.menu-card h3 {
-    font-size: 1.1rem;
-    color: #1a252f;
-}
-
-.btn-primary {
-    width: 100%;
-    padding: 10px;
-    background: #e8d567;
-    border: none;
-    border-radius: 8px;
-    font-weight: 700;
-    color: #1a252f;
-    cursor: pointer;
-}
-
-/* --------------------------------------------------
-   🟢 LIVE WIDGET
--------------------------------------------------- */
-.home-live-widget-card {
-    background: #ffffff;
-    border: 1.5px solid #e8d567;
-    border-radius: 14px;
-    padding: 18px 22px;
-    margin-bottom: 25px;
-}
-
-.hl-header-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #fef08a;
-}
-
-.hl-title {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.live-dot-pulse {
-    width: 10px;
-    height: 10px;
-    background-color: #10b981;
-    border-radius: 50%;
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-    animation: pulse-green 1.6s infinite;
-}
-
-@keyframes pulse-green {
-    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-    70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
-    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-}
-
-.hl-clock {
-    font-weight: 700;
-    color: #0f172a;
-    font-family: monospace;
-    font-size: 1rem;
-}
-
-.hl-agents-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 15px;
-}
-
-.hl-team-box {
-    background: #fffde7;
-    border: 1px solid #fef08a;
-    border-radius: 10px;
-    padding: 12px 16px;
-    text-align: left;
-}
-
-.hl-team-title {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-weight: 700;
-    font-size: 0.9rem;
-    margin-bottom: 10px;
-    color: #1a252f;
-}
-
-.hl-tt-left {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.hl-team-badge {
-    background: #e8d567;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    color: #1a252f;
-    font-weight: 700;
-}
-
-.hl-team-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.hl-agent-chip {
-    background: #ffffff;
-    border: 1px solid #e8d567;
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-size: 0.82rem;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.hl-chip-shift {
-    font-size: 0.72rem;
-    background: #fffde7;
-    padding: 1px 5px;
-    border-radius: 4px;
-    font-weight: 600;
-}
-
-.hl-none-text {
-    font-size: 0.82rem;
-    color: #94a3b8;
-}
-
-/* --------------------------------------------------
-   💖 DEV BANNER
--------------------------------------------------- */
-.dev-banner-card {
-    background: #fffef5;
-    border: 1px solid #e8d567;
-    border-radius: 12px;
-    padding: 18px 22px;
-    text-align: center;
-}
-
-.dev-banner-header {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-    color: #e11d48;
-}
-
-.dev-banner-header h3 {
-    color: #1a252f;
-    font-size: 1rem;
-}
-
-.dev-banner-card p {
-    font-size: 0.9rem;
-    color: #475569;
-    line-height: 1.5;
-}
-
-.dev-name-badge {
-    background: #e8d567;
-    padding: 2px 8px;
-    border-radius: 6px;
-    font-weight: 700;
-    color: #1a252f;
-}
-
-/* --------------------------------------------------
-   🏢 TOWERS SEARCH & MASTER DATA
--------------------------------------------------- */
-.search-box {
-    background: #ffffff;
-    border: 1px solid #e8d567;
-    border-radius: 12px;
-    padding: 18px 22px;
-    margin-bottom: 20px;
-    text-align: left;
-}
-
-.search-box label {
-    display: block;
-    font-weight: 700;
-    margin-bottom: 8px;
-    color: #1a252f;
-}
-
-.input-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.combo-input {
-    width: 100%;
-    padding: 12px 16px;
-    border: 1.5px solid #e8d567;
-    border-radius: 8px;
-    font-size: 0.95rem;
-    outline: none;
-}
-
-.clear-btn {
-    position: absolute;
-    right: 12px;
-    background: none;
-    border: none;
-    font-size: 1.1rem;
-    color: #94a3b8;
-    cursor: pointer;
-    display: none;
-}
-
-.cards-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.card {
-    background: #ffffff;
-    border: 1px solid #e8d567;
-    border-radius: 12px;
-    padding: 20px;
-    text-align: left;
-}
-
-.card h3 {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: #1a252f;
-    margin-bottom: 14px;
-    border-bottom: 1px solid #fef08a;
-    padding-bottom: 8px;
-}
-
-.fees-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 12px;
-}
-
-.row {
-    display: flex;
-    justify-content: space-between;
-    padding: 6px 0;
-    font-size: 0.9rem;
-    border-bottom: 1px dashed #fef08a;
-}
-
-.row .title {
-    color: #64748b;
-}
-
-.row .val {
-    font-weight: 700;
-    color: #0f172a;
-}
-
-.bottom-cards-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
-}
-
-.maintenance-alert-box {
-    margin-top: 15px;
-    background: #fff7ed;
-    border: 1px solid #ffedd5;
-    padding: 12px 16px;
-    border-radius: 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.maintenance-info {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.m-icon { color: #c2410c; }
-.m-text { font-size: 0.85rem; color: #9a3412; }
-.m-badge { font-weight: 800; color: #c2410c; }
-
-/* --------------------------------------------------
-   🛠️ TECHNICAL PAGE & SCHEDULE
--------------------------------------------------- */
-.sheet-tracker-card {
-    background: #f0fdf4;
-    border: 1px solid #bbf7d0;
-    border-radius: 12px;
-    padding: 18px 22px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    text-align: left;
-    flex-wrap: wrap;
-    gap: 15px;
-}
-
-.sheet-tracker-content {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-}
-
-.sheet-icon-wrapper {
-    font-size: 2rem;
-    color: #16a34a;
-}
-
-.sheet-text-info h3 {
-    font-size: 1rem;
-    color: #14532d;
-    margin-bottom: 4px;
-}
-
-.sheet-text-info p {
-    font-size: 0.88rem;
-    color: #166534;
-}
-
-.btn-sheet-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: #16a34a;
-    color: #ffffff;
-    padding: 10px 18px;
-    border-radius: 8px;
-    font-weight: 700;
-    text-decoration: none;
-    font-size: 0.9rem;
-}
-
-.abudhabi-notice-box {
-    background: #eff6ff;
-    border: 1px solid #bfdbfe;
-    padding: 16px 20px;
-    border-radius: 12px;
-    text-align: left;
-    margin-bottom: 20px;
-}
-
-.ad-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: #1d4ed8;
-    margin-bottom: 6px;
-}
-
-.person-highlight {
-    background: #dbeafe;
-    padding: 2px 8px;
-    border-radius: 6px;
-    font-weight: 700;
-    color: #1e40af;
-}
-
-.section-divider {
-    text-align: center;
-    margin: 25px 0 15px 0;
-    font-weight: 800;
-    color: #1a252f;
-}
-
-.days-schedule-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
-}
-
-.day-card {
-    background: #ffffff;
-    border: 1px solid #e8d567;
-    border-radius: 12px;
-    padding: 18px;
-    text-align: left;
-}
-
-.day-card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #fef08a;
-}
-
-.day-card-header h3 {
-    font-size: 1.05rem;
-    color: #0f172a;
-}
-
-.count-badge {
-    background: #fffde7;
-    border: 1px solid #e8d567;
-    font-size: 0.75rem;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-weight: 600;
-}
-
-.b-list {
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.b-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 0.88rem;
-}
-
-.b-no {
-    background: #e8d567;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.72rem;
-    font-weight: 800;
-}
-
-/* --------------------------------------------------
-   📅 ROSTER MODULE & TABS
--------------------------------------------------- */
-.live-status-banner {
-    background: #ffffff;
-    border: 1px solid #e8d567;
-    border-radius: 12px;
-    padding: 16px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-    gap: 15px;
-}
-
-.live-clock-box {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.clock-time {
-    font-size: 1.1rem;
-    font-weight: 800;
-    font-family: monospace;
-    color: #0f172a;
-}
-
-.shift-timings-legend {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
-.shift-tag {
-    font-size: 0.8rem;
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-weight: 600;
-}
-
-.shift-tag.s1 { background: #e0f2fe; color: #0369a1; }
-.shift-tag.s2 { background: #fef3c7; color: #b45309; }
-.shift-tag.s3 { background: #f3e8ff; color: #6b21a8; }
-
-.roster-tabs-bar {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-}
-
-.tab-btn {
-    flex: 1;
-    padding: 12px;
-    background: #ffffff;
-    border: 1.5px solid #e8d567;
-    border-radius: 10px;
-    font-weight: 700;
-    color: #1a252f;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.tab-btn.active {
-    background: #e8d567;
-    border-color: #e8d567;
-    color: #1a252f;
-}
-
-.hidden-tab { display: none !important; }
-
-.roster-controls-wrapper {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
-    margin-bottom: 20px;
-}
-
-.date-picker-card, .active-summary-card {
-    background: #ffffff;
-    border: 1px solid #e8d567;
-    border-radius: 12px;
-    padding: 16px;
-    text-align: left;
-}
-
-.date-input {
-    width: 100%;
-    padding: 10px;
-    border: 1.5px solid #e8d567;
-    border-radius: 8px;
-    margin-top: 6px;
-    font-size: 0.9rem;
-}
-
-.btn-today-quick {
-    margin-top: 10px;
-    padding: 6px 12px;
-    background: #e8d567;
-    border: none;
-    border-radius: 6px;
-    font-size: 0.82rem;
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.active-tags-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 10px;
-}
-
-.active-agent-pill {
-    background: #ecfdf5;
-    border: 1px solid #a7f3d0;
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-size: 0.82rem;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.pill-dept { font-size: 0.7rem; color: #047857; font-weight: 700; }
-.pill-name { font-weight: 700; color: #065f46; }
-.pill-shift { background: #a7f3d0; padding: 1px 4px; border-radius: 4px; font-size: 0.7rem; }
-
-.roster-dept-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 20px;
-}
-
-.dept-roster-card {
-    background: #ffffff;
-    border: 1px solid #e8d567;
-    border-radius: 12px;
-    padding: 18px;
-    text-align: left;
-}
-
-.dept-card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #fef08a;
-    margin-bottom: 12px;
-}
-
-.roster-agent-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 10px;
-    border-radius: 8px;
-    margin-bottom: 6px;
-    background: #fffde7;
-}
-
-.highlight-active-agent {
-    background: #f0fdf4;
-    border-left: 4px solid #10b981;
-}
-
-.lang-pill {
-    font-size: 0.7rem;
-    font-weight: 800;
-    padding: 2px 6px;
-    border-radius: 4px;
-    margin-right: 6px;
-}
-
-.lang-pill.ara { background: #fee2e2; color: #991b1b; }
-.lang-pill.eng { background: #dbeafe; color: #1e40af; }
-
-.shift-badge {
-    font-size: 0.78rem;
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-weight: 700;
-}
-
-.shift1-badge { background: #e0f2fe; color: #0369a1; }
-.shift2-badge { background: #fef3c7; color: #b45309; }
-.shift3-badge { background: #f3e8ff; color: #6b21a8; }
-.shift-off-badge { background: #f1f5f9; color: #94a3b8; }
-
-.live-active-tag {
-    font-size: 0.68rem;
-    color: #10b981;
-    font-weight: 800;
-    margin-right: 8px;
-}
-
-/* --------------------------------------------------
-   📊 FULL ROSTER TABLE STYLES
--------------------------------------------------- */
-.full-table-card {
-    background: #ffffff;
-    border: 1px solid #e8d567;
-    border-radius: 12px;
-    padding: 18px;
-}
-
-.full-table-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 15px;
-    font-weight: 700;
-}
-
-.table-scroll-wrapper {
-    overflow-x: auto;
-    max-width: 100%;
-}
-
-.roster-full-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.8rem;
-    text-align: center;
-}
-
-.roster-full-table th, .roster-full-table td {
-    border: 1px solid #fef08a;
-    padding: 8px;
-    white-space: nowrap;
-}
-
-.roster-full-table th {
-    background: #fffde7;
-    font-weight: 700;
-}
-
-.sticky-col {
-    position: sticky;
-    background: #ffffff;
-    z-index: 2;
-}
-
-.first-col { left: 0; }
-.second-col { left: 90px; }
-
-.cell-shift1 { background: #f0f9ff; color: #0369a1; font-weight: 700; }
-.cell-shift2 { background: #fffbeb; color: #b45309; font-weight: 700; }
-.cell-shift3 { background: #faf5ff; color: #6b21a8; font-weight: 700; }
-.cell-off { background: #f8fafc; color: #cbd5e1; }
-
-/* --------------------------------------------------
-   👤 AGENT LOOKUP
--------------------------------------------------- */
-.agent-lookup-card {
-    background: #ffffff;
-    border: 1px solid #e8d567;
-    border-radius: 12px;
-    padding: 20px;
-    text-align: left;
-    margin-bottom: 20px;
-}
-
-.lookup-controls-row {
-    display: flex;
-    gap: 15px;
-    flex-wrap: wrap;
-    margin-top: 12px;
-}
-
-.agent-days-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 12px;
-    margin-top: 20px;
-}
-
-.agent-day-card {
-    background: #ffffff;
-    border: 1px solid #e8d567;
-    border-radius: 10px;
-    padding: 12px;
-    text-align: center;
-}
-
-.adc-day-number { font-weight: 800; font-size: 0.85rem; margin-bottom: 6px; }
-.adc-shift-type { font-size: 0.78rem; font-weight: 700; }
-
-.shift1-card { border-color: #7dd3fc; background: #f0f9ff; }
-.shift2-card { border-color: #fde047; background: #fefce8; }
-.shift3-card { border-color: #d8b4fe; background: #faf5ff; }
-.shift-off-card { border-color: #e2e8f0; background: #f8fafc; color: #94a3b8; }
