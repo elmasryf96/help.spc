@@ -12,49 +12,43 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <link rel="stylesheet" href="style.css?v=2026.200">
+    <link rel="stylesheet" href="style.css?v=2026.104">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
     <!-- 🔒 Login Page -->
     <div id="login-page" class="page active-page">
-        <div class="login-wrapper">
-            <div class="login-container">
-                <div class="logo-container justify-center margin-bottom-20">
-                    <svg class="logo-svg" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="35" cy="18" r="5" fill="#E8D567"/>
-                        <circle cx="68" cy="18" r="5" fill="#E8D567"/>
-                        <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
-                        <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
-                        <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
-                        <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
-                    </svg>
-                    <div class="logo-text">Smart <span>Collection</span></div>
+        <div class="login-container">
+            <div class="logo-container justify-center margin-bottom-20">
+                <svg class="logo-svg" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+                    <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+                    <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+                    <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+                    <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+                    <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+                </svg>
+                <div class="logo-text">Smart <span>Collection</span></div>
+            </div>
+
+            <h2 class="login-title">Portal Access Login</h2>
+            
+            <form onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="username"><i class="fa-solid fa-user"></i> Username</label>
+                    <input type="text" id="username" class="login-input" placeholder="Enter username" required>
                 </div>
 
-                <h2 class="login-title">Step Into SPC Crew Base</h2>
-                
-                <form onsubmit="handleLogin(event)">
-                    <div class="form-group">
-                        <label for="username"><i class="fa-solid fa-user"></i> Username</label>
-                        <input type="text" id="username" class="login-input" placeholder="Enter username" required>
-                    </div>
+                <div class="form-group">
+                    <label for="password"><i class="fa-solid fa-lock"></i> Password</label>
+                    <input type="password" id="password" class="login-input" placeholder="Enter password" required>
+                </div>
 
-                    <div class="form-group">
-                        <label for="password"><i class="fa-solid fa-lock"></i> Password</label>
-                        <input type="password" id="password" class="login-input" placeholder="Enter password" required>
-                    </div>
+                <div id="login-error" class="login-error-msg">❌ Invalid Username or Password!</div>
 
-                    <div id="login-error" class="login-error-msg">❌ Invalid Username or Password!</div>
-
-                    <button type="submit" class="btn-login">Sign In</button>
-                </form>
-            </div>
-
-            <div class="login-footer-text">
-                Made with <i class="fa-solid fa-heart"></i> by <strong>Faris Elmasry</strong>
-            </div>
+                <button type="submit" class="btn-login">Sign In</button>
+            </form>
         </div>
     </div>
 
@@ -79,9 +73,9 @@
                 </button>
             </div>
 
-            <div class="system-title">🚀 SPC CREW BASE</div>
+            <div class="system-title">🚀 AGENT ASSISTANT DASHBOARD</div>
 
-            <!-- 🟢 LIVE ACTIVE SHIFT STATUS WIDGET -->
+            <!-- 🟢 LIVE ACTIVE SHIFT STATUS WIDGET (LIGHT MATCHING THEME) -->
             <div class="home-live-widget-card">
                 <div class="hl-header-bar">
                     <div class="hl-title">
@@ -101,6 +95,7 @@
                 <div class="menu-card" onclick="navigateTo('towers-page')">
                     <div class="menu-icon"><i class="fa-solid fa-database"></i></div>
                     <h3>Master Data & Towers Portal</h3>
+                    <p>Search towers database, service fees, security deposits, and management details.</p>
                     <button class="btn-primary">Access Master Data <i class="fa-solid fa-arrow-right"></i></button>
                 </div>
 
@@ -108,6 +103,7 @@
                 <div class="menu-card" onclick="navigateTo('tech-page')">
                     <div class="menu-icon"><i class="fa-solid fa-screwdriver-wrench"></i></div>
                     <h3>Technical Department</h3>
+                    <p>View building inspection schedules, field maintenance days, and technical operations.</p>
                     <button class="btn-primary">View Schedule <i class="fa-solid fa-calendar-days"></i></button>
                 </div>
 
@@ -115,11 +111,12 @@
                 <div class="menu-card" onclick="navigateTo('roster-page')">
                     <div class="menu-icon"><i class="fa-solid fa-users-gear"></i></div>
                     <h3>Team Duty Roster</h3>
+                    <p>View live active teams right now, search by agent, or inspect full monthly schedules.</p>
                     <button class="btn-primary">Check Roster <i class="fa-solid fa-clock"></i></button>
                 </div>
             </div>
 
-            <!-- 💖 Dev Banner -->
+            <!-- 💖 Simple Bottom Developer Note with Love -->
             <div class="dev-banner-card">
                 <div class="dev-banner-header">
                     <i class="fa-solid fa-heart"></i>
@@ -127,8 +124,7 @@
                 </div>
                 <p>
                     This portal was made with love to help our team, created by 
-                    <span class="dev-name-badge"><i class="fa-solid fa-user-gear"></i> Faris Elmasry</span>
-                    <br>
+                    <span class="dev-name-badge"><i class="fa-solid fa-user-gear"></i> Faris Elmasry</span>.
                     If you have any ideas or suggestions to make it better, feel free to contact him directly!
                 </p>
             </div>
@@ -437,6 +433,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=2026.200"></script>
+    <script src="script.js?v=2026.104"></script>
 </body>
 </html>
