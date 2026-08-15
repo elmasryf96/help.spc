@@ -12,7 +12,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <link rel="stylesheet" href="style.css?v=2026.104">
+    <link rel="stylesheet" href="style.css?v=2026.110">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -73,9 +73,9 @@
                 </button>
             </div>
 
-            <div class="system-title">🚀 AGENT ASSISTANT DASHBOARD</div>
+            <div class="system-title">🏠 Smart Collection Operations Dashboard</div>
 
-            <!-- 🟢 LIVE ACTIVE SHIFT STATUS WIDGET (LIGHT MATCHING THEME) -->
+            <!-- 🟢 LIVE ACTIVE SHIFT STATUS WIDGET -->
             <div class="home-live-widget-card">
                 <div class="hl-header-bar">
                     <div class="hl-title">
@@ -91,42 +91,45 @@
             </div>
 
             <div class="dashboard-grid3">
-                <!-- 🏢 Master Data Card -->
+                <!-- 🏢 Master Data Button Card -->
                 <div class="menu-card" onclick="navigateTo('towers-page')">
                     <div class="menu-icon"><i class="fa-solid fa-database"></i></div>
-                    <h3>Master Data & Towers Portal</h3>
-                    <p>Search towers database, service fees, security deposits, and management details.</p>
-                    <button class="btn-primary">Access Master Data <i class="fa-solid fa-arrow-right"></i></button>
+                    <h3>Master Data & Tower Info</h3>
+                    <div class="btn-primary">Open Lookup <i class="fa-solid fa-arrow-right"></i></div>
                 </div>
 
-                <!-- 🛠️ Technical Department Card -->
+                <!-- 🛠️ Technical Department Button Card -->
                 <div class="menu-card" onclick="navigateTo('tech-page')">
                     <div class="menu-icon"><i class="fa-solid fa-screwdriver-wrench"></i></div>
-                    <h3>Technical Department</h3>
-                    <p>View building inspection schedules, field maintenance days, and technical operations.</p>
-                    <button class="btn-primary">View Schedule <i class="fa-solid fa-calendar-days"></i></button>
+                    <h3>Technical Schedule & Tracker</h3>
+                    <div class="btn-primary">Open Schedule <i class="fa-solid fa-calendar-days"></i></div>
                 </div>
 
-                <!-- 📅 Duty Roster Card -->
+                <!-- 📅 Duty Roster Button Card -->
                 <div class="menu-card" onclick="navigateTo('roster-page')">
                     <div class="menu-icon"><i class="fa-solid fa-users-gear"></i></div>
-                    <h3>Team Duty Roster</h3>
-                    <p>View live active teams right now, search by agent, or inspect full monthly schedules.</p>
-                    <button class="btn-primary">Check Roster <i class="fa-solid fa-clock"></i></button>
+                    <h3>Monthly Duty Roster</h3>
+                    <div class="btn-primary">Open Roster <i class="fa-solid fa-clock"></i></div>
                 </div>
             </div>
 
-            <!-- 💖 Simple Bottom Developer Note with Love -->
+            <!-- 💖 Simple Bottom Developer Note -->
             <div class="dev-banner-card">
                 <div class="dev-banner-header">
                     <i class="fa-solid fa-heart"></i>
-                    <h3>Welcome to SPC - Agent Helper</h3>
+                    <h3>Designed & Developed with Love</h3>
                 </div>
                 <p>
-                    This portal was made with love to help our team, created by 
-                    <span class="dev-name-badge"><i class="fa-solid fa-user-gear"></i> Faris Elmasry</span>.
-                    If you have any ideas or suggestions to make it better, feel free to contact him directly!
+                    Crafted specifically for team efficiency by 
+                    <span class="dev-name-badge"><i class="fa-solid fa-user-gear"></i> Fares Elmasry</span>
                 </p>
+            </div>
+
+            <!-- 👑 ADMIN BUTTON (Small & Bottom - Visible Only to Admin Username 0) -->
+            <div class="admin-bottom-wrapper">
+                <button id="adminMiniBtn" class="admin-mini-btn" onclick="navigateTo('admin-page')" style="display: none;">
+                    <i class="fa-solid fa-user-shield"></i> Admin Panel
+                </button>
             </div>
         </div>
     </div>
@@ -157,7 +160,14 @@
             </div>
 
             <div class="system-title">🏢 Towers Master Data & Service Fees Search Portal</div>
-            
+
+            <!-- 👑 DIRECT ADMIN ACTION: ADD TOWER BUTTON -->
+            <div style="text-align: center; margin-top: 10px;">
+                <button id="directAddTowerBtn" class="btn-add-tower" onclick="showAddTowerForm()" style="display: none;">
+                    <i class="fa-solid fa-plus-circle"></i> Add New Tower
+                </button>
+            </div>
+
             <div class="search-box">
                 <label for="towerInput">🔍 Search & Select Tower Name:</label>
                 <div class="input-wrapper">
@@ -167,8 +177,17 @@
                 <datalist id="towersList"></datalist>
             </div>
 
+            <!-- 👑 DIRECT ADMIN ACTION BAR FOR SELECTED TOWER -->
+            <div id="directAdminControls" style="display: none; justify-content: center; gap: 12px; margin: 0 15px 15px 15px; background: #fffbe6; padding: 10px; border-radius: 10px; border: 2px dashed var(--primary-yellow);">
+                <button onclick="saveDirectTowerChanges()" style="background: #22c55e; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer;">
+                    💾 Save Tower Changes
+                </button>
+                <button onclick="deleteDirectTower()" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer;">
+                    🗑️ Delete Selected Tower
+                </button>
+            </div>
+
             <div class="cards-wrapper">
-                <!-- 💳 Online Payment Card -->
                 <div class="card card-fees-top">
                     <h3>💳 ONLINE PAYMENT AVAILABILITY</h3>
                     <div class="row">
@@ -177,28 +196,20 @@
                     </div>
                 </div>
 
-                <!-- 🏷️ Service Fees Card -->
                 <div class="card card-fees-top">
                     <h3>🏷️ APPLICABLE SERVICE FEES</h3>
                     <div class="fees-grid">
-                        <div class="row"><span class="title">Billing Fee:</span><span class="val" id="billing">-</span></div>
-                        <div class="row"><span class="title">Late Fee:</span><span class="val" id="late">-</span></div>
-                        <div class="row"><span class="title">Activation Fee:</span><span class="val" id="activation">-</span></div>
-                        <div class="row"><span class="title">Disconnection Fee:</span><span class="val" id="disconnection">-</span></div>
-                        <div class="row"><span class="title">NOC Fee:</span><span class="val" id="noc">-</span></div>
-                        <div class="row"><span class="title">Final Bill Fee:</span><span class="val" id="final">-</span></div>
+                        <div class="fee-item"><span class="title">Billing Fee:</span><span class="val" id="billing">-</span></div>
+                        <div class="fee-item"><span class="title">Late Fee:</span><span class="val" id="late">-</span></div>
+                        <div class="fee-item"><span class="title">Activation Fee:</span><span class="val" id="activation">-</span></div>
+                        <div class="fee-item"><span class="title">Disconnection Fee:</span><span class="val" id="disconnection">-</span></div>
+                        <div class="fee-item"><span class="title">NOC Fee:</span><span class="val" id="noc">-</span></div>
+                        <div class="fee-item"><span class="title">Final Bill Fee:</span><span class="val" id="final">-</span></div>
                     </div>
 
-                    <!-- 🛠️ Alert Maintenance Box -->
-                    <div id="maintenance_row" class="maintenance-alert-box hidden-page">
-                        <div class="maintenance-info">
-                            <span class="m-icon"><i class="fa-solid fa-triangle-exclamation"></i></span>
-                            <div class="m-text">
-                                <strong>Monthly Maintenance Charge Applies:</strong>
-                                <span class="m-subtext">Additional mandatory maintenance fee billed monthly.</span>
-                            </div>
-                        </div>
-                        <div class="m-badge" id="maintenance">-</div>
+                    <div id="maintenance_row" class="maintenance-single-row hidden-page">
+                        <span class="title"><i class="fa-solid fa-wrench"></i> Maintenance Fee:</span>
+                        <span class="val" id="maintenance">-</span>
                     </div>
                 </div>
 
@@ -247,7 +258,6 @@
 
             <div class="system-title">📋 Technical Department - Inspection Schedule</div>
 
-            <!-- 📝 SharePoint Tracker Link Banner -->
             <div class="sheet-tracker-card">
                 <div class="sheet-tracker-content">
                     <div class="sheet-icon-wrapper">
@@ -265,7 +275,6 @@
                 </div>
             </div>
 
-            <!-- 📍 ABU DHABI DIRECT INSTRUCTION BANNER -->
             <div class="abudhabi-notice-box">
                 <div class="ad-header">
                     <i class="fa-solid fa-building-user"></i>
@@ -282,7 +291,6 @@
                 <span><i class="fa-solid fa-city"></i> Dubai & Ajman Inspection Schedule</span>
             </div>
 
-            <!-- Search Controls -->
             <div class="search-box margin-bottom-25">
                 <label for="schedSearchInput">🔍 Quick Search Building or Day (Dubai & Ajman):</label>
                 <div class="input-wrapper">
@@ -291,7 +299,6 @@
                 </div>
             </div>
 
-            <!-- Modern Card Grid for Dubai & Ajman Days -->
             <div class="cards-wrapper">
                 <div id="schedGridContainer" class="days-schedule-grid">
                     <!-- Cards rendered dynamically via JS -->
@@ -327,7 +334,6 @@
 
             <div class="system-title">📅 Monthly Duty Roster - August 2026</div>
 
-            <!-- LIVE UAE TIME BANNER -->
             <div class="live-status-banner">
                 <div class="live-clock-box">
                     <div class="live-dot-pulse"></div>
@@ -343,7 +349,6 @@
                 </div>
             </div>
 
-            <!-- NAVIGATION TABS -->
             <div class="roster-tabs-bar">
                 <button class="tab-btn active" id="tabLiveBtn" onclick="switchRosterTab('live-view')">
                     <i class="fa-solid fa-bolt"></i> Daily & Live Shift Status
@@ -356,8 +361,8 @@
                 </button>
             </div>
 
-            <!-- TAB 1: DAILY & LIVE SHIFT STATUS VIEW -->
-            <div id="tab-live-view" class="roster-tab-content active-tab">
+            <!-- Tab 1: Live View -->
+            <div id="tab-live-view" class="roster-tab-content">
                 <div class="roster-controls-wrapper">
                     <div class="date-picker-card">
                         <label for="rosterDateInput"><i class="fa-solid fa-calendar-day"></i> Select Date (August 2026):</label>
@@ -383,7 +388,7 @@
                 </div>
             </div>
 
-            <!-- TAB 2: PERSONAL AGENT LOOKUP VIEW -->
+            <!-- Tab 2: Agent Lookup -->
             <div id="tab-agent-view" class="roster-tab-content hidden-tab">
                 <div class="agent-lookup-card">
                     <div class="lookup-header-box">
@@ -415,7 +420,7 @@
                 </div>
             </div>
 
-            <!-- TAB 3: FULL MONTHLY ROSTER TABLE VIEW -->
+            <!-- Tab 3: Full Table -->
             <div id="tab-full-sheet-view" class="roster-tab-content hidden-tab">
                 <div class="full-table-card">
                     <div class="full-table-header">
@@ -429,10 +434,79 @@
                     </div>
                 </div>
             </div>
-
         </div>
     </div>
 
-    <script src="script.js?v=2026.104"></script>
+    <!-- 👑 ADMIN PANEL PAGE -->
+    <div id="admin-page" class="page hidden-page">
+        <div class="container">
+            <div class="brand-header relative-header">
+                <button class="back-btn" onclick="navigateTo('home-page')">
+                    <i class="fa-solid fa-arrow-left"></i> Dashboard
+                </button>
+
+                <div class="logo-container">
+                    <svg class="logo-svg" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+                        <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+                        <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+                        <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+                    </svg>
+                    <div class="logo-text">Smart <span>Collection</span></div>
+                </div>
+
+                <button class="logout-btn" onclick="handleLogout()" title="Log out">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+
+            <div class="system-title">👑 Admin Panel - Manage Towers & Agents</div>
+
+            <div class="admin-tabs-bar">
+                <button class="admin-tab-btn active" onclick="switchAdminTab('towers')">
+                    <i class="fa-solid fa-building"></i> Manage Towers
+                </button>
+                <button class="admin-tab-btn" onclick="switchAdminTab('agents')">
+                    <i class="fa-solid fa-users"></i> Manage Agents
+                </button>
+            </div>
+
+            <div id="admin-tab-towers" class="admin-tab-content">
+                <div class="search-box" style="margin: 10px 15px;">
+                    <input type="text" id="adminSearchInput" class="combo-input" placeholder="🔍 Search tower..." oninput="renderAdminTable(this.value)">
+                </div>
+
+                <button class="btn-add-tower" onclick="showAddTowerForm()">
+                    <i class="fa-solid fa-plus"></i> Add New Tower
+                </button>
+
+                <div class="admin-table-wrapper">
+                    <table id="adminTowersTable" class="admin-table">
+                        <!-- Populated by JS -->
+                    </table>
+                </div>
+            </div>
+
+            <div id="admin-tab-agents" class="admin-tab-content hidden-tab">
+                <div class="search-box" style="margin: 10px 15px;">
+                    <input type="text" id="adminAgentSearchInput" class="combo-input" placeholder="🔍 Search agent..." oninput="renderAdminAgentsTable(this.value)">
+                </div>
+
+                <button class="btn-add-tower" onclick="showAddAgentForm()">
+                    <i class="fa-solid fa-user-plus"></i> Add New Agent
+                </button>
+
+                <div class="admin-table-wrapper">
+                    <table id="adminAgentsTable" class="admin-table">
+                        <!-- Populated by JS -->
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js?v=2026.110"></script>
 </body>
 </html>
