@@ -15,6 +15,7 @@ body {
     direction: ltr;
     text-align: left;
     min-height: 100vh;
+    box-sizing: border-box;
 }
 
 .page { 
@@ -27,7 +28,7 @@ body {
 }
 
 .hidden-page { 
-    display: none; 
+    display: none !important; 
 }
 
 @keyframes fadeIn {
@@ -165,6 +166,17 @@ body {
     cursor: pointer;
 }
 
+.brand-header {
+    background-color: #ffffff;
+    padding: 20px 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 5px solid var(--primary-yellow);
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
 .back-btn {
     background: var(--dark-navy);
     color: #ffffff;
@@ -173,8 +185,6 @@ body {
     border-radius: 8px;
     cursor: pointer;
     font-weight: 700;
-    position: absolute;
-    left: 40px;
 }
 
 .logout-btn {
@@ -185,17 +195,6 @@ body {
     border-radius: 8px;
     cursor: pointer;
     font-weight: 700;
-    position: absolute;
-    right: 40px;
-}
-
-.brand-header {
-    background-color: #ffffff;
-    padding: 25px 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-bottom: 5px solid var(--primary-yellow);
 }
 
 .logo-container { 
@@ -205,12 +204,12 @@ body {
 }
 
 .logo-svg { 
-    height: 65px; 
+    height: 55px; 
     width: auto; 
 }
 
 .logo-text { 
-    font-size: 32px; 
+    font-size: 28px; 
     font-weight: 800; 
     line-height: 0.95; 
 }
@@ -219,7 +218,7 @@ body {
     display: block; 
     font-weight: 700; 
     color: #4a5568; 
-    font-size: 22px; 
+    font-size: 20px; 
 }
 
 .system-title {
@@ -263,7 +262,7 @@ body {
 .input-wrapper { 
     position: relative; 
     display: inline-block; 
-    width: 85%; 
+    width: 100%; 
     max-width: 650px; 
 }
 
@@ -386,18 +385,16 @@ body {
     font-size: 14.5px; 
 }
 
-.margin-bottom-20 { 
-    margin-bottom: 20px; 
-}
+.margin-bottom-20 { margin-bottom: 20px; }
+.justify-center { justify-content: center !important; }
+.text-center { text-align: center; }
 
-.justify-center { 
-    justify-content: center !important; 
-}
-
-.text-center { 
-    text-align: center; 
-}
-
-.relative-header { 
-    position: relative; 
+@media (max-width: 768px) {
+    .brand-header {
+        justify-content: center;
+    }
+    .search-box, .cards-wrapper {
+        padding: 15px;
+        margin: 15px;
+    }
 }
