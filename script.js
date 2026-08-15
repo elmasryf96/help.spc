@@ -1,830 +1,977 @@
-const towersData = {
-  "Al Dana Towers": { "client": "ADCP/Nine Yard", "location": "Abudhabi", "bank": "SPC", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "40.00 AED", "activation": "200.00 AED", "disconnection": "500.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Al Mamzar Gate": { "client": "H S H Real Estate", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "40.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Al Nuaimiya Tower C": { "client": "Aqaar Community Management", "location": "Ajman", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "20.00 AED", "late": "35.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "150.00 AED" },
-  "Al Raha Beach Towers": { "client": "Emirates Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "500.00 AED", "noc": "100.00 AED", "final": "35.00 AED" },
-  "Al Reem Bay Tower 1": { "client": "FAB Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "Client", "online": "Yes", "billing": "28.00 AED", "late": "25.00 AED", "activation": "50.00 AED", "disconnection": "250.00 AED", "noc": "50.00 AED", "final": "25.00 AED" },
-  "Al Reem Bay Tower 2": { "client": "FAB Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "Client", "online": "Yes", "billing": "28.00 AED", "late": "25.00 AED", "activation": "50.00 AED", "disconnection": "250.00 AED", "noc": "50.00 AED", "final": "25.00 AED" },
-  "Al Wifaq Tower": { "client": "ADCP/Nine Yard", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC for new customer", "online": "Yes", "billing": "25.00 AED", "late": "50.00 AED", "activation": "250.00 AED", "disconnection": "250.00 AED", "noc": "100.00 AED", "final": "35.00 AED" },
-  "Amaya Tower 1": { "client": "Dhafir development", "location": "Abudhabi", "bank": "Client", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "35.00 AED", "activation": "100.00 AED", "disconnection": "500.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Amaya Tower 2": { "client": "Dhafir development", "location": "Abudhabi", "bank": "Client", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "35.00 AED", "activation": "100.00 AED", "disconnection": "500.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Aria Residence": { "client": "Stratum Owners Association Management", "location": "Dubai", "bank": "Client", "deposit": "Client", "online": "No", "billing": "20.00 AED", "late": "25.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Ayedh Tower": { "client": "Dajeem Properties", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "20.00 AED", "late": "30.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Bali Residence": { "client": "Stratum Owner Association Management Services LLC", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Binghatti East": { "client": "Kaizen Owners Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "20.00 AED", "late": "20.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Binghatti West": { "client": "Kaizen Owner Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "20.00 AED", "late": "20.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Building H": { "client": "National Investment Cooperation", "location": "Abudhabi", "bank": "SPC", "deposit": "N/A", "online": "Yes", "billing": "37.00 AED", "late": "n/a", "activation": "100.00 AED", "disconnection": "200.00 AED", "noc": "50.00 AED", "final": "30.00 AED" },
-  "Centurion Star Tower A": { "client": "Reliance Owners Association Management", "location": "Dubai", "bank": "Client", "deposit": "Client", "online": "Yes", "billing": "40.00 AED", "late": "50.00 AED", "activation": "250.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Centurion Star Tower B": { "client": "Reliance Owners Association Management", "location": "Dubai", "bank": "Client", "deposit": "Client", "online": "Yes", "billing": "40.00 AED", "late": "50.00 AED", "activation": "250.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Clover Bay": { "client": "Stratum Owner Association Management Services LLC", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Condor Marina Star": { "client": "King Royal Community Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "30.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Corniche Tower": { "client": "Aqaar Community Management", "location": "Ajman", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "20.00 AED", "late": "35.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "150.00 AED" },
-  "Creek Vistas Grande": { "client": "Sobha Community Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "25.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "DG Building 110": { "client": "Modo Property Management Services LLC", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "35.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "DG Building 111": { "client": "Modo Property Management Services LLC", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "35.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "DG Building 112": { "client": "Modo Property Management Services LLC", "location": "Dubai", "bank": "SPC", "deposit": "SPC for new customer", "online": "Yes", "billing": "35.00 AED", "late": "40.00 AED", "activation": "150.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "DG Building 132": { "client": "Modo Property Management Services LLC", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "35.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "East Coast": { "client": "Saeed Mohammed Abdulla Alraqbani Hamdan Bin Abdullah", "location": "Dubai", "bank": "SPC", "deposit": "Client", "online": "Yes", "billing": "30.00 AED", "late": "25.00 AED", "activation": "60.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Eastern Mangrooves": { "client": "Aldar Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "25.00 AED", "activation": "150.00 AED", "disconnection": "150.00 AED", "noc": "100.00 AED", "final": "35.00 AED" },
-  "Eastern Star": { "client": "DGM Properties LLC", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "40.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Elz by Danube": { "client": "Stratum Owners Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Fairmont Marina Residences": { "client": "National Investment Cooperation", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "maintenance": "7.00 AED", "late": "30.00 AED", "activation": "100.00 AED", "disconnection": "200.00 AED", "noc": "50.00 AED", "final": "30.00 AED" },
-  "Gemini Splendor": { "client": "Stratum Owner Association Management Services LLC", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Glamz by Danube": { "client": "Stratum Owners Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Grosvenor Business Tower": { "client": "Stratum Owners Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "35.00 AED", "late": "50.00 AED", "activation": "250.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Hthree by Aurora": { "client": "Better Communities Owner Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "40.00 AED", "activation": "250.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Hussain Ibrahim Mohamed Ibrahim Alhammadi": { "client": "Curve Real Estate LLC", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "20.00 AED", "late": "75.00 AED", "activation": "150.00 AED", "disconnection": "250.00 AED", "noc": "50.00 AED", "final": "50.00 AED" },
-  "Julphar Residence": { "client": "Stratum Owner Association Management", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "35.00 AED", "late": "35.00 AED", "activation": "50.00 AED", "disconnection": "250.00 AED", "noc": "100.00 AED", "final": "50.00 AED" },
-  "Lawnz by Danube": { "client": "Stratum Owners Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Maison VI Residence": { "client": "Khyber Investments Limited", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "35.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Makeen Residence": { "client": "Makeen Properties", "location": "Dubai", "bank": "SPC", "deposit": "SPC for new customer", "online": "Yes", "billing": "30.00 AED", "late": "35.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Marina Sunset": { "client": "National Investment Cooperation", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "28.00 AED", "late": "30.00 AED", "activation": "100.00 AED", "disconnection": "500.00 AED", "noc": "50.00 AED", "final": "30.00 AED" },
-  "Miraclz by Danube": { "client": "Stratum Owner Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Muhaimat Tower": { "client": "Arabian Falcon Group", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "250.00 AED", "noc": "100.00 AED", "final": "0.00 AED" },
-  "Nation Tower Commercial": { "client": "ICT", "location": "Abudhabi", "bank": "Client", "deposit": "Client", "online": "No", "billing": "23.00 AED", "late": "0.00 AED", "activation": "50.00 AED", "disconnection": "500.00 AED", "noc": "30.00 AED", "final": "0.00 AED" },
-  "Palace Tower": { "client": "Reliance Owners Association Management", "location": "Dubai", "bank": "Client", "deposit": "Client", "online": "Yes", "billing": "25.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Pearl Coast": { "client": "Al Khaimah Real Estate", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "40.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Raha C6": { "client": "Saeed Mohammed Abdulla Alraqbani Hamdan Bin Abdullah", "location": "Abudhabi", "bank": "SPC", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "25.00 AED", "activation": "60.00 AED", "disconnection": "250.00 AED", "noc": "100.00 AED", "final": "25.00 AED" },
-  "Raha C7": { "client": "Saeed Mohammed Abdulla Alraqbani Hamdan Bin Abdullah", "location": "Abudhabi", "bank": "SPC", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "25.00 AED", "activation": "60.00 AED", "disconnection": "250.00 AED", "noc": "100.00 AED", "final": "25.00 AED" },
-  "Resortz by Danube": { "client": "Stratum Owners Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Shams Meera Tower 1": { "client": "Aldar Properties/Provis OA Management", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "25.00 AED", "activation": "50.00 AED", "disconnection": "150.00 AED", "noc": "100.00 AED", "final": "35.00 AED" },
-  "Shams Meera Tower 2": { "client": "Aldar Properties/Provis OA Management", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "25.00 AED", "activation": "50.00 AED", "disconnection": "150.00 AED", "noc": "100.00 AED", "final": "35.00 AED" },
-  "Silverene Tower": { "client": "Palma Community Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "50.00 AED", "late": "25.00 AED", "activation": "250.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Skyview Tower": { "client": "Stratum Owners Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "35.00 AED", "late": "50.00 AED", "activation": "250.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Sobha Waves": { "client": "Sobha Community Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "25.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Sobha Waves Grande": { "client": "Sobha Community Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "25.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Starz by Danube": { "client": "Stratum Owners Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "50.00 AED", "activation": "200.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Sway Residence": { "client": "Kaizen Owner Association Management Services LLC", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "35.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "The 7 By Aurora": { "client": "Aurora Real Estate Development LLC", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "23.00 AED", "late": "40.00 AED", "activation": "250.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "The Bridges 4": { "client": "Aldar Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "25.00 AED", "activation": "50.00 AED", "disconnection": "150.00 AED", "noc": "100.00 AED", "final": "35.00 AED" },
-  "The Bridges 5": { "client": "Aldar Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "25.00 AED", "activation": "50.00 AED", "disconnection": "150.00 AED", "noc": "100.00 AED", "final": "35.00 AED" },
-  "The Bridges 6": { "client": "Aldar Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "25.00 AED", "activation": "50.00 AED", "disconnection": "150.00 AED", "noc": "100.00 AED", "final": "35.00 AED" },
-  "The Dunes Tower": { "client": "Reliance Owners Association Management", "location": "Dubai", "bank": "Client", "deposit": "Client", "online": "Yes", "billing": "34.00 AED", "late": "50.00 AED", "activation": "250.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "The Lamar Residence Tower A": { "client": "Al Saqer Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "35.00 AED", "activation": "0.00 AED", "disconnection": "500.00 AED", "noc": "150.00 AED", "final": "20.00 AED" },
-  "The Lamar Residence Tower B": { "client": "Al Saqer Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "35.00 AED", "activation": "0.00 AED", "disconnection": "500.00 AED", "noc": "150.00 AED", "final": "20.00 AED" },
-  "The Lamar Residence Tower C": { "client": "Al Saqer Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "35.00 AED", "activation": "0.00 AED", "disconnection": "500.00 AED", "noc": "150.00 AED", "final": "20.00 AED" },
-  "The Lamar Residence Tower D": { "client": "Al Saqer Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "35.00 AED", "activation": "0.00 AED", "disconnection": "500.00 AED", "noc": "150.00 AED", "final": "20.00 AED" },
-  "The Lamar Residence Townhouse": { "client": "Al Saqer Properties", "location": "Abudhabi", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "30.00 AED", "late": "35.00 AED", "activation": "0.00 AED", "disconnection": "500.00 AED", "noc": "150.00 AED", "final": "20.00 AED" },
-  "Torino by ORO24": { "client": "ORO24 Developments", "location": "Dubai", "bank": "SPC", "deposit": "Client", "online": "Yes", "billing": "30.00 AED", "late": "35.00 AED", "activation": "0.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Water Front Trident": { "client": "Stratum Owners Association Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "35.00 AED", "late": "50.00 AED", "activation": "250.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Waves Tower-Damac": { "client": "Damac", "location": "Dubai", "bank": "Client", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "maintenance": "20.00 AED", "late": "0.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Westwood By Imtiaz": { "client": "Better Community Management", "location": "Dubai", "bank": "SPC", "deposit": "SPC", "online": "Yes", "billing": "25.00 AED", "late": "30.00 AED", "activation": "100.00 AED", "disconnection": "100.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Yasmina Towers 1": { "client": "Dhafir development", "location": "Abudhabi", "bank": "Client", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "35.00 AED", "activation": "100.00 AED", "disconnection": "500.00 AED", "noc": "0.00 AED", "final": "0.00 AED" },
-  "Yasmina Towers 2": { "client": "Dhafir development", "location": "Abudhabi", "bank": "Client", "deposit": "Client", "online": "Yes", "billing": "35.00 AED", "late": "35.00 AED", "activation": "100.00 AED", "disconnection": "500.00 AED", "noc": "0.00 AED", "final": "0.00 AED" }
-};
-
-// 📋 Inspection Schedule Data
-const scheduleData = [
-  { day: "Monday", buildings: ["Bali Residence", "Clover Bay", "Glamz By Danube", "H3 By Aurora", "Jewel Of Creek", "Lawnz By Danube", "Maison Vi Residence", "Makeen Residence", "Starz By Danube"] },
-  { day: "Tuesday", buildings: ["Condor Marina Star", "Damac Waves Tower", "Discovery Garden 110", "Discovery Garden 111", "Discovery Garden 112", "Discovery Garden 132", "Silverene Tower", "Skyview", "Waterfront", "Westwood"] },
-  { day: "Wednesday", buildings: ["Ayedh Tower", "Creek Vistas Grande", "Eastern Star", "Gemini Splendor", "Sobha Waves Tower", "Waves Grande", "Riah Tower", "Olivo Park", "Sway Residence"] },
-  { day: "Thursday", buildings: ["Aria Residence", "Elz By Danube", "Miraclz By Danube", "Resortz By Danube", "Torino By Oro24"] },
-  { day: "Friday", buildings: ["Binghatti East", "Binghatti West", "Centurion", "Dunes Tower", "Palace Tower", "Pearl Coast", "The 7 By Aurora", "East Coast", "Grosvenor", "Mamzar Gate"] },
-  { day: "Saturday", buildings: ["Corniche", "Nuaimiya", "Horizon"] }
-];
-
-// 📅 AUGUST 2026 Monthly Duty Roster Data (Accurately Corrected Days Off)
-// SATURDAYS (السبت): 1, 8, 15, 22, 29
-// SUNDAYS (الأحد): 2, 9, 16, 23, 30
-// FRIDAYS (الجمعة): 7, 14, 21, 28
-const rosterData = [
-  // CALLS TEAM
-  { dept: "Calls", lang: "Ara", name: "Shadi", schedule: {
-    1:"Shift 3", 2:"Shift 3", 3:"Shift 3", 4:"Shift 3", 5:"Shift 3", 6:"Shift 3", 7:"OFF+", 8:"Shift 3", 9:"Shift 3", 10:"Shift 3", 11:"Shift 3", 12:"Shift 3", 13:"Shift 3", 14:"OFF+", 15:"Shift 3",
-    16:"Shift 3", 17:"Shift 3", 18:"Shift 3", 19:"Shift 3", 20:"Shift 3", 21:"OFF+", 22:"Shift 3", 23:"Shift 3", 24:"Shift 3", 25:"Shift 3", 26:"Shift 3", 27:"Shift 3", 28:"OFF+", 29:"Shift 3", 30:"Shift 3", 31:"Shift 3"
-  }},
-  { dept: "Calls", lang: "Ara", name: "Mirna", schedule: {
-    1:"OFF+", 2:"Shift 1", 3:"Shift 1", 4:"Shift 1", 5:"Shift 1", 6:"Shift 1", 7:"Shift 1", 8:"OFF+", 9:"Shift 1", 10:"Shift 1", 11:"Shift 1", 12:"Shift 1", 13:"Shift 1", 14:"Shift 1", 15:"OFF+",
-    16:"Shift 1", 17:"Shift 1", 18:"Shift 1", 19:"Shift 1", 20:"Shift 1", 21:"Shift 1", 22:"OFF+", 23:"Shift 1", 24:"Shift 1", 25:"Shift 1", 26:"Shift 1", 27:"Shift 1", 28:"Shift 1", 29:"OFF+", 30:"Shift 1", 31:"Shift 1"
-  }},
-  { dept: "Calls", lang: "Ara", name: "Hanya", schedule: {
-    1:"Shift 1", 2:"Shift 1", 3:"Shift 1", 4:"Shift 1", 5:"Shift 1", 6:"Shift 1", 7:"OFF+", 8:"Shift 1", 9:"Shift 1", 10:"Shift 1", 11:"Shift 1", 12:"Shift 1", 13:"Shift 1", 14:"OFF+", 15:"Shift 1",
-    16:"Shift 1", 17:"Shift 1", 18:"Shift 1", 19:"Shift 1", 20:"Shift 1", 21:"OFF+", 22:"Shift 1", 23:"Shift 1", 24:"Shift 1", 25:"Shift 1", 26:"Shift 1", 27:"Shift 1", 28:"OFF+", 29:"Shift 1", 30:"Shift 1", 31:"Shift 1"
-  }},
-  { dept: "Calls", lang: "Ara", name: "Mostafa", schedule: {
-    1:"OFF+", 2:"Shift 3", 3:"Shift 3", 4:"Shift 3", 5:"Shift 3", 6:"Shift 3", 7:"Shift 3", 8:"OFF+", 9:"Shift 3", 10:"Shift 3", 11:"Shift 3", 12:"Shift 3", 13:"Shift 3", 14:"Shift 3", 15:"OFF+",
-    16:"Shift 3", 17:"Shift 3", 18:"Shift 3", 19:"Shift 3", 20:"Shift 3", 21:"Shift 3", 22:"OFF+", 23:"Shift 3", 24:"Shift 3", 25:"Shift 3", 26:"Shift 3", 27:"Shift 3", 28:"Shift 3", 29:"OFF+", 30:"Shift 3", 31:"Shift 3"
-  }},
-  { dept: "Calls", lang: "Ara", name: "Salma", schedule: {
-    1:"Shift 1", 2:"OFF+", 3:"Shift 1", 4:"Shift 1", 5:"Shift 1", 6:"Shift 1", 7:"Shift 1", 8:"Shift 1", 9:"OFF+", 10:"Shift 1", 11:"Shift 1", 12:"Shift 1", 13:"Shift 1", 14:"Shift 1", 15:"Shift 1",
-    16:"OFF+", 17:"Shift 1", 18:"Shift 1", 19:"Shift 1", 20:"Shift 1", 21:"Shift 1", 22:"Shift 1", 23:"OFF+", 24:"Shift 1", 25:"Shift 1", 26:"Shift 1", 27:"Shift 1", 28:"Shift 1", 29:"Shift 1", 30:"OFF+", 31:"Shift 1"
-  }},
-  // Priya: Off Every Sunday (2, 9, 16, 23, 30)
-  { dept: "Calls", lang: "Eng", name: "Priya", schedule: {
-    1:"Shift 3", 2:"OFF+", 3:"Shift 3", 4:"Shift 3", 5:"Shift 3", 6:"Shift 3", 7:"Shift 3", 8:"Shift 3", 9:"OFF+", 10:"Shift 3", 11:"Shift 3", 12:"Shift 3", 13:"Shift 3", 14:"Shift 3", 15:"Shift 3",
-    16:"OFF+", 17:"Shift 3", 18:"Shift 3", 19:"Shift 3", 20:"Shift 3", 21:"Shift 3", 22:"Shift 3", 23:"OFF+", 24:"Shift 3", 25:"Shift 3", 26:"Shift 3", 27:"Shift 3", 28:"Shift 3", 29:"Shift 3", 30:"OFF+", 31:"Shift 3"
-  }},
-  { dept: "Calls", lang: "Eng", name: "Saim", schedule: {
-    1:"Shift 1", 2:"Shift 1", 3:"Shift 1", 4:"Shift 1", 5:"Shift 1", 6:"Shift 1", 7:"OFF+", 8:"Shift 1", 9:"Shift 1", 10:"Shift 1", 11:"Shift 1", 12:"Shift 1", 13:"Shift 1", 14:"OFF+", 15:"Shift 1",
-    16:"Shift 1", 17:"Shift 1", 18:"Shift 1", 19:"Shift 1", 20:"Shift 1", 21:"OFF+", 22:"Shift 1", 23:"Shift 1", 24:"Shift 1", 25:"Shift 1", 26:"Shift 1", 27:"Shift 1", 28:"OFF+", 29:"Shift 1", 30:"Shift 1", 31:"Shift 1"
-  }},
-
-  // CALL OUTS TEAM
-  // Janani: Off Every Sunday (2, 9, 16, 23, 30)
-  { dept: "Call Outs", lang: "Eng", name: "Janani", schedule: {
-    1:"Shift 2", 2:"OFF+", 3:"Shift 2", 4:"Shift 2", 5:"Shift 2", 6:"Shift 2", 7:"Shift 2", 8:"Shift 2", 9:"OFF+", 10:"Shift 2", 11:"Shift 2", 12:"Shift 2", 13:"Shift 2", 14:"Shift 2", 15:"Shift 2",
-    16:"OFF+", 17:"Shift 2", 18:"Shift 2", 19:"Shift 2", 20:"Shift 2", 21:"Shift 2", 22:"Shift 2", 23:"OFF+", 24:"Shift 2", 25:"Shift 2", 26:"Shift 2", 27:"Shift 2", 28:"Shift 2", 29:"Shift 2", 30:"OFF+", 31:"Shift 2"
-  }},
-  // Omar: Off Every Saturday (1, 8, 15, 22, 29)
-  { dept: "Call Outs", lang: "Ara", name: "Omar", schedule: {
-    1:"OFF+", 2:"Shift 2", 3:"Shift 2", 4:"Shift 2", 5:"Shift 2", 6:"Shift 2", 7:"Shift 2", 8:"OFF+", 9:"Shift 2", 10:"Shift 2", 11:"Shift 2", 12:"Shift 2", 13:"Shift 2", 14:"Shift 2", 15:"OFF+",
-    16:"Shift 2", 17:"Shift 2", 18:"Shift 2", 19:"Shift 2", 20:"Shift 2", 21:"Shift 2", 22:"OFF+", 23:"Shift 2", 24:"Shift 2", 25:"Shift 2", 26:"Shift 2", 27:"Shift 2", 28:"Shift 2", 29:"OFF+", 30:"Shift 2", 31:"Shift 2"
-  }},
-
-  // EMAILS TEAM
-  // Faris: Off Every Saturday (1, 8, 15, 22, 29)
-  { dept: "Emails", lang: "Ara", name: "Faris", schedule: {
-    1:"OFF+", 2:"Shift 3", 3:"Shift 3", 4:"Shift 3", 5:"Shift 3", 6:"Shift 3", 7:"Shift 3", 8:"OFF+", 9:"Shift 3", 10:"Shift 3", 11:"Shift 3", 12:"Shift 3", 13:"Shift 3", 14:"Shift 3", 15:"OFF+",
-    16:"Shift 3", 17:"Shift 3", 18:"Shift 3", 19:"Shift 3", 20:"Shift 3", 21:"Shift 3", 22:"OFF+", 23:"Shift 3", 24:"Shift 3", 25:"Shift 3", 26:"Shift 3", 27:"Shift 3", 28:"Shift 3", 29:"OFF+", 30:"Shift 3", 31:"Shift 3"
-  }},
-  // Ahmed: Off Every Friday (7, 14, 21, 28)
-  { dept: "Emails", lang: "Ara", name: "Ahmed", schedule: {
-    1:"Shift 3", 2:"Shift 3", 3:"Shift 3", 4:"Shift 3", 5:"Shift 3", 6:"Shift 3", 7:"OFF+", 8:"Shift 3", 9:"Shift 3", 10:"Shift 3", 11:"Shift 3", 12:"Shift 3", 13:"Shift 3", 14:"OFF+", 15:"Shift 3",
-    16:"Shift 3", 17:"Shift 3", 18:"Shift 3", 19:"Shift 3", 20:"Shift 3", 21:"OFF+", 22:"Shift 3", 23:"Shift 3", 24:"Shift 3", 25:"Shift 3", 26:"Shift 3", 27:"Shift 3", 28:"OFF+", 29:"Shift 3", 30:"Shift 3", 31:"Shift 3"
-  }},
-  // Waqas: Off Every Saturday (1, 8, 15, 22, 29)
-  { dept: "Emails", lang: "Eng", name: "Waqas", schedule: {
-    1:"OFF+", 2:"Shift 1", 3:"Shift 1", 4:"Shift 1", 5:"Shift 1", 6:"Shift 1", 7:"Shift 1", 8:"OFF+", 9:"Shift 1", 10:"Shift 1", 11:"Shift 1", 12:"Shift 1", 13:"Shift 1", 14:"Shift 1", 15:"OFF+",
-    16:"Shift 1", 17:"Shift 1", 18:"Shift 1", 19:"Shift 1", 20:"Shift 1", 21:"Shift 1", 22:"OFF+", 23:"Shift 1", 24:"Shift 1", 25:"Shift 1", 26:"Shift 1", 27:"Shift 1", 28:"Shift 1", 29:"OFF+", 30:"Shift 1", 31:"Shift 1"
-  }},
-  // Zunair: Off Every Friday (7, 14, 21, 28)
-  { dept: "Emails", lang: "Eng", name: "Zunair", schedule: {
-    1:"Shift 1", 2:"Shift 1", 3:"Shift 1", 4:"Shift 1", 5:"Shift 1", 6:"Shift 1", 7:"OFF+", 8:"Shift 1", 9:"Shift 1", 10:"Shift 1", 11:"Shift 1", 12:"Shift 1", 13:"Shift 1", 14:"OFF+", 15:"Shift 2",
-    16:"Shift 1", 17:"Shift 1", 18:"Shift 1", 19:"Shift 1", 20:"Shift 1", 21:"OFF+", 22:"Shift 1", 23:"Shift 1", 24:"Shift 1", 25:"Shift 1", 26:"Shift 1", 27:"Shift 1", 28:"OFF+", 29:"Shift 1", 30:"Shift 2", 31:"Shift 1"
-  }},
-  // Charles: Off Every Sunday (2, 9, 16, 23, 30)
-  { dept: "Emails", lang: "Eng", name: "Charles", schedule: {
-    1:"Shift 1", 2:"OFF+", 3:"Shift 1", 4:"Shift 1", 5:"Shift 1", 6:"Shift 1", 7:"Shift 1", 8:"Shift 1", 9:"OFF+", 10:"Shift 1", 11:"Shift 1", 12:"Shift 1", 13:"Shift 1", 14:"Shift 1", 15:"Shift 1",
-    16:"OFF+", 17:"Shift 1", 18:"Shift 1", 19:"Shift 1", 20:"Shift 1", 21:"Shift 1", 22:"Shift 1", 23:"OFF+", 24:"Shift 1", 25:"Shift 1", 26:"Shift 1", 27:"Shift 1", 28:"Shift 1", 29:"Shift 1", 30:"OFF+", 31:"Shift 1"
-  }}
-];
-
-let liveClockInterval = null;
-
-function handleLogin(event) {
-    event.preventDefault();
-    const user = document.getElementById("username").value.trim();
-    const pass = document.getElementById("password").value.trim();
-    const errorMsg = document.getElementById("login-error");
-
-    if (user === "SPC" && pass === "SPC@2026") {
-        errorMsg.style.display = "none";
-        navigateTo('home-page');
-    } else {
-        errorMsg.style.display = "block";
-    }
+/* --------------------------------------------------
+   🎨 GLOBAL RESETS & BASE STYLES
+-------------------------------------------------- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
 
-function handleLogout() {
-    document.getElementById("username").value = "";
-    document.getElementById("password").value = "";
-    document.getElementById("login-error").style.display = "none";
-    clearSearch();
-    clearSchedSearch();
-    navigateTo('login-page');
+body {
+    background-color: #fffde7;
+    color: #1a252f;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
 }
 
-function navigateTo(pageId) {
-    const pages = document.querySelectorAll('.page');
-    pages.forEach(page => {
-        page.classList.remove('active-page');
-        page.classList.add('hidden-page');
-    });
-
-    const targetPage = document.getElementById(pageId);
-    if (targetPage) {
-        targetPage.classList.remove('hidden-page');
-        targetPage.classList.add('active-page');
-        
-        if (pageId === 'home-page') {
-            updateDashboardLiveWidget();
-        } else if (pageId === 'tech-page') {
-            renderScheduleCards();
-        } else if (pageId === 'roster-page') {
-            initRosterPage();
-        }
-    }
+.page {
+    width: 100%;
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-    const datalist = document.getElementById("towersList");
-    if (datalist) {
-        Object.keys(towersData).sort().forEach(tower => {
-            let option = document.createElement("option");
-            option.value = tower;
-            datalist.appendChild(option);
-        });
-    }
-
-    renderScheduleCards();
-    startGlobalLiveClock();
-    updateDashboardLiveWidget();
-});
-
-// --- TECHNICAL DEPARTMENT SCHEDULE FUNCTIONS ---
-function renderScheduleCards(filterText = "") {
-    const container = document.getElementById("schedGridContainer");
-    if (!container) return;
-
-    container.innerHTML = "";
-    const searchVal = filterText.toLowerCase().trim();
-    let globalIndex = 1;
-    let hasMatches = false;
-
-    scheduleData.forEach((group) => {
-        const dayMatch = group.day.toLowerCase().includes(searchVal);
-        
-        const matchedBuildings = group.buildings.filter(b => 
-            dayMatch || b.toLowerCase().includes(searchVal)
-        );
-
-        if (matchedBuildings.length > 0) {
-            hasMatches = true;
-
-            const card = document.createElement("div");
-            card.className = "day-card";
-
-            let listItemsHTML = "";
-            matchedBuildings.forEach((b) => {
-                listItemsHTML += `
-                    <li class="b-item">
-                        <span class="b-no">${globalIndex++}</span>
-                        <span class="b-name">${b}</span>
-                    </li>
-                `;
-            });
-
-            card.innerHTML = `
-                <div class="day-card-header">
-                    <i class="fa-solid fa-calendar-check"></i>
-                    <h3>${group.day}</h3>
-                    <span class="count-badge">${matchedBuildings.length} Buildings</span>
-                </div>
-                <ul class="b-list">
-                    ${listItemsHTML}
-                </ul>
-            `;
-
-            container.appendChild(card);
-        } else {
-            globalIndex += group.buildings.length;
-        }
-    });
-
-    if (!hasMatches) {
-        container.innerHTML = `
-            <div class="no-sched-results">
-                <i class="fa-solid fa-circle-exclamation"></i>
-                <p>No buildings or schedule found matching "${filterText}"</p>
-            </div>
-        `;
-    }
+.active-page {
+    display: block;
 }
 
-function filterScheduleCards() {
-    const input = document.getElementById("schedSearchInput");
-    if (!input) return;
-    const val = input.value;
-    const clearBtn = document.getElementById("clearSchedBtn");
-    if (clearBtn) clearBtn.style.display = val.length > 0 ? "block" : "none";
-    renderScheduleCards(val);
+.hidden-page {
+    display: none !important;
 }
 
-function clearSchedSearch() {
-    const input = document.getElementById("schedSearchInput");
-    if (input) {
-        input.value = "";
-        const clearBtn = document.getElementById("clearSchedBtn");
-        if (clearBtn) clearBtn.style.display = "none";
-        renderScheduleCards("");
-        input.focus();
-    }
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
 }
 
-// --- MASTER DATA FUNCTIONS ---
-function updateFields(data, towerName = "") {
-    const fields = ["client", "location", "bank", "deposit", "billing", "late", "activation", "disconnection", "noc", "final"];
-    if (data) {
-        fields.forEach(f => {
-            const el = document.getElementById(f);
-            if(el) el.innerText = data[f] !== undefined ? data[f] : "-";
-        });
-        
-        const mainRow = document.getElementById("maintenance_row");
-        const mainEl = document.getElementById("maintenance");
-        if (data.maintenance) {
-            if (mainEl) mainEl.innerText = data.maintenance;
-            if (mainRow) mainRow.classList.remove("hidden-page");
-        } else {
-            if (mainRow) mainRow.classList.add("hidden-page");
-        }
+.text-center { text-align: center; }
+.justify-center { justify-content: center; }
+.margin-bottom-20 { margin-bottom: 20px; }
+.margin-bottom-25 { margin-bottom: 25px; }
+.margin-top-20 { margin-top: 20px; }
+.flex-1 { flex: 1; }
+.align-self-end { align-self: flex-end; }
 
-        const onlineEl = document.getElementById("online");
-        if (onlineEl) {
-            if (data.online === "Yes") {
-                onlineEl.innerText = "Yes";
-            } else {
-                onlineEl.innerText = "Bank Transfer or ATM Cash Deposit Only";
-            }
-        }
-
-        const lowerName = towerName.toLowerCase();
-        const depositAmt = document.getElementById("deposit_amount");
-        
-        if (depositAmt) {
-            if (lowerName.includes("centurion")) {
-                depositAmt.innerHTML = `<div class="val badge-clean">4,000 AED (For Offices)</div>`;
-            } else if (
-                lowerName.includes("reem bay") || 
-                lowerName.includes("torino")
-            ) {
-                depositAmt.innerHTML = `<div class="val badge-clean">No Security Deposit Required by SPC</div>`;
-            } else if (
-                lowerName.includes("gemini") || 
-                lowerName.includes("elz") || 
-                lowerName.includes("glamz") || 
-                lowerName.includes("lawnz") || 
-                lowerName.includes("miraclz") || 
-                lowerName.includes("resortz") || 
-                lowerName.includes("starz")
-            ) {
-                depositAmt.innerHTML = `
-                    <div class="badge-list">
-                        <div class="val badge-row"><span>Studio & 1BHK:</span> <strong>1,000 AED</strong></div>
-                        <div class="val badge-row"><span>2BHK:</span> <strong>2,000 AED</strong></div>
-                        <div class="val badge-row"><span>3BHK+:</span> <strong>3,000 AED</strong></div>
-                    </div>
-                `;
-            } else if (lowerName.includes("bali")) {
-                depositAmt.innerHTML = `<div class="val badge-clean">Capacity charges * 8</div>`;
-            } else if (lowerName.includes("maison")) {
-                depositAmt.innerHTML = `<div class="val badge-clean">Unit Capacity * 62.5 * 8</div>`;
-            } else {
-                depositAmt.innerHTML = `<div class="val badge-clean">Check prior owner or tenant account</div>`;
-            }
-        }
-    } else {
-        fields.forEach(f => {
-            const el = document.getElementById(f);
-            if(el) el.innerText = "-";
-        });
-        const mainRow = document.getElementById("maintenance_row");
-        if (mainRow) mainRow.classList.add("hidden-page");
-
-        const onlineEl = document.getElementById("online");
-        if (onlineEl) onlineEl.innerText = "-";
-
-        const depositAmt = document.getElementById("deposit_amount");
-        if (depositAmt) depositAmt.innerHTML = `<div class="val">-</div>`;
-    }
+/* --------------------------------------------------
+   🔒 LOGIN PAGE STYLES
+-------------------------------------------------- */
+#login-page {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    width: 100%;
+    padding: 20px;
 }
 
-function handleSelection() {
-    const input = document.getElementById("towerInput");
-    if (!input) return;
-    
-    const val = input.value.trim();
-    const clearBtn = document.getElementById("clearBtn");
-    
-    if (clearBtn) clearBtn.style.display = val.length > 0 ? "block" : "none";
-
-    if (towersData[val]) {
-        updateFields(towersData[val], val);
-    } else {
-        const matchedKey = Object.keys(towersData).find(key => key.toLowerCase() === val.toLowerCase());
-        if (matchedKey) { 
-            updateFields(towersData[matchedKey], matchedKey); 
-        } else { 
-            updateFields(null); 
-        }
-    }
+.login-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 420px;
 }
 
-function clearSearch() {
-    const input = document.getElementById("towerInput");
-    if (input) {
-        input.value = ""; 
-        const clearBtn = document.getElementById("clearBtn");
-        if (clearBtn) clearBtn.style.display = "none"; 
-        updateFields(null); 
-        input.focus();
-    }
+.login-container {
+    width: 100%;
+    background: #ffffff;
+    border: 2px solid #e8d567;
+    border-radius: 16px;
+    padding: 32px 28px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
 }
 
-// --- 📅 TIME & DUTY ROSTER MODULE FUNCTIONS ---
-
-function getUAECurrentDate() {
-    const now = new Date();
-    const utcHours = now.getUTCHours();
-    const uaeHours = (utcHours + 4) % 24;
-    
-    let period = uaeHours >= 12 ? "PM" : "AM";
-    let hour12 = uaeHours % 12;
-    if (hour12 === 0) hour12 = 12;
-
-    const minute = now.getUTCMinutes();
-    const second = now.getUTCSeconds();
-
-    const uaeDateObj = new Date(now.getTime() + (4 * 60 * 60 * 1000));
-    const day = uaeDateObj.getUTCDate();
-    const month = uaeDateObj.getUTCMonth() + 1;
-    const year = uaeDateObj.getUTCFullYear();
-
-    return { 
-        year: String(year), 
-        month: String(month).padStart(2, '0'), 
-        day: String(day).padStart(2, '0'), 
-        hour: hour12, 
-        hour24: uaeHours,
-        minute: minute, 
-        second: second,
-        period: period 
-    };
+.login-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1a252f;
+    margin-bottom: 22px;
+    text-align: center;
 }
 
-function startGlobalLiveClock() {
-    if (liveClockInterval) clearInterval(liveClockInterval);
-    
-    const updateClock = () => {
-        const uae = getUAECurrentDate();
-        const secStr = String(uae.second).padStart(2, '0');
-        const minStr = String(uae.minute).padStart(2, '0');
-        const hrStr = String(uae.hour).padStart(2, '0');
-        const clockText = `${hrStr}:${minStr}:${secStr} ${uae.period} (GST)`;
-
-        const clockEl = document.getElementById("uaeClockText");
-        if (clockEl) clockEl.innerText = clockText;
-
-        const homeClockEl = document.getElementById("homeClockText");
-        if (homeClockEl) homeClockEl.innerText = clockText;
-
-        updateActiveSummary();
-        updateDashboardLiveWidget();
-    };
-
-    updateClock();
-    liveClockInterval = setInterval(updateClock, 1000);
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 18px;
+    text-align: left;
 }
 
-function isShiftActiveNow(shiftCode) {
-    const uae = getUAECurrentDate();
-    const current24Hour = uae.hour24;
-
-    if (shiftCode === "Shift 1" && current24Hour >= 9 && current24Hour < 17) return true;
-    if (shiftCode === "Shift 2" && current24Hour >= 11 && current24Hour < 19) return true;
-    if (shiftCode === "Shift 3" && current24Hour >= 13 && current24Hour < 21) return true;
-
-    return false;
+.form-group label {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #1a252f;
 }
 
-// --- 🏠 DASHBOARD LIVE WIDGET UPDATE ---
-function updateDashboardLiveWidget() {
-    const container = document.getElementById("homeActiveAgentsGrid");
-    if (!container) return;
-
-    const uae = getUAECurrentDate();
-    const dayNum = parseInt(uae.day, 10);
-
-    let activeByTeam = { "Calls": [], "Call Outs": [], "Emails": [] };
-
-    rosterData.forEach(agent => {
-        const shift = agent.schedule[dayNum];
-        if (shift && shift !== "OFF+") {
-            if (isShiftActiveNow(shift)) {
-                activeByTeam[agent.dept].push({ name: agent.name, shift: shift, lang: agent.lang });
-            }
-        }
-    });
-
-    let html = "";
-    const teams = ["Calls", "Call Outs", "Emails"];
-
-    teams.forEach(teamName => {
-        const agents = activeByTeam[teamName];
-        let agentsPillsHTML = "";
-
-        if (agents.length === 0) {
-            agentsPillsHTML = `<span class="hl-none-text"><i class="fa-solid fa-moon"></i> No active agents</span>`;
-        } else {
-            agents.forEach(a => {
-                agentsPillsHTML += `
-                    <div class="hl-agent-chip">
-                        <span class="hl-chip-name">${a.name}</span>
-                        <span class="hl-chip-shift">${a.shift}</span>
-                    </div>
-                `;
-            });
-        }
-
-        html += `
-            <div class="hl-team-box">
-                <div class="hl-team-title">
-                    <div class="hl-tt-left">
-                        <i class="fa-solid ${teamName === 'Calls' ? 'fa-headset' : teamName === 'Call Outs' ? 'fa-phone-volume' : 'fa-envelope-open-text'}"></i>
-                        <span>${teamName} Team</span>
-                    </div>
-                    <span class="hl-team-badge">${agents.length} Active</span>
-                </div>
-                <div class="hl-team-list">
-                    ${agentsPillsHTML}
-                </div>
-            </div>
-        `;
-    });
-
-    container.innerHTML = html;
+.login-input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid #e8d567;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    outline: none;
+    transition: all 0.2s ease;
 }
 
-// --- 📅 ROSTER PAGE FUNCTIONS ---
-
-function initRosterPage() {
-    const dateInput = document.getElementById("rosterDateInput");
-    const uaeNow = getUAECurrentDate();
-
-    if (dateInput) {
-        if (!dateInput.value) {
-            let defaultDay = uaeNow.month === "08" ? uaeNow.day : "15";
-            dateInput.value = `2026-08-${String(defaultDay).padStart(2, '0')}`;
-        }
-    }
-
-    populateAgentDropdown();
-    renderRosterView();
-    renderFullMonthlyTable();
+.login-input:focus {
+    border-color: #dfc84f;
+    box-shadow: 0 0 0 3px rgba(232, 213, 103, 0.3);
 }
 
-function switchRosterTab(tabKey) {
-    document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
-    document.querySelectorAll(".roster-tab-content").forEach(c => c.classList.add("hidden-tab"));
-
-    if (tabKey === 'live-view') {
-        document.getElementById("tabLiveBtn").classList.add("active");
-        document.getElementById("tab-live-view").classList.remove("hidden-tab");
-    } else if (tabKey === 'agent-view') {
-        document.getElementById("tabAgentBtn").classList.add("active");
-        document.getElementById("tab-agent-view").classList.remove("hidden-tab");
-    } else if (tabKey === 'full-sheet-view') {
-        document.getElementById("tabFullBtn").classList.add("active");
-        document.getElementById("tab-full-sheet-view").classList.remove("hidden-tab");
-    }
+.btn-login {
+    width: 100%;
+    padding: 12px;
+    background-color: #e8d567;
+    color: #1a252f;
+    font-weight: 700;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-top: 6px;
 }
 
-function resetRosterToToday() {
-    const dateInput = document.getElementById("rosterDateInput");
-    const uae = getUAECurrentDate();
-    let dayStr = uae.month === "08" ? uae.day : "15";
-    if (dateInput) {
-        dateInput.value = `2026-08-${String(dayStr).padStart(2, '0')}`;
-        renderRosterView();
-    }
+.btn-login:hover {
+    background-color: #dfc84f;
 }
 
-function renderRosterView() {
-    const dateInput = document.getElementById("rosterDateInput");
-    if (!dateInput || !dateInput.value) return;
-
-    const dateParts = dateInput.value.split("-");
-    const dayNum = parseInt(dateParts[2], 10);
-
-    const container = document.getElementById("rosterDeptContainer");
-    if (!container) return;
-
-    container.innerHTML = "";
-
-    const depts = ["Calls", "Call Outs", "Emails"];
-
-    depts.forEach(deptName => {
-        const deptAgents = rosterData.filter(a => a.dept === deptName);
-
-        const card = document.createElement("div");
-        card.className = "dept-roster-card";
-
-        let rowsHTML = "";
-        deptAgents.forEach(agent => {
-            const shift = agent.schedule[dayNum] || "OFF+";
-            const isActive = isShiftActiveNow(shift);
-
-            let shiftBadgeClass = "shift-off-badge";
-            let shiftIcon = `<i class="fa-solid fa-mug-hot"></i>`;
-
-            if (shift === "Shift 1") { shiftBadgeClass = "shift1-badge"; shiftIcon = `<i class="fa-solid fa-sun"></i>`; }
-            else if (shift === "Shift 2") { shiftBadgeClass = "shift2-badge"; shiftIcon = `<i class="fa-solid fa-cloud-sun"></i>`; }
-            else if (shift === "Shift 3") { shiftBadgeClass = "shift3-badge"; shiftIcon = `<i class="fa-solid fa-moon"></i>`; }
-
-            let livePulseHTML = isActive ? `<span class="live-active-tag"><i class="fa-solid fa-circle"></i> ON DUTY</span>` : ``;
-
-            rowsHTML += `
-                <div class="roster-agent-row ${isActive ? 'highlight-active-agent' : ''}">
-                    <div class="agent-profile">
-                        <span class="lang-pill ${agent.lang.toLowerCase()}">${agent.lang}</span>
-                        <span class="agent-name">${agent.name}</span>
-                    </div>
-                    <div class="agent-status-wrapper">
-                        ${livePulseHTML}
-                        <span class="shift-badge ${shiftBadgeClass}">${shiftIcon} ${shift}</span>
-                    </div>
-                </div>
-            `;
-        });
-
-        card.innerHTML = `
-            <div class="dept-card-header">
-                <i class="fa-solid ${deptName === 'Calls' ? 'fa-headset' : deptName === 'Call Outs' ? 'fa-phone-volume' : 'fa-envelope-open-text'}"></i>
-                <h3>${deptName} Team</h3>
-                <span class="dept-count">${deptAgents.length} Agents</span>
-            </div>
-            <div class="dept-agent-list">
-                ${rowsHTML}
-            </div>
-        `;
-
-        container.appendChild(card);
-    });
-
-    updateActiveSummary();
+.login-error-msg {
+    display: none;
+    color: #e11d48;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+    text-align: center;
 }
 
-function updateActiveSummary() {
-    const dateInput = document.getElementById("rosterDateInput");
-    const summaryContainer = document.getElementById("activeAgentsSummary");
-    const summaryTitle = document.getElementById("activeSummaryTitle");
-    
-    if (!dateInput || !summaryContainer) return;
-
-    const dateParts = dateInput.value.split("-");
-    const dayNum = parseInt(dateParts[2], 10);
-
-    const uae = getUAECurrentDate();
-    const isTodaySelected = (dateParts[1] === "08" && dayNum === parseInt(uae.day, 10));
-
-    if (summaryTitle) {
-        summaryTitle.innerText = isTodaySelected ? "Active On Shift Right Now (UAE Time)" : `Scheduled Duty Roster for Aug ${dayNum}, 2026`;
-    }
-
-    let activeAgentsList = [];
-
-    rosterData.forEach(agent => {
-        const shift = agent.schedule[dayNum];
-        if (shift && shift !== "OFF+") {
-            const activeNow = isTodaySelected ? isShiftActiveNow(shift) : true;
-            if (activeNow) {
-                activeAgentsList.push({ name: agent.name, dept: agent.dept, shift: shift, lang: agent.lang });
-            }
-        }
-    });
-
-    summaryContainer.innerHTML = "";
-
-    if (activeAgentsList.length === 0) {
-        summaryContainer.innerHTML = `<span class="no-active-msg"><i class="fa-solid fa-bed"></i> No agents active on shift at this time.</span>`;
-        return;
-    }
-
-    activeAgentsList.forEach(item => {
-        const tag = document.createElement("div");
-        tag.className = "active-agent-pill";
-        tag.innerHTML = `
-            <span class="pill-dept">${item.dept} Team</span>
-            <span class="pill-name">${item.name}</span>
-            <span class="pill-shift">${item.shift}</span>
-        `;
-        summaryContainer.appendChild(tag);
-    });
+.login-footer-text {
+    margin-top: 18px;
+    font-size: 14px;
+    color: #475569;
+    text-align: center;
+    width: 100%;
 }
 
-// --- 👤 AGENT INDIVIDUAL LOOKUP MODULE ---
-
-function populateAgentDropdown() {
-    const dropdown = document.getElementById("agentDropdown");
-    if (!dropdown) return;
-
-    dropdown.innerHTML = `<option value="">-- Select Agent Name --</option>`;
-    
-    const sortedAgents = [...rosterData].sort((a,b) => a.name.localeCompare(b.name));
-    sortedAgents.forEach(agent => {
-        let opt = document.createElement("option");
-        opt.value = agent.name;
-        opt.textContent = `${agent.name} (${agent.dept} Team)`;
-        dropdown.appendChild(opt);
-    });
+.login-footer-text i {
+    color: #e11d48;
+    margin: 0 3px;
 }
 
-function clearAgentDateFilter() {
-    const dateInput = document.getElementById("agentDateFilter");
-    if (dateInput) {
-        dateInput.value = "";
-        renderAgentLookup();
-    }
+.login-footer-text strong {
+    color: #1a252f;
 }
 
-function renderAgentLookup() {
-    const dropdown = document.getElementById("agentDropdown");
-    const filterDateInput = document.getElementById("agentDateFilter");
-    const container = document.getElementById("agentResultContainer");
-
-    if (!dropdown || !container) return;
-
-    const agentName = dropdown.value;
-    if (!agentName) {
-        container.innerHTML = `
-            <div class="no-sched-results">
-                <i class="fa-solid fa-hand-pointer"></i>
-                <p>Please select an agent name above to view their schedule.</p>
-            </div>
-        `;
-        return;
-    }
-
-    const agent = rosterData.find(a => a.name === agentName);
-    if (!agent) return;
-
-    let selectedDay = null;
-    if (filterDateInput && filterDateInput.value) {
-        const parts = filterDateInput.value.split("-");
-        selectedDay = parseInt(parts[2], 10);
-    }
-
-    let cardsHTML = "";
-
-    for (let day = 1; day <= 31; day++) {
-        if (selectedDay !== null && day !== selectedDay) continue;
-
-        const shift = agent.schedule[day] || "OFF+";
-        let cardClass = "shift-off-card";
-        let icon = `<i class="fa-solid fa-bed"></i>`;
-
-        if (shift === "Shift 1") { cardClass = "shift1-card"; icon = `<i class="fa-solid fa-sun"></i>`; }
-        else if (shift === "Shift 2") { cardClass = "shift2-card"; icon = `<i class="fa-solid fa-cloud-sun"></i>`; }
-        else if (shift === "Shift 3") { cardClass = "shift3-card"; icon = `<i class="fa-solid fa-moon"></i>`; }
-
-        cardsHTML += `
-            <div class="agent-day-card ${cardClass}">
-                <div class="adc-day-number">Aug ${day}</div>
-                <div class="adc-shift-type">${icon} ${shift}</div>
-            </div>
-        `;
-    }
-
-    container.innerHTML = `
-        <div class="agent-info-banner">
-            <div class="aip-left">
-                <span class="lang-pill ${agent.lang.toLowerCase()}">${agent.lang}</span>
-                <h2>${agent.name}</h2>
-                <span class="team-tag"><i class="fa-solid fa-users"></i> ${agent.dept} Team</span>
-            </div>
-            <div class="aip-right">
-                <span class="month-label">August 2026 Schedule</span>
-            </div>
-        </div>
-        <div class="agent-days-grid">
-            ${cardsHTML}
-        </div>
-    `;
+/* --------------------------------------------------
+   HEADER & BRANDING
+-------------------------------------------------- */
+.brand-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 0;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #fef08a;
 }
 
-// --- 📊 FULL MONTHLY ROSTER TABLE MODULE ---
-
-function renderFullMonthlyTable() {
-    const table = document.getElementById("monthlyRosterTable");
-    if (!table) return;
-
-    let headerHTML = `
-        <thead>
-            <tr>
-                <th class="sticky-col first-col">Team</th>
-                <th class="sticky-col second-col">Agent Name</th>
-    `;
-    for (let d = 1; d <= 31; d++) {
-        headerHTML += `<th>${d}-Aug</th>`;
-    }
-    headerHTML += `</tr></thead>`;
-
-    let bodyHTML = `<tbody>`;
-    const depts = ["Calls", "Call Outs", "Emails"];
-
-    depts.forEach(deptName => {
-        const teamAgents = rosterData.filter(a => a.dept === deptName);
-        
-        teamAgents.forEach((agent, idx) => {
-            bodyHTML += `<tr>`;
-            if (idx === 0) {
-                bodyHTML += `<td rowspan="${teamAgents.length}" class="sticky-col first-col dept-cell">${deptName} Team</td>`;
-            }
-            bodyHTML += `<td class="sticky-col second-col name-cell"><strong>${agent.name}</strong> <span class="lang-mini">${agent.lang}</span></td>`;
-
-            for (let d = 1; d <= 31; d++) {
-                const shift = agent.schedule[d] || "OFF+";
-                let cellClass = "cell-off";
-                if (shift === "Shift 1") cellClass = "cell-shift1";
-                if (shift === "Shift 2") cellClass = "cell-shift2";
-                if (shift === "Shift 3") cellClass = "cell-shift3";
-
-                bodyHTML += `<td class="${cellClass}">${shift}</td>`;
-            }
-            bodyHTML += `</tr>`;
-        });
-    });
-
-    bodyHTML += `</tbody>`;
-    table.innerHTML = headerHTML + bodyHTML;
+.logo-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
+
+.logo-svg {
+    width: 38px;
+    height: 38px;
+}
+
+.logo-text {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #1a252f;
+}
+
+.logo-text span {
+    color: #e8d567;
+}
+
+.system-title {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #1a252f;
+    margin-bottom: 25px;
+    letter-spacing: 0.5px;
+}
+
+.logout-btn, .back-btn {
+    padding: 8px 16px;
+    border: 1px solid #e8d567;
+    background: #ffffff;
+    border-radius: 8px;
+    font-weight: 600;
+    color: #1a252f;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.logout-btn:hover, .back-btn:hover {
+    background: #fef08a;
+}
+
+/* --------------------------------------------------
+   🏠 DASHBOARD & CARDS
+-------------------------------------------------- */
+.dashboard-grid3 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+.menu-card {
+    background: #ffffff;
+    border: 1.5px solid #e8d567;
+    border-radius: 14px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.menu-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 20px rgba(0,0,0,0.06);
+}
+
+.menu-icon {
+    font-size: 2rem;
+    color: #1a252f;
+}
+
+.menu-card h3 {
+    font-size: 1.1rem;
+    color: #1a252f;
+}
+
+.btn-primary {
+    width: 100%;
+    padding: 10px;
+    background: #e8d567;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    color: #1a252f;
+    cursor: pointer;
+}
+
+/* --------------------------------------------------
+   🟢 LIVE WIDGET
+-------------------------------------------------- */
+.home-live-widget-card {
+    background: #ffffff;
+    border: 1.5px solid #e8d567;
+    border-radius: 14px;
+    padding: 18px 22px;
+    margin-bottom: 25px;
+}
+
+.hl-header-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #fef08a;
+}
+
+.hl-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.live-dot-pulse {
+    width: 10px;
+    height: 10px;
+    background-color: #10b981;
+    border-radius: 50%;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    animation: pulse-green 1.6s infinite;
+}
+
+@keyframes pulse-green {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.hl-clock {
+    font-weight: 700;
+    color: #0f172a;
+    font-family: monospace;
+    font-size: 1rem;
+}
+
+.hl-agents-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+}
+
+.hl-team-box {
+    background: #fffde7;
+    border: 1px solid #fef08a;
+    border-radius: 10px;
+    padding: 12px 16px;
+    text-align: left;
+}
+
+.hl-team-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+    color: #1a252f;
+}
+
+.hl-tt-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.hl-team-badge {
+    background: #e8d567;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    color: #1a252f;
+    font-weight: 700;
+}
+
+.hl-team-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.hl-agent-chip {
+    background: #ffffff;
+    border: 1px solid #e8d567;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.hl-chip-shift {
+    font-size: 0.72rem;
+    background: #fffde7;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.hl-none-text {
+    font-size: 0.82rem;
+    color: #94a3b8;
+}
+
+/* --------------------------------------------------
+   💖 DEV BANNER
+-------------------------------------------------- */
+.dev-banner-card {
+    background: #fffef5;
+    border: 1px solid #e8d567;
+    border-radius: 12px;
+    padding: 18px 22px;
+    text-align: center;
+}
+
+.dev-banner-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    color: #e11d48;
+}
+
+.dev-banner-header h3 {
+    color: #1a252f;
+    font-size: 1rem;
+}
+
+.dev-banner-card p {
+    font-size: 0.9rem;
+    color: #475569;
+    line-height: 1.5;
+}
+
+.dev-name-badge {
+    background: #e8d567;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+    color: #1a252f;
+}
+
+/* --------------------------------------------------
+   🏢 TOWERS SEARCH & MASTER DATA
+-------------------------------------------------- */
+.search-box {
+    background: #ffffff;
+    border: 1px solid #e8d567;
+    border-radius: 12px;
+    padding: 18px 22px;
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.search-box label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #1a252f;
+}
+
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.combo-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1.5px solid #e8d567;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    outline: none;
+}
+
+.clear-btn {
+    position: absolute;
+    right: 12px;
+    background: none;
+    border: none;
+    font-size: 1.1rem;
+    color: #94a3b8;
+    cursor: pointer;
+    display: none;
+}
+
+.cards-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.card {
+    background: #ffffff;
+    border: 1px solid #e8d567;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: left;
+}
+
+.card h3 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1a252f;
+    margin-bottom: 14px;
+    border-bottom: 1px solid #fef08a;
+    padding-bottom: 8px;
+}
+
+.fees-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+.row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 0.9rem;
+    border-bottom: 1px dashed #fef08a;
+}
+
+.row .title {
+    color: #64748b;
+}
+
+.row .val {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.bottom-cards-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.maintenance-alert-box {
+    margin-top: 15px;
+    background: #fff7ed;
+    border: 1px solid #ffedd5;
+    padding: 12px 16px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.maintenance-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.m-icon { color: #c2410c; }
+.m-text { font-size: 0.85rem; color: #9a3412; }
+.m-badge { font-weight: 800; color: #c2410c; }
+
+/* --------------------------------------------------
+   🛠️ TECHNICAL PAGE & SCHEDULE
+-------------------------------------------------- */
+.sheet-tracker-card {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 12px;
+    padding: 18px 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    text-align: left;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.sheet-tracker-content {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.sheet-icon-wrapper {
+    font-size: 2rem;
+    color: #16a34a;
+}
+
+.sheet-text-info h3 {
+    font-size: 1rem;
+    color: #14532d;
+    margin-bottom: 4px;
+}
+
+.sheet-text-info p {
+    font-size: 0.88rem;
+    color: #166534;
+}
+
+.btn-sheet-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #16a34a;
+    color: #ffffff;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-weight: 700;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.abudhabi-notice-box {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    padding: 16px 20px;
+    border-radius: 12px;
+    text-align: left;
+    margin-bottom: 20px;
+}
+
+.ad-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #1d4ed8;
+    margin-bottom: 6px;
+}
+
+.person-highlight {
+    background: #dbeafe;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+    color: #1e40af;
+}
+
+.section-divider {
+    text-align: center;
+    margin: 25px 0 15px 0;
+    font-weight: 800;
+    color: #1a252f;
+}
+
+.days-schedule-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.day-card {
+    background: #ffffff;
+    border: 1px solid #e8d567;
+    border-radius: 12px;
+    padding: 18px;
+    text-align: left;
+}
+
+.day-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #fef08a;
+}
+
+.day-card-header h3 {
+    font-size: 1.05rem;
+    color: #0f172a;
+}
+
+.count-badge {
+    background: #fffde7;
+    border: 1px solid #e8d567;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.b-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.b-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.88rem;
+}
+
+.b-no {
+    background: #e8d567;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+/* --------------------------------------------------
+   📅 ROSTER MODULE & TABS
+-------------------------------------------------- */
+.live-status-banner {
+    background: #ffffff;
+    border: 1px solid #e8d567;
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.live-clock-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.clock-time {
+    font-size: 1.1rem;
+    font-weight: 800;
+    font-family: monospace;
+    color: #0f172a;
+}
+
+.shift-timings-legend {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.shift-tag {
+    font-size: 0.8rem;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+.shift-tag.s1 { background: #e0f2fe; color: #0369a1; }
+.shift-tag.s2 { background: #fef3c7; color: #b45309; }
+.shift-tag.s3 { background: #f3e8ff; color: #6b21a8; }
+
+.roster-tabs-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 12px;
+    background: #ffffff;
+    border: 1.5px solid #e8d567;
+    border-radius: 10px;
+    font-weight: 700;
+    color: #1a252f;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tab-btn.active {
+    background: #e8d567;
+    border-color: #e8d567;
+    color: #1a252f;
+}
+
+.hidden-tab { display: none !important; }
+
+.roster-controls-wrapper {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.date-picker-card, .active-summary-card {
+    background: #ffffff;
+    border: 1px solid #e8d567;
+    border-radius: 12px;
+    padding: 16px;
+    text-align: left;
+}
+
+.date-input {
+    width: 100%;
+    padding: 10px;
+    border: 1.5px solid #e8d567;
+    border-radius: 8px;
+    margin-top: 6px;
+    font-size: 0.9rem;
+}
+
+.btn-today-quick {
+    margin-top: 10px;
+    padding: 6px 12px;
+    background: #e8d567;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.active-tags-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.active-agent-pill {
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pill-dept { font-size: 0.7rem; color: #047857; font-weight: 700; }
+.pill-name { font-weight: 700; color: #065f46; }
+.pill-shift { background: #a7f3d0; padding: 1px 4px; border-radius: 4px; font-size: 0.7rem; }
+
+.roster-dept-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+}
+
+.dept-roster-card {
+    background: #ffffff;
+    border: 1px solid #e8d567;
+    border-radius: 12px;
+    padding: 18px;
+    text-align: left;
+}
+
+.dept-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #fef08a;
+    margin-bottom: 12px;
+}
+
+.roster-agent-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    background: #fffde7;
+}
+
+.highlight-active-agent {
+    background: #f0fdf4;
+    border-left: 4px solid #10b981;
+}
+
+.lang-pill {
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-right: 6px;
+}
+
+.lang-pill.ara { background: #fee2e2; color: #991b1b; }
+.lang-pill.eng { background: #dbeafe; color: #1e40af; }
+
+.shift-badge {
+    font-size: 0.78rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+}
+
+.shift1-badge { background: #e0f2fe; color: #0369a1; }
+.shift2-badge { background: #fef3c7; color: #b45309; }
+.shift3-badge { background: #f3e8ff; color: #6b21a8; }
+.shift-off-badge { background: #f1f5f9; color: #94a3b8; }
+
+.live-active-tag {
+    font-size: 0.68rem;
+    color: #10b981;
+    font-weight: 800;
+    margin-right: 8px;
+}
+
+/* --------------------------------------------------
+   📊 FULL ROSTER TABLE STYLES
+-------------------------------------------------- */
+.full-table-card {
+    background: #ffffff;
+    border: 1px solid #e8d567;
+    border-radius: 12px;
+    padding: 18px;
+}
+
+.full-table-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 15px;
+    font-weight: 700;
+}
+
+.table-scroll-wrapper {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.roster-full-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    text-align: center;
+}
+
+.roster-full-table th, .roster-full-table td {
+    border: 1px solid #fef08a;
+    padding: 8px;
+    white-space: nowrap;
+}
+
+.roster-full-table th {
+    background: #fffde7;
+    font-weight: 700;
+}
+
+.sticky-col {
+    position: sticky;
+    background: #ffffff;
+    z-index: 2;
+}
+
+.first-col { left: 0; }
+.second-col { left: 90px; }
+
+.cell-shift1 { background: #f0f9ff; color: #0369a1; font-weight: 700; }
+.cell-shift2 { background: #fffbeb; color: #b45309; font-weight: 700; }
+.cell-shift3 { background: #faf5ff; color: #6b21a8; font-weight: 700; }
+.cell-off { background: #f8fafc; color: #cbd5e1; }
+
+/* --------------------------------------------------
+   👤 AGENT LOOKUP
+-------------------------------------------------- */
+.agent-lookup-card {
+    background: #ffffff;
+    border: 1px solid #e8d567;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: left;
+    margin-bottom: 20px;
+}
+
+.lookup-controls-row {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+.agent-days-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.agent-day-card {
+    background: #ffffff;
+    border: 1px solid #e8d567;
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+}
+
+.adc-day-number { font-weight: 800; font-size: 0.85rem; margin-bottom: 6px; }
+.adc-shift-type { font-size: 0.78rem; font-weight: 700; }
+
+.shift1-card { border-color: #7dd3fc; background: #f0f9ff; }
+.shift2-card { border-color: #fde047; background: #fefce8; }
+.shift3-card { border-color: #d8b4fe; background: #faf5ff; }
+.shift-off-card { border-color: #e2e8f0; background: #f8fafc; color: #94a3b8; }
