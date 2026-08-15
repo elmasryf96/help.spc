@@ -203,7 +203,7 @@ let editingTower = null;
 let editingAgent = null;
 
 // ============================================================
-// 🔐 LOGIN & AUTHENTICATION (FIXED AND PREVENTED AUTO-SUBMIT)
+// 🔐 LOGIN & AUTHENTICATION (SUPPORT ENTER KEY & PREVENT REFRESH)
 // ============================================================
 
 function handleLogin(event) {
