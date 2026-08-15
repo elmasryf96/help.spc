@@ -739,27 +739,41 @@ function initRosterPage() {
 }
 
 function switchRosterTab(tabKey) {
-  document.querySelectorAll(".roster-tab-content").forEach(content => {
+  const allContents = document.querySelectorAll("#tab-live-view, #tab-agent-view, #tab-full-sheet-view");
+  allContents.forEach(content => {
     content.classList.add("hidden-tab");
+    content.style.display = "none";
   });
-  
+
   const allTabBtns = document.querySelectorAll(".roster-tabs-bar .tab-btn");
   allTabBtns.forEach(btn => btn.classList.remove("active"));
 
   if (tabKey === 'live-view') {
     const targetTab = document.getElementById("tab-live-view");
-    if (targetTab) targetTab.classList.remove("hidden-tab");
-    if (document.getElementById("tabLiveBtn")) document.getElementById("tabLiveBtn").classList.add("active");
+    if (targetTab) {
+      targetTab.classList.remove("hidden-tab");
+      targetTab.style.display = "block";
+    }
+    const btn = document.getElementById("tabLiveBtn");
+    if (btn) btn.classList.add("active");
 
   } else if (tabKey === 'agent-view') {
     const targetTab = document.getElementById("tab-agent-view");
-    if (targetTab) targetTab.classList.remove("hidden-tab");
-    if (document.getElementById("tabAgentBtn")) document.getElementById("tabAgentBtn").classList.add("active");
+    if (targetTab) {
+      targetTab.classList.remove("hidden-tab");
+      targetTab.style.display = "block";
+    }
+    const btn = document.getElementById("tabAgentBtn");
+    if (btn) btn.classList.add("active");
 
   } else if (tabKey === 'full-sheet-view') {
     const targetTab = document.getElementById("tab-full-sheet-view");
-    if (targetTab) targetTab.classList.remove("hidden-tab");
-    if (document.getElementById("tabFullBtn")) document.getElementById("tabFullBtn").classList.add("active");
+    if (targetTab) {
+      targetTab.classList.remove("hidden-tab");
+      targetTab.style.display = "block";
+    }
+    const btn = document.getElementById("tabFullBtn");
+    if (btn) btn.classList.add("active");
   }
 }
 
@@ -1201,6 +1215,7 @@ function showAddAgentForm() {
     defaultSchedule[d] = "OFF+";
   }
   rosterData.push({ dept: "Calls", lang: "Ara", name: trimmed, schedule: defaultSchedule });
+  saveRosterTab = saveRosterToStorage();
   saveRosterToStorage();
   renderAdminAgentsTable(document.getElementById("adminAgentSearchInput")?.value || "");
   renderFullMonthlyTable();
