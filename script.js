@@ -191,6 +191,9 @@ function initFirestoreRealtimeListeners() {
     if (!document.getElementById("admin-page").classList.contains("hidden-page")) {
       renderAdminAgentsTable();
     }
+    if (document.getElementById("agentManagementModal")?.style.display === "flex") {
+      renderModalAgentsTable(document.getElementById("modalAgentSearch")?.value || "");
+    }
   });
 }
 
@@ -282,6 +285,10 @@ function updateUIForRole() {
   if (addTowerBtn) {
     addTowerBtn.style.display = isAdmin() ? "inline-flex" : "none";
   }
+  const rosterAdminBtn = document.getElementById("adminRosterManageBtn");
+  if (rosterAdminBtn) {
+    rosterAdminBtn.style.display = isAdmin() ? "inline-flex" : "none";
+  }
 }
 
 // ============================================================
@@ -315,6 +322,7 @@ function navigateTo(pageId) {
       renderScheduleCards();
     } else if (pageId === 'roster-page') {
       initRosterPage();
+      updateUIForRole();
     } else if (pageId === 'admin-page') {
       renderAdminTable();
       renderAdminAgentsTable();
@@ -870,6 +878,90 @@ function updateActiveSummary() {
 }
 
 // ============================================================
+// 👑 MODAL AGENT MANAGEMENT FOR ROSTER PAGE
+// ============================================================
+
+function openAgentManagementModal() {
+  const modal = document.getElementById("agentManagementModal");
+  if (modal) {
+    modal.style.display = "flex";
+    renderModalAgentsTable();
+  }
+}
+
+function closeAgentManagementModal() {
+  const modal = document.getElementById("agentManagementModal");
+  if (modal) {
+    modal.style.display = "none";
+  }
+}
+
+function renderModalAgentsTable(filter = "") {
+  const table = document.getElementById("modalAgentsTable");
+  if (!table) return;
+  const searchTerm = filter.toLowerCase().trim();
+  let filteredAgents = rosterData.filter(a => a.name.toLowerCase().includes(searchTerm) || a.dept.toLowerCase().includes(searchTerm));
+  
+  if (filteredAgents.length === 0) {
+    table.innerHTML = `<div class="admin-empty"><i class="fa-solid fa-users-slash"></i>No agents found</div>`;
+    return;
+  }
+  
+  let html = `<thead><tr><th>#</th><th>Name</th><th>Department</th><th>Language</th><th>Schedule (1-31)</th><th>Actions</th></tr></thead><tbody>`;
+  filteredAgents.forEach((agent, index) => {
+    const isEditing = (editingAgent === agent.name);
+    if (isEditing) {
+      let schedInputs = "";
+      for (let d = 1; d <= 31; d++) {
+        const currentShift = agent.schedule[d] || "OFF+";
+        schedInputs += `<select id="edit_modal_sched_${d}" style="width:55px;font-size:9px;padding:1px;"><option value="Shift 1" ${currentShift === 'Shift 1' ? 'selected' : ''}>S1</option><option value="Shift 2" ${currentShift === 'Shift 2' ? 'selected' : ''}>S2</option><option value="Shift 3" ${currentShift === 'Shift 3' ? 'selected' : ''}>S3</option><option value="OFF+" ${currentShift === 'OFF+' ? 'selected' : ''}>OFF</option></select>`;
+      }
+      html += `<tr><td>${index + 1}</td><td><strong>${agent.name}</strong></td><td><select id="edit_modal_dept"><option value="Calls" ${agent.dept === 'Calls' ? 'selected' : ''}>Calls</option><option value="Call Outs" ${agent.dept === 'Call Outs' ? 'selected' : ''}>Call Outs</option><option value="Emails" ${agent.dept === 'Emails' ? 'selected' : ''}>Emails</option></select></td><td><select id="edit_modal_lang"><option value="Ara" ${agent.lang === 'Ara' ? 'selected' : ''}>Ara</option><option value="Eng" ${agent.lang === 'Eng' ? 'selected' : ''}>Eng</option></select></td><td style="min-width:200px;max-width:300px;overflow-x:auto;"><div style="display:flex;flex-wrap:wrap;gap:2px;justify-content:center;">${schedInputs}</div></td><td><button class="btn-save-row" onclick="saveModalAgent('${agent.name}')">💾 Save</button><button class="btn-delete-row" onclick="cancelEditModalAgent()">✖</button></td></tr>`;
+    } else {
+      let schedSummary = "";
+      for (let d = 1; d <= 31; d++) {
+        const shift = agent.schedule[d] || "OFF+";
+        let short = shift === "OFF+" ? "⚪" : shift === "Shift 1" ? "🟦" : shift === "Shift 2" ? "🟧" : "🟪";
+        schedSummary += `<span title="${d}-Aug: ${shift}" style="display:inline-block;width:16px;font-size:10px;">${short}</span>`;
+      }
+      html += `<tr><td>${index + 1}</td><td><strong>${agent.name}</strong></td><td>${agent.dept}</td><td><span class="lang-pill ${agent.lang.toLowerCase()}">${agent.lang}</span></td><td style="min-width:200px;max-width:300px;overflow-x:auto;font-size:10px;white-space:nowrap;">${schedSummary}</td><td><button class="btn-save-row" onclick="editModalAgent('${agent.name}')">✏️ Edit</button><button class="btn-delete-row" onclick="deleteAgent('${agent.name}')">🗑️</button></td></tr>`;
+    }
+  });
+  html += `</tbody>`;
+  table.innerHTML = html;
+}
+
+function editModalAgent(name) {
+  editingAgent = name;
+  renderModalAgentsTable(document.getElementById("modalAgentSearch")?.value || "");
+}
+
+function cancelEditModalAgent() {
+  editingAgent = null;
+  renderModalAgentsTable(document.getElementById("modalAgentSearch")?.value || "");
+}
+
+function saveModalAgent(name) {
+  const agent = rosterData.find(a => a.name === name);
+  if (!agent) return;
+  agent.dept = document.getElementById("edit_modal_dept").value;
+  agent.lang = document.getElementById("edit_modal_lang").value;
+  for (let d = 1; d <= 31; d++) {
+    const select = document.getElementById(`edit_modal_sched_${d}`);
+    if (select) {
+      agent.schedule[d] = select.value;
+    }
+  }
+  editingAgent = null;
+  saveRosterToStorage();
+  renderModalAgentsTable(document.getElementById("modalAgentSearch")?.value || "");
+  renderRosterView();
+  renderFullMonthlyTable();
+  updateDashboardLiveWidget();
+  alert(`✅ Agent "${name}" updated successfully!`);
+}
+
+// ============================================================
 // 👤 AGENT INDIVIDUAL LOOKUP
 // ============================================================
 
@@ -1210,7 +1302,9 @@ function saveAgent(name) {
   editingAgent = null;
   saveRosterToStorage();
   renderAdminAgentsTable(document.getElementById("adminAgentSearchInput")?.value || "");
+  renderRosterView();
   renderFullMonthlyTable();
+  updateDashboardLiveWidget();
   alert(`✅ Agent "${name}" updated successfully!`);
 }
 
@@ -1221,8 +1315,13 @@ function deleteAgent(name) {
       rosterData.splice(index, 1);
       saveRosterToStorage();
       renderAdminAgentsTable(document.getElementById("adminAgentSearchInput")?.value || "");
+      if (document.getElementById("agentManagementModal")?.style.display === "flex") {
+        renderModalAgentsTable(document.getElementById("modalAgentSearch")?.value || "");
+      }
+      renderRosterView();
       renderFullMonthlyTable();
       populateAgentDropdown();
+      updateDashboardLiveWidget();
       alert(`🗑️ Agent "${name}" deleted.`);
     }
   }
@@ -1243,7 +1342,12 @@ function showAddAgentForm() {
   rosterData.push({ dept: "Calls", lang: "Ara", name: trimmed, schedule: defaultSchedule });
   saveRosterToStorage();
   renderAdminAgentsTable(document.getElementById("adminAgentSearchInput")?.value || "");
+  if (document.getElementById("agentManagementModal")?.style.display === "flex") {
+    renderModalAgentsTable(document.getElementById("modalAgentSearch")?.value || "");
+  }
+  renderRosterView();
   renderFullMonthlyTable();
   populateAgentDropdown();
+  updateDashboardLiveWidget();
   alert(`✅ Agent "${trimmed}" added! You can now edit their schedule.`);
 }
