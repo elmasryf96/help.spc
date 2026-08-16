@@ -15,6 +15,436 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 // ============================================================
+// 🏢 FAIRMONT MARINA RESIDENCES UNIT MAPPING DATA
+// ============================================================
+
+const fairmontUnitMapping = [
+  { nic: "C-01-01", adm: "105", spc: "131" },
+  { nic: "C-01-03", adm: "104", spc: "133" },
+  { nic: "C-01-07", adm: "103", spc: "135" },
+  { nic: "C-01-09", adm: "102", spc: "137" },
+  { nic: "C-02-01", adm: "205", spc: "231" },
+  { nic: "C-02-03", adm: "204", spc: "233" },
+  { nic: "C-02-06", adm: "210", spc: "236" },
+  { nic: "C-02-07", adm: "203", spc: "235" },
+  { nic: "C-02-08", adm: "209", spc: "238" },
+  { nic: "C-02-09", adm: "202", spc: "237" },
+  { nic: "C-02-10", adm: "208", spc: "240" },
+  { nic: "C-02-12", adm: "207", spc: "242" },
+  { nic: "C-02-14", adm: "206", spc: "244" },
+  { nic: "C-03-01", adm: "305", spc: "331" },
+  { nic: "C-03-06", adm: "310", spc: "336" },
+  { nic: "C-03-08", adm: "309", spc: "338" },
+  { nic: "C-03-09", adm: "302", spc: "337" },
+  { nic: "C-03-10", adm: "308", spc: "340" },
+  { nic: "C-03-13", adm: "301", spc: "339" },
+  { nic: "C-04-01", adm: "405", spc: "431" },
+  { nic: "C-04-02", adm: "412", spc: "432" },
+  { nic: "C-04-03", adm: "404", spc: "433" },
+  { nic: "C-04-06", adm: "410", spc: "436" },
+  { nic: "C-04-08", adm: "409", spc: "438" },
+  { nic: "C-04-12", adm: "407", spc: "442" },
+  { nic: "C-04-14", adm: "406", spc: "444" },
+  { nic: "C-05-01", adm: "505", spc: "531" },
+  { nic: "C-05-02", adm: "512", spc: "532" },
+  { nic: "C-05-03", adm: "504", spc: "533" },
+  { nic: "C-05-04", adm: "511", spc: "534" },
+  { nic: "C-05-06", adm: "510", spc: "536" },
+  { nic: "C-05-07", adm: "503", spc: "535" },
+  { nic: "C-05-08", adm: "509", spc: "538" },
+  { nic: "C-05-09", adm: "502", spc: "537" },
+  { nic: "C-05-10", adm: "508", spc: "540" },
+  { nic: "C-05-12", adm: "507", spc: "542" },
+  { nic: "C-05-13", adm: "501", spc: "539" },
+  { nic: "C-05-14", adm: "506", spc: "544" },
+  { nic: "C-06-01", adm: "605", spc: "631" },
+  { nic: "C-06-02", adm: "612", spc: "632" },
+  { nic: "C-06-03", adm: "604", spc: "633" },
+  { nic: "C-06-04", adm: "611", spc: "634" },
+  { nic: "C-06-06", adm: "610", spc: "636" },
+  { nic: "C-06-07", adm: "603", spc: "635" },
+  { nic: "C-06-08", adm: "609", spc: "638" },
+  { nic: "C-06-10", adm: "608", spc: "640" },
+  { nic: "C-06-11", adm: "602", spc: "637" },
+  { nic: "C-06-12", adm: "607", spc: "642" },
+  { nic: "C-06-13", adm: "601", spc: "639" },
+  { nic: "C-06-14", adm: "606", spc: "644" },
+  { nic: "C-07-01", adm: "703", spc: "731" },
+  { nic: "C-07-02", adm: "708", spc: "732" },
+  { nic: "C-07-03", adm: "702", spc: "733" },
+  { nic: "C-07-04", adm: "707", spc: "734" },
+  { nic: "C-07-06", adm: "706", spc: "736" },
+  { nic: "C-07-07", adm: "701", spc: "735" },
+  { nic: "C-07-08", adm: "705", spc: "738" },
+  { nic: "C-07-09", adm: "704", spc: "740" },
+  { nic: "C-08-01", adm: "803", spc: "831" },
+  { nic: "C-08-02", adm: "808", spc: "832" },
+  { nic: "C-08-03", adm: "802", spc: "833" },
+  { nic: "C-08-04", adm: "807", spc: "834" },
+  { nic: "C-08-06", adm: "806", spc: "836" },
+  { nic: "C-08-08", adm: "805", spc: "838" },
+  { nic: "C-08-09", adm: "804", spc: "840" },
+  { nic: "C-09-01", adm: "903", spc: "931" },
+  { nic: "C-09-02", adm: "908", spc: "932" },
+  { nic: "C-09-03", adm: "902", spc: "933" },
+  { nic: "C-09-04", adm: "907", spc: "934" },
+  { nic: "C-09-06", adm: "906", spc: "936" },
+  { nic: "C-09-08", adm: "905", spc: "938" },
+  { nic: "C-09-09", adm: "904", spc: "940" },
+  { nic: "C-10-01", adm: "1003", spc: "1031" },
+  { nic: "C-10-02", adm: "1008", spc: "1032" },
+  { nic: "C-10-03", adm: "1002", spc: "1033" },
+  { nic: "C-10-08", adm: "1005", spc: "1038" },
+  { nic: "C-10-09", adm: "1004", spc: "1040" },
+  { nic: "C-11-01", adm: "1103", spc: "1131" },
+  { nic: "C-11-02", adm: "1108", spc: "1132" },
+  { nic: "C-11-03", adm: "1102", spc: "1133" },
+  { nic: "C-11-04", adm: "1107", spc: "1134" },
+  { nic: "C-11-06", adm: "1106", spc: "1136" },
+  { nic: "C-11-09", adm: "1104", spc: "1140" },
+  { nic: "C-12-01", adm: "1203", spc: "1231" },
+  { nic: "C-12-02", adm: "1208", spc: "1232" },
+  { nic: "C-12-03", adm: "1202", spc: "1233" },
+  { nic: "C-12-04", adm: "1207", spc: "1234" },
+  { nic: "C-12-06", adm: "1206", spc: "1236" },
+  { nic: "C-12-07", adm: "1201", spc: "1235" },
+  { nic: "C-12-08", adm: "1205", spc: "1238" },
+  { nic: "C-12-09", adm: "1204", spc: "1240" },
+  { nic: "C-13-01", adm: "1303", spc: "1331" },
+  { nic: "C-13-02", adm: "1308", spc: "1332" },
+  { nic: "C-13-03", adm: "1302", spc: "1333" },
+  { nic: "C-13-04", adm: "1307", spc: "1334" },
+  { nic: "C-13-06", adm: "1306", spc: "1336" },
+  { nic: "C-13-08", adm: "1305", spc: "1338" },
+  { nic: "C-13-09", adm: "1304", spc: "1340" },
+  { nic: "C-14-01", adm: "1403", spc: "1431" },
+  { nic: "C-14-02", adm: "1408", spc: "1432" },
+  { nic: "C-14-03", adm: "1402", spc: "1433" },
+  { nic: "C-14-04", adm: "1407", spc: "1434" },
+  { nic: "C-14-06", adm: "1406", spc: "1436" },
+  { nic: "C-14-08", adm: "1405", spc: "1438" },
+  { nic: "C-14-09", adm: "1404", spc: "1440" },
+  { nic: "C-15-01", adm: "1503", spc: "1531" },
+  { nic: "C-15-02", adm: "1508", spc: "1532" },
+  { nic: "C-15-03", adm: "1502", spc: "1533" },
+  { nic: "C-15-04", adm: "1507", spc: "1534" },
+  { nic: "C-15-06", adm: "1506", spc: "1536" },
+  { nic: "C-15-07", adm: "1501", spc: "1535" },
+  { nic: "C-15-08", adm: "1505", spc: "1538" },
+  { nic: "C-15-09", adm: "1504", spc: "1540" },
+  { nic: "C-17-01", adm: "1702", spc: "1733" },
+  { nic: "C-17-06", adm: "1705", spc: "1736" },
+  { nic: "C-17-07", adm: "1701", spc: "1735" },
+  { nic: "C-17-08", adm: "1704", spc: "1738" },
+  { nic: "C-17-10", adm: "1703", spc: "1740" },
+  { nic: "C-18-01", adm: "1802", spc: "1833" },
+  { nic: "C-18-02", adm: "1806", spc: "1834" },
+  { nic: "C-18-06", adm: "1805", spc: "1836" },
+  { nic: "C-18-07", adm: "1801", spc: "1835" },
+  { nic: "C-18-08", adm: "1804", spc: "1838" },
+  { nic: "C-18-10", adm: "1803", spc: "1840" },
+  { nic: "C-19-01", adm: "1902", spc: "1933" },
+  { nic: "C-19-06", adm: "1905", spc: "1936" },
+  { nic: "C-19-07", adm: "1901", spc: "1935" },
+  { nic: "C-19-08", adm: "1904", spc: "1938" },
+  { nic: "C-19-10", adm: "1903", spc: "1940" },
+  { nic: "C-20-01", adm: "2002", spc: "2033" },
+  { nic: "C-20-02", adm: "2006", spc: "2034" },
+  { nic: "C-20-06", adm: "2005", spc: "2036" },
+  { nic: "C-20-07", adm: "2001", spc: "2035" },
+  { nic: "C-20-08", adm: "2004", spc: "2038" },
+  { nic: "C-20-10", adm: "2003", spc: "2040" },
+  { nic: "C-21-01", adm: "2102", spc: "2133" },
+  { nic: "C-21-02", adm: "2106", spc: "2134" },
+  { nic: "C-21-06", adm: "2105", spc: "2136" },
+  { nic: "C-21-07", adm: "2101", spc: "2135" },
+  { nic: "C-21-08", adm: "2104", spc: "2138" },
+  { nic: "C-21-10", adm: "2103", spc: "2140" },
+  { nic: "C-22-01", adm: "2202", spc: "2233" },
+  { nic: "C-22-02", adm: "2206", spc: "2234" },
+  { nic: "C-22-06", adm: "2205", spc: "2236" },
+  { nic: "C-22-07", adm: "2201", spc: "2235" },
+  { nic: "C-22-08", adm: "2204", spc: "2238" },
+  { nic: "C-22-10", adm: "2203", spc: "2240" },
+  { nic: "C-23-01", adm: "2302", spc: "2333" },
+  { nic: "C-23-02", adm: "2306", spc: "2334" },
+  { nic: "C-23-06", adm: "2305", spc: "2336" },
+  { nic: "C-23-07", adm: "2301", spc: "2335" },
+  { nic: "C-23-08", adm: "2304", spc: "2338" },
+  { nic: "C-23-10", adm: "2303", spc: "2340" },
+  { nic: "C-24-01", adm: "2402", spc: "2433" },
+  { nic: "C-24-02", adm: "2406", spc: "2434" },
+  { nic: "C-24-06", adm: "2405", spc: "2436" },
+  { nic: "C-24-07", adm: "2401", spc: "2435" },
+  { nic: "C-24-08", adm: "2404", spc: "2438" },
+  { nic: "C-24-10", adm: "2403", spc: "2440" },
+  { nic: "C-25-01", adm: "2502", spc: "2533" },
+  { nic: "C-25-02", adm: "2506", spc: "2534" },
+  { nic: "C-25-06", adm: "2505", spc: "2536" },
+  { nic: "C-25-07", adm: "2501", spc: "2535" },
+  { nic: "C-25-08", adm: "2504", spc: "2538" },
+  { nic: "C-25-10", adm: "2503", spc: "2540" },
+  { nic: "C-26-01", adm: "2602", spc: "2633" },
+  { nic: "C-26-02", adm: "2606", spc: "2634" },
+  { nic: "C-26-06", adm: "2605", spc: "2636" },
+  { nic: "C-26-07", adm: "2601", spc: "2635" },
+  { nic: "C-26-08", adm: "2604", spc: "2638" },
+  { nic: "C-26-10", adm: "2603", spc: "2640" },
+  { nic: "C-27-01", adm: "2702", spc: "2733" },
+  { nic: "C-27-02", adm: "2706", spc: "2734" },
+  { nic: "C-27-06", adm: "2705", spc: "2736" },
+  { nic: "C-27-08", adm: "2704", spc: "2738" },
+  { nic: "C-27-10", adm: "2703", spc: "2740" },
+  { nic: "C-28-01", adm: "2802", spc: "2833" },
+  { nic: "C-28-02", adm: "2806", spc: "2834" },
+  { nic: "C-28-06", adm: "2805", spc: "2836" },
+  { nic: "C-28-07", adm: "2801", spc: "2835" },
+  { nic: "C-28-08", adm: "2804", spc: "2838" },
+  { nic: "C-28-10", adm: "2803", spc: "2840" },
+  { nic: "C-29-01", adm: "2902", spc: "2933" },
+  { nic: "C-29-02", adm: "2906", spc: "2934" },
+  { nic: "C-29-06", adm: "2905", spc: "2936" },
+  { nic: "C-29-07", adm: "2901", spc: "2935" },
+  { nic: "C-29-08", adm: "2904", spc: "2938" },
+  { nic: "C-29-10", adm: "2903", spc: "2940" },
+  { nic: "C-30-01", adm: "3001", spc: "3033" },
+  { nic: "C-30-02", adm: "3003", spc: "3032" },
+  { nic: "C-30-04", adm: "3002", spc: "3034" },
+  { nic: "C-31-01", adm: "3101", spc: "3133" },
+  { nic: "C-31-02", adm: "3103", spc: "3132" },
+  { nic: "C-31-04", adm: "3102", spc: "3134" },
+  { nic: "C-32-01", adm: "3201", spc: "3233" },
+  { nic: "C-32-02", adm: "3203", spc: "3232" },
+  { nic: "C-32-04", adm: "3202", spc: "3234" },
+  { nic: "C-33-01", adm: "3301", spc: "3333" },
+  { nic: "C-33-02", adm: "3303", spc: "3332" },
+  { nic: "C-33-04", adm: "3302", spc: "3334" },
+  { nic: "C-34-01", adm: "3401", spc: "3433" },
+  { nic: "C-34-02", adm: "3403", spc: "3432" },
+  { nic: "C-34-04", adm: "3402", spc: "3434" },
+  { nic: "C-35-01", adm: "3501", spc: "3533" },
+  { nic: "C-35-02", adm: "3503", spc: "3532" }
+];
+
+// ============================================================
+// 🏢 CONDOR MARINA STAR UNIT MAPPING DATA
+// ============================================================
+
+const condorUnitMapping = [
+  { titleDeed: "V103", physical: "G-01", area: "862.42", type: "VILLA", meter1: "82827361", meter2: "72806331" },
+  { titleDeed: "V102", physical: "G-02", area: "231.99", type: "VILLA", meter1: "82828261", meter2: "82826985" },
+  { titleDeed: "V101", physical: "G-03", area: "265.49", type: "VILLA", meter1: "82828256", meter2: "82826984" },
+  { titleDeed: "O105", physical: "102", area: "92.7", type: "1 BHK", meter1: "82828262", meter2: "82828263" },
+  { titleDeed: "O101", physical: "103", area: "77.99", type: "1 BHK", meter1: "82826982", meter2: "" },
+  { titleDeed: "O102", physical: "104", area: "100.14", type: "1 BHK", meter1: "82826981", meter2: "" },
+  { titleDeed: "O103", physical: "105", area: "70.45", type: "1 BHK", meter1: "82828260", meter2: "" },
+  { titleDeed: "O104", physical: "106", area: "57.98", type: "1 BHK", meter1: "82826983", meter2: "" },
+  { titleDeed: "S203", physical: "201", area: "46.76", type: "STUDIO", meter1: "82828195", meter2: "" },
+  { titleDeed: "S202", physical: "202", area: "45.47", type: "STUDIO", meter1: "82828198", meter2: "" },
+  { titleDeed: "S201", physical: "203", area: "47.2", type: "STUDIO", meter1: "82828275", meter2: "" },
+  { titleDeed: "O201", physical: "204", area: "78.03", type: "1 BHK", meter1: "82828328", meter2: "" },
+  { titleDeed: "O202", physical: "205", area: "85.31", type: "1 BHK", meter1: "82828331", meter2: "" },
+  { titleDeed: "O203", physical: "206", area: "66.61", type: "1 BHK", meter1: "82828332", meter2: "" },
+  { titleDeed: "S205", physical: "207", area: "46.86", type: "STUDIO", meter1: "82828199", meter2: "" },
+  { titleDeed: "S204", physical: "208", area: "44.5", type: "STUDIO", meter1: "82828197", meter2: "" },
+  { titleDeed: "O204", physical: "209", area: "88.12", type: "1 BHK", meter1: "82828329", meter2: "" },
+  { titleDeed: "O205", physical: "210", area: "84.92", type: "1 BHK", meter1: "82828330", meter2: "" },
+  { titleDeed: "O306", physical: "302", area: "92.22", type: "1 BHK", meter1: "82828207", meter2: "82828257" },
+  { titleDeed: "S301", physical: "303", area: "47.2", type: "STUDIO", meter1: "82828205", meter2: "" },
+  { titleDeed: "O301", physical: "304", area: "78.04", type: "1 BHK", meter1: "82827031", meter2: "" },
+  { titleDeed: "O302", physical: "305", area: "85.31", type: "1 BHK", meter1: "82827036", meter2: "" },
+  { titleDeed: "O303", physical: "306", area: "66.91", type: "1 BHK", meter1: "82827029", meter2: "" },
+  { titleDeed: "S305", physical: "307", area: "46.86", type: "STUDIO", meter1: "82828196", meter2: "" },
+  { titleDeed: "S304", physical: "308", area: "44.5", type: "STUDIO", meter1: "82828206", meter2: "" },
+  { titleDeed: "O304", physical: "309", area: "88.12", type: "1 BHK", meter1: "82827035", meter2: "" },
+  { titleDeed: "O305", physical: "310", area: "84.92", type: "1 BHK", meter1: "82827030", meter2: "" },
+  { titleDeed: "T405", physical: "401", area: "161.67", type: "2 BHK", meter1: "82827297", meter2: "" },
+  { titleDeed: "T401", physical: "402", area: "107.75", type: "2 BHK", meter1: "82827034", meter2: "" },
+  { titleDeed: "T402", physical: "403", area: "106.84", type: "2 BHK", meter1: "82827038", meter2: "" },
+  { titleDeed: "T403", physical: "404", area: "102.98", type: "2 BHK", meter1: "82827037", meter2: "" },
+  { titleDeed: "T404", physical: "405", area: "144.22", type: "2 BHK", meter1: "82827298", meter2: "" },
+  { titleDeed: "S503", physical: "501", area: "46.9", type: "STUDIO", meter1: "82828200", meter2: "" },
+  { titleDeed: "S502", physical: "502", area: "44.93", type: "STUDIO", meter1: "82828201", meter2: "" },
+  { titleDeed: "S501", physical: "503", area: "46.49", type: "STUDIO", meter1: "82828202", meter2: "" },
+  { titleDeed: "O501", physical: "504", area: "78.11", type: "1 BHK", meter1: "82828325", meter2: "" },
+  { titleDeed: "O502", physical: "505", area: "85.71", type: "1 BHK", meter1: "82827033", meter2: "" },
+  { titleDeed: "O503", physical: "506", area: "63.86", type: "1 BHK", meter1: "82828326", meter2: "" },
+  { titleDeed: "S504", physical: "507", area: "47.14", type: "STUDIO", meter1: "82828203", meter2: "" },
+  { titleDeed: "S505", physical: "508", area: "44.6", type: "STUDIO", meter1: "82828204", meter2: "" },
+  { titleDeed: "O504", physical: "509", area: "88.14", type: "1 BHK", meter1: "82828327", meter2: "" },
+  { titleDeed: "O505", physical: "510", area: "84.73", type: "1 BHK", meter1: "82827032", meter2: "" },
+  { titleDeed: "S603", physical: "601", area: "46.9", type: "STUDIO", meter1: "82828276", meter2: "" },
+  { titleDeed: "S602", physical: "602", area: "45.62", type: "STUDIO", meter1: "82828278", meter2: "" },
+  { titleDeed: "S601", physical: "603", area: "47.42", type: "STUDIO", meter1: "82828280", meter2: "" },
+  { titleDeed: "O601", physical: "604", area: "78.11", type: "1 BHK", meter1: "82827039", meter2: "" },
+  { titleDeed: "O602", physical: "605", area: "85.71", type: "1 BHK", meter1: "82828333", meter2: "" },
+  { titleDeed: "O603", physical: "606", area: "63.86", type: "1 BHK", meter1: "82827041", meter2: "" },
+  { titleDeed: "S604", physical: "607", area: "47.14", type: "STUDIO", meter1: "82828279", meter2: "" },
+  { titleDeed: "S605", physical: "608", area: "44.6", type: "STUDIO", meter1: "82828277", meter2: "" },
+  { titleDeed: "O604", physical: "609", area: "88.14", type: "1 BHK", meter1: "82828334", meter2: "" },
+  { titleDeed: "O605", physical: "610", area: "84.74", type: "1 BHK", meter1: "82827040", meter2: "" },
+  { titleDeed: "S703", physical: "701", area: "46.89", type: "STUDIO", meter1: "82828281", meter2: "" },
+  { titleDeed: "S702", physical: "702", area: "45.62", type: "STUDIO", meter1: "82828282", meter2: "" },
+  { titleDeed: "S701", physical: "703", area: "47.42", type: "STUDIO", meter1: "82828283", meter2: "" },
+  { titleDeed: "O701", physical: "704", area: "78.11", type: "1 BHK", meter1: "82827048", meter2: "" },
+  { titleDeed: "O702", physical: "705", area: "85.71", type: "1 BHK", meter1: "82826998", meter2: "" },
+  { titleDeed: "O703", physical: "706", area: "63.86", type: "1 BHK", meter1: "82827046", meter2: "" },
+  { titleDeed: "S704", physical: "707", area: "47.14", type: "STUDIO", meter1: "82828225", meter2: "" },
+  { titleDeed: "S705", physical: "708", area: "44.6", type: "STUDIO", meter1: "82828284", meter2: "" },
+  { titleDeed: "O704", physical: "709", area: "88.14", type: "1 BHK", meter1: "82827045", meter2: "" },
+  { titleDeed: "O705", physical: "710", area: "84.74", type: "1 BHK", meter1: "82827044", meter2: "" },
+  { titleDeed: "S803", physical: "801", area: "46.89", type: "STUDIO", meter1: "82828227", meter2: "" },
+  { titleDeed: "S802", physical: "802", area: "45.62", type: "STUDIO", meter1: "82828226", meter2: "" },
+  { titleDeed: "S801", physical: "803", area: "47.42", type: "STUDIO", meter1: "82828229", meter2: "" },
+  { titleDeed: "O801", physical: "804", area: "78.11", type: "1 BHK", meter1: "82828346", meter2: "" },
+  { titleDeed: "O802", physical: "805", area: "85.71", type: "1 BHK", meter1: "82828347", meter2: "" },
+  { titleDeed: "O803", physical: "806", area: "63.86", type: "1 BHK", meter1: "82827042", meter2: "" },
+  { titleDeed: "S804", physical: "807", area: "47.14", type: "STUDIO", meter1: "82828228", meter2: "" },
+  { titleDeed: "S805", physical: "808", area: "44.6", type: "STUDIO", meter1: "82828230", meter2: "" },
+  { titleDeed: "O804", physical: "809", area: "88.14", type: "1 BHK", meter1: "82827043", meter2: "" },
+  { titleDeed: "O805", physical: "810", area: "84.74", type: "1 BHK", meter1: "82828345", meter2: "" },
+  { titleDeed: "S903", physical: "901", area: "46.9", type: "STUDIO", meter1: "82828233", meter2: "" },
+  { titleDeed: "S902", physical: "902", area: "44.93", type: "STUDIO", meter1: "82828234", meter2: "" },
+  { titleDeed: "S901", physical: "903", area: "46.49", type: "STUDIO", meter1: "82828232", meter2: "" },
+  { titleDeed: "O901", physical: "904", area: "78.11", type: "1 BHK", meter1: "82828348", meter2: "" },
+  { titleDeed: "O902", physical: "905", area: "85.71", type: "1 BHK", meter1: "82828349", meter2: "" },
+  { titleDeed: "O903", physical: "906", area: "63.86", type: "1 BHK", meter1: "82828350", meter2: "" },
+  { titleDeed: "O906", physical: "907", area: "91.78", type: "1 BHK", meter1: "82828231", meter2: "82828265" },
+  { titleDeed: "O904", physical: "909", area: "88.14", type: "1 BHK", meter1: "82828352", meter2: "" },
+  { titleDeed: "O905", physical: "910", area: "84.74", type: "1 BHK", meter1: "82828351", meter2: "" },
+  { titleDeed: "S1003", physical: "1001", area: "46.9", type: "STUDIO", meter1: "82828267", meter2: "" },
+  { titleDeed: "S1002", physical: "1002", area: "44.93", type: "STUDIO", meter1: "82828266", meter2: "" },
+  { titleDeed: "S1001", physical: "1003", area: "46.49", type: "STUDIO", meter1: "82828270", meter2: "" },
+  { titleDeed: "O1001", physical: "1004", area: "78.11", type: "1 BHK", meter1: "82828383", meter2: "" },
+  { titleDeed: "O1002", physical: "1005", area: "85.71", type: "1 BHK", meter1: "82828384", meter2: "" },
+  { titleDeed: "O1003", physical: "1006", area: "63.86", type: "1 BHK", meter1: "82828382", meter2: "" },
+  { titleDeed: "S1004", physical: "1007", area: "47.14", type: "STUDIO", meter1: "82828269", meter2: "" },
+  { titleDeed: "S1005", physical: "1008", area: "44.6", type: "STUDIO", meter1: "82828268", meter2: "" },
+  { titleDeed: "O1004", physical: "1009", area: "88.14", type: "1 BHK", meter1: "82828353", meter2: "" },
+  { titleDeed: "O1005", physical: "1010", area: "84.73", type: "1 BHK", meter1: "82828354", meter2: "" },
+  { titleDeed: "S1103", physical: "1101", area: "46.9", type: "STUDIO", meter1: "82828273", meter2: "" },
+  { titleDeed: "S1102", physical: "1102", area: "44.93", type: "STUDIO", meter1: "82828272", meter2: "" },
+  { titleDeed: "S1101", physical: "1103", area: "46.49", type: "STUDIO", meter1: "82828271", meter2: "" },
+  { titleDeed: "O1101", physical: "1104", area: "78.11", type: "1 BHK", meter1: "82828381", meter2: "" },
+  { titleDeed: "O1102", physical: "1105", area: "85.71", type: "1 BHK", meter1: "82828380", meter2: "" },
+  { titleDeed: "O1103", physical: "1106", area: "63.86", type: "1 BHK", meter1: "82828378", meter2: "" },
+  { titleDeed: "S1104", physical: "1107", area: "47.14", type: "STUDIO", meter1: "82828274", meter2: "" },
+  { titleDeed: "S1105", physical: "1108", area: "44.6", type: "STUDIO", meter1: "82828219", meter2: "" },
+  { titleDeed: "O1104", physical: "1109", area: "88.14", type: "1 BHK", meter1: "82828379", meter2: "" },
+  { titleDeed: "O1105", physical: "1110", area: "84.73", type: "1 BHK", meter1: "82828377", meter2: "" },
+  { titleDeed: "S1203", physical: "1201", area: "46.9", type: "STUDIO", meter1: "82828221", meter2: "" },
+  { titleDeed: "S1202", physical: "1202", area: "44.93", type: "STUDIO", meter1: "82828220", meter2: "" },
+  { titleDeed: "S1201", physical: "1203", area: "46.49", type: "STUDIO", meter1: "82828222", meter2: "" },
+  { titleDeed: "O1201", physical: "1204", area: "78.11", type: "1 BHK", meter1: "82828357", meter2: "" },
+  { titleDeed: "O1202", physical: "1205", area: "85.71", type: "1 BHK", meter1: "82828356", meter2: "" },
+  { titleDeed: "O1203", physical: "1206", area: "63.86", type: "1 BHK", meter1: "82828355", meter2: "" },
+  { titleDeed: "S1204", physical: "1207", area: "47.14", type: "STUDIO", meter1: "82828224", meter2: "" },
+  { titleDeed: "S1205", physical: "1208", area: "44.6", type: "STUDIO", meter1: "82828223", meter2: "" },
+  { titleDeed: "O1204", physical: "1209", area: "88.14", type: "1 BHK", meter1: "82828376", meter2: "" },
+  { titleDeed: "O1205", physical: "1210", area: "84.73", type: "1 BHK", meter1: "82828375", meter2: "" },
+  { titleDeed: "S1303", physical: "1301", area: "46.9", type: "STUDIO", meter1: "82828218", meter2: "" },
+  { titleDeed: "S1302", physical: "1302", area: "44.93", type: "STUDIO", meter1: "82828215", meter2: "" },
+  { titleDeed: "S1301", physical: "1303", area: "46.49", type: "STUDIO", meter1: "82828217", meter2: "" },
+  { titleDeed: "O1301", physical: "1304", area: "78.11", type: "1 BHK", meter1: "82828362", meter2: "" },
+  { titleDeed: "O1302", physical: "1305", area: "85.71", type: "1 BHK", meter1: "82828361", meter2: "" },
+  { titleDeed: "O1303", physical: "1306", area: "63.86", type: "1 BHK", meter1: "82828360", meter2: "" },
+  { titleDeed: "S1304", physical: "1307", area: "47.14", type: "STUDIO", meter1: "82828236", meter2: "" },
+  { titleDeed: "S1305", physical: "1308", area: "44.6", type: "STUDIO", meter1: "82828216", meter2: "" },
+  { titleDeed: "O1304", physical: "1309", area: "88.14", type: "1 BHK", meter1: "82828359", meter2: "" },
+  { titleDeed: "O1305", physical: "1310", area: "84.73", type: "1 BHK", meter1: "82828358", meter2: "" },
+  { titleDeed: "S1403", physical: "1401", area: "46.9", type: "STUDIO", meter1: "82828239", meter2: "" },
+  { titleDeed: "S1402", physical: "1402", area: "44.93", type: "STUDIO", meter1: "82828237", meter2: "" },
+  { titleDeed: "S1401", physical: "1403", area: "47.42", type: "STUDIO", meter1: "82828242", meter2: "" },
+  { titleDeed: "O1401", physical: "1404", area: "78.11", type: "1 BHK", meter1: "82828343", meter2: "" },
+  { titleDeed: "O1402", physical: "1405", area: "85.71", type: "1 BHK", meter1: "82828342", meter2: "" },
+  { titleDeed: "O1403", physical: "1406", area: "63.86", type: "1 BHK", meter1: "82828344", meter2: "" },
+  { titleDeed: "S1404", physical: "1407", area: "47.14", type: "STUDIO", meter1: "82828238", meter2: "" },
+  { titleDeed: "S1405", physical: "1408", area: "44.6", type: "STUDIO", meter1: "82828240", meter2: "" },
+  { titleDeed: "O1404", physical: "1409", area: "86.54", type: "1 BHK", meter1: "82828363", meter2: "" },
+  { titleDeed: "O1405", physical: "1410", area: "84.74", type: "1 BHK", meter1: "82828364", meter2: "" },
+  { titleDeed: "O1506", physical: "1502", area: "92.51", type: "1 BHK", meter1: "82828244", meter2: "" },
+  { titleDeed: "S1501", physical: "1503", area: "47.42", type: "STUDIO", meter1: "82828241", meter2: "" },
+  { titleDeed: "O1501", physical: "1504", area: "78.11", type: "1 BHK", meter1: "82828340", meter2: "" },
+  { titleDeed: "O1502", physical: "1505", area: "85.71", type: "1 BHK", meter1: "82828341", meter2: "82828235" },
+  { titleDeed: "O1503", physical: "1506", area: "63.85", type: "1 BHK", meter1: "82828339", meter2: "" },
+  { titleDeed: "S1504", physical: "1507", area: "47.14", type: "STUDIO", meter1: "82854004", meter2: "" },
+  { titleDeed: "S1505", physical: "1508", area: "44.6", type: "STUDIO", meter1: "82828175", meter2: "" },
+  { titleDeed: "O1504", physical: "1509", area: "88.14", type: "1 BHK", meter1: "82828337", meter2: "" },
+  { titleDeed: "O1505", physical: "1510", area: "84.74", type: "1 BHK", meter1: "82828338", meter2: "" },
+  { titleDeed: "S1603", physical: "1601", area: "46.9", type: "STUDIO", meter1: "82828176", meter2: "" },
+  { titleDeed: "S1602", physical: "1602", area: "44.93", type: "STUDIO", meter1: "82828178", meter2: "" },
+  { titleDeed: "S1601", physical: "1603", area: "46.49", type: "STUDIO", meter1: "82828179", meter2: "" },
+  { titleDeed: "O1601", physical: "1604", area: "78.11", type: "1 BHK", meter1: "82828393", meter2: "" },
+  { titleDeed: "O1602", physical: "1605", area: "85.71", type: "1 BHK", meter1: "82828392", meter2: "" },
+  { titleDeed: "O1603", physical: "1606", area: "63.86", type: "1 BHK", meter1: "82828394", meter2: "" },
+  { titleDeed: "S1604", physical: "1607", area: "47.14", type: "STUDIO", meter1: "82828177", meter2: "" },
+  { titleDeed: "S1605", physical: "1608", area: "44.6", type: "STUDIO", meter1: "82828180", meter2: "" },
+  { titleDeed: "O1604", physical: "1609", area: "88.14", type: "1 BHK", meter1: "82828336", meter2: "" },
+  { titleDeed: "O1605", physical: "1610", area: "84.73", type: "1 BHK", meter1: "82828335", meter2: "" },
+  { titleDeed: "S1703", physical: "1701", area: "46.89", type: "STUDIO", meter1: "82828183", meter2: "" },
+  { titleDeed: "S1702", physical: "1702", area: "45.62", type: "STUDIO", meter1: "82828184", meter2: "" },
+  { titleDeed: "S1701", physical: "1703", area: "47.42", type: "STUDIO", meter1: "82828182", meter2: "" },
+  { titleDeed: "O1701", physical: "1704", area: "78.11", type: "1 BHK", meter1: "82828391", meter2: "" },
+  { titleDeed: "O1702", physical: "1705", area: "85.71", type: "1 BHK", meter1: "82828390", meter2: "" },
+  { titleDeed: "O1703", physical: "1706", area: "63.86", type: "1 BHK", meter1: "82828389", meter2: "" },
+  { titleDeed: "S1704", physical: "1707", area: "47.14", type: "STUDIO", meter1: "82828181", meter2: "" },
+  { titleDeed: "S1705", physical: "1708", area: "44.6", type: "STUDIO", meter1: "82828248", meter2: "" },
+  { titleDeed: "O1704", physical: "1709", area: "88.14", type: "1 BHK", meter1: "82828388", meter2: "" },
+  { titleDeed: "O1705", physical: "1710", area: "84.74", type: "1 BHK", meter1: "82828387", meter2: "" },
+  { titleDeed: "S1803", physical: "1801", area: "46.9", type: "STUDIO", meter1: "82828247", meter2: "" },
+  { titleDeed: "O1806", physical: "1803", area: "93.04", type: "1 BHK", meter1: "82828249", meter2: "82828250" },
+  { titleDeed: "O1801", physical: "1804", area: "78.11", type: "1 BHK", meter1: "82828367", meter2: "" },
+  { titleDeed: "O1802", physical: "1805", area: "85.71", type: "1 BHK", meter1: "82828365", meter2: "" },
+  { titleDeed: "O1803", physical: "1806", area: "63.86", type: "1 BHK", meter1: "82828366", meter2: "" },
+  { titleDeed: "S1804", physical: "1807", area: "47.14", type: "STUDIO", meter1: "82828245", meter2: "" },
+  { titleDeed: "S1805", physical: "1808", area: "44.6", type: "STUDIO", meter1: "82828246", meter2: "" },
+  { titleDeed: "O1804", physical: "1809", area: "88.14", type: "1 BHK", meter1: "82828386", meter2: "" },
+  { titleDeed: "O1805", physical: "1810", area: "84.74", type: "1 BHK", meter1: "82828385", meter2: "" },
+  { titleDeed: "S1903", physical: "1901", area: "46.89", type: "STUDIO", meter1: "82828254", meter2: "" },
+  { titleDeed: "S1902", physical: "1902", area: "45.62", type: "STUDIO", meter1: "82828253", meter2: "" },
+  { titleDeed: "S1901", physical: "1903", area: "47.42", type: "STUDIO", meter1: "82828252", meter2: "" },
+  { titleDeed: "O1901", physical: "1904", area: "78.11", type: "1 BHK", meter1: "82828370", meter2: "" },
+  { titleDeed: "O1902", physical: "1905", area: "85.71", type: "1 BHK", meter1: "82828371", meter2: "" },
+  { titleDeed: "O1903", physical: "1906", area: "63.86", type: "1 BHK", meter1: "82828372", meter2: "" },
+  { titleDeed: "S1904", physical: "1907", area: "47.14", type: "STUDIO", meter1: "82828251", meter2: "" },
+  { titleDeed: "S1905", physical: "1908", area: "44.6", type: "STUDIO", meter1: "82828264", meter2: "" },
+  { titleDeed: "O1904", physical: "1909", area: "88.14", type: "1 BHK", meter1: "82828374", meter2: "" },
+  { titleDeed: "O1905", physical: "1910", area: "84.74", type: "1 BHK", meter1: "82828373", meter2: "" },
+  { titleDeed: "T2005", physical: "2001", area: "161.71", type: "2 BHK", meter1: "82827368", meter2: "" },
+  { titleDeed: "T2001", physical: "2002", area: "109.63", type: "2 BHK", meter1: "82827127", meter2: "" },
+  { titleDeed: "T2002", physical: "2003", area: "107.04", type: "2 BHK", meter1: "82827128", meter2: "" },
+  { titleDeed: "T2003", physical: "2004", area: "103.32", type: "2 BHK", meter1: "82827126", meter2: "" },
+  { titleDeed: "T2004", physical: "2005", area: "151.38", type: "2 BHK", meter1: "82827379", meter2: "" },
+  { titleDeed: "T2105", physical: "2101", area: "161.71", type: "2 BHK", meter1: "82827366", meter2: "" },
+  { titleDeed: "T2101", physical: "2102", area: "109.63", type: "2 BHK", meter1: "82827124", meter2: "" },
+  { titleDeed: "T2102", physical: "2103", area: "107.04", type: "2 BHK", meter1: "82828368", meter2: "" },
+  { titleDeed: "T2103", physical: "2104", area: "103.32", type: "2 BHK", meter1: "82828369", meter2: "" },
+  { titleDeed: "T2104", physical: "2105", area: "151.38", type: "2 BHK", meter1: "82827367", meter2: "" },
+  { titleDeed: "T2205", physical: "2201", area: "161.71", type: "2 BHK", meter1: "82827364", meter2: "" },
+  { titleDeed: "T2201", physical: "2202", area: "109.63", type: "2 BHK", meter1: "82827123", meter2: "" },
+  { titleDeed: "T2202", physical: "2203", area: "107.04", type: "2 BHK", meter1: "82827122", meter2: "" },
+  { titleDeed: "T2203", physical: "2204", area: "103.32", type: "2 BHK", meter1: "82827125", meter2: "" },
+  { titleDeed: "T2204", physical: "2205", area: "151.38", type: "2 BHK", meter1: "82827363", meter2: "" },
+  { titleDeed: "T2305", physical: "2301", area: "161.71", type: "2 BHK", meter1: "82827365", meter2: "" },
+  { titleDeed: "T2301", physical: "2302", area: "109.63", type: "2 BHK", meter1: "82827121", meter2: "" },
+  { titleDeed: "T2302", physical: "2303", area: "107.04", type: "2 BHK", meter1: "82827119", meter2: "" },
+  { titleDeed: "T2303", physical: "2304", area: "103.32", type: "2 BHK", meter1: "82827120", meter2: "" },
+  { titleDeed: "T2304", physical: "2305", area: "151.38", type: "2 BHK", meter1: "82827362", meter2: "" },
+  { titleDeed: "T2405", physical: "2401", area: "161.71", type: "2 BHK", meter1: "82827359", meter2: "" },
+  { titleDeed: "T2401", physical: "2402", area: "109.63", type: "2 BHK", meter1: "82826986", meter2: "" },
+  { titleDeed: "T2402", physical: "2403", area: "107.04", type: "2 BHK", meter1: "82826980", meter2: "" },
+  { titleDeed: "T2403", physical: "2404", area: "103.32", type: "2 BHK", meter1: "82826979", meter2: "" },
+  { titleDeed: "T2404", physical: "2405", area: "151.38", type: "2 BHK", meter1: "82827360", meter2: "" },
+  { titleDeed: "PH2501", physical: "2501", area: "627.61", type: "PENT HOUSE", meter1: "72799155", meter2: "" },
+  { titleDeed: "PH2601", physical: "2601", area: "562.39", type: "PENT HOUSE", meter1: "72799150", meter2: "" },
+  { titleDeed: "SHOP-1", physical: "SHOP-1", area: "95.71", type: "SHOP", meter1: "82828255", meter2: "" },
+  { titleDeed: "SHOP-2", physical: "SHOP-2", area: "172.6", type: "SHOP", meter1: "82828258", meter2: "" },
+  { titleDeed: "SHOP-3", physical: "SHOP-3", area: "200.23", type: "SHOP", meter1: "82828259", meter2: "82626092" },
+  { titleDeed: "RETAIL-1", physical: "RETAIL-1", area: "184.12", type: "SHOP", meter1: "72760742", meter2: "" },
+  { titleDeed: "RETAIL-2", physical: "RETAIL-2", area: "135.2", type: "SHOP", meter1: "72760736", meter2: "" }
+];
+
+// ============================================================
 // 🏢 TOWERS DATA & DEFAULTS
 // ============================================================
 
@@ -164,7 +594,7 @@ function initFirestoreRealtimeListeners() {
     }
     populateDatalist();
     handleSelection();
-    if (!document.getElementById("admin-page").classList.contains("hidden-page")) {
+    if (document.getElementById("admin-page") && !document.getElementById("admin-page").classList.contains("hidden-page")) {
       renderAdminTable();
     }
   });
@@ -188,7 +618,7 @@ function initFirestoreRealtimeListeners() {
     renderRosterView();
     renderFullMonthlyTable();
     updateDashboardLiveWidget();
-    if (!document.getElementById("admin-page").classList.contains("hidden-page")) {
+    if (document.getElementById("admin-page") && !document.getElementById("admin-page").classList.contains("hidden-page")) {
       renderAdminAgentsTable();
     }
     if (document.getElementById("agentManagementModal")?.style.display === "flex") {
@@ -264,14 +694,17 @@ function handleLogin(event) {
 }
 
 function handleLogout() {
-  document.getElementById("username").value = "";
-  document.getElementById("password").value = "";
+  const userInp = document.getElementById("username");
+  if (userInp) userInp.value = "";
+  const passInp = document.getElementById("password");
+  if (passInp) passInp.value = "";
   const errorMsg = document.getElementById("login-error");
   if (errorMsg) errorMsg.style.display = "none";
   localStorage.removeItem("loggedInUser");
   localStorage.removeItem("userRole");
   clearSearch();
   clearSchedSearch();
+  clearMappingSearch();
   navigateTo('login-page');
 }
 
@@ -321,6 +754,8 @@ function navigateTo(pageId) {
     } else if (pageId === 'towers-page') {
       updateUIForRole();
       handleSelection();
+    } else if (pageId === 'unit-mapping-page') {
+      renderUnitMappingTable();
     } else if (pageId === 'calculator-page') {
       initCalculatorPage();
     } else if (pageId === 'tech-page') {
@@ -333,6 +768,126 @@ function navigateTo(pageId) {
       renderAdminAgentsTable();
       switchAdminTab('towers');
     }
+  }
+}
+
+// ============================================================
+// 🔗 UNIT MAPPING SEARCH & RENDER LOGIC
+// ============================================================
+
+function onTowerMappingChange() {
+  const select = document.getElementById("mappingTowerSelect");
+  const bannerText = document.getElementById("selectedMappingTowerName");
+  if (select && bannerText) {
+    bannerText.innerText = select.options[select.selectedIndex].text;
+  }
+  clearMappingSearch();
+}
+
+function renderUnitMappingTable(filterText = "") {
+  const table = document.getElementById("unitMappingTable");
+  const towerSelect = document.getElementById("mappingTowerSelect");
+  if (!table) return;
+
+  const currentTower = towerSelect ? towerSelect.value : "fairmont";
+  const search = filterText.toLowerCase().trim();
+
+  if (currentTower === "fairmont") {
+    let matches = fairmontUnitMapping.filter(item => 
+      item.nic.toLowerCase().includes(search) ||
+      item.adm.toLowerCase().includes(search) ||
+      item.spc.toLowerCase().includes(search)
+    );
+
+    if (matches.length === 0) {
+      table.innerHTML = `<div class="admin-empty"><i class="fa-solid fa-magnifying-glass-minus"></i>No matching units found for "${filterText}"</div>`;
+      return;
+    }
+
+    let html = `<thead>
+      <tr>
+        <th style="text-align: center; width: 60px;">S.No</th>
+        <th style="text-align: center;">NIC #</th>
+        <th style="text-align: center;">ADM #</th>
+        <th style="text-align: center; background: #fef08a; color: #854d0e;">SPC Apt Ref</th>
+      </tr>
+    </thead>
+    <tbody>`;
+
+    matches.forEach((item, index) => {
+      html += `<tr>
+        <td style="text-align: center; font-weight: bold; color: #64748b;">${index + 1}</td>
+        <td style="text-align: center; font-weight: 800; color: var(--dark-navy);">${item.nic}</td>
+        <td style="text-align: center; font-weight: 800; color: #2563eb;">${item.adm}</td>
+        <td style="text-align: center; font-weight: 800; color: #166534; background: #f0fdf4;">${item.spc}</td>
+      </tr>`;
+    });
+
+    html += `</tbody>`;
+    table.innerHTML = html;
+
+  } else if (currentTower === "condor") {
+    let matches = condorUnitMapping.filter(item => 
+      item.titleDeed.toLowerCase().includes(search) ||
+      item.physical.toLowerCase().includes(search) ||
+      item.type.toLowerCase().includes(search) ||
+      item.meter1.toLowerCase().includes(search) ||
+      item.meter2.toLowerCase().includes(search)
+    );
+
+    if (matches.length === 0) {
+      table.innerHTML = `<div class="admin-empty"><i class="fa-solid fa-magnifying-glass-minus"></i>No matching units found for "${filterText}"</div>`;
+      return;
+    }
+
+    let html = `<thead>
+      <tr>
+        <th style="text-align: center; width: 50px;">#</th>
+        <th style="text-align: center;">Title Deed / SPA Apt</th>
+        <th style="text-align: center; background: #fef08a; color: #854d0e;">Physical Apt (Register)</th>
+        <th style="text-align: center;">Unit Type</th>
+        <th style="text-align: center;">Area (SQ.M)</th>
+        <th style="text-align: center;">Meter No 1</th>
+        <th style="text-align: center;">Meter No 2</th>
+      </tr>
+    </thead>
+    <tbody>`;
+
+    matches.forEach((item, index) => {
+      let meter2Display = item.meter2 ? `<span style="font-weight: 800; color: #d97706;">${item.meter2}</span>` : `-`;
+      html += `<tr>
+        <td style="text-align: center; font-weight: bold; color: #64748b;">${index + 1}</td>
+        <td style="text-align: center; font-weight: 800; color: #2563eb;">${item.titleDeed}</td>
+        <td style="text-align: center; font-weight: 800; color: #166534; background: #f0fdf4;">${item.physical}</td>
+        <td style="text-align: center; font-weight: 700; color: var(--dark-navy);">${item.type}</td>
+        <td style="text-align: center; font-weight: 600; color: #64748b;">${item.area}</td>
+        <td style="text-align: center; font-weight: 800; color: #0284c7;">${item.meter1}</td>
+        <td style="text-align: center;">${meter2Display}</td>
+      </tr>`;
+    });
+
+    html += `</tbody>`;
+    table.innerHTML = html;
+  }
+}
+
+function filterMappingTable() {
+  const input = document.getElementById("mappingSearchInput");
+  if (!input) return;
+  const val = input.value;
+  const clearBtn = document.getElementById("clearMappingBtn");
+  if (clearBtn) clearBtn.style.display = val.length > 0 ? "block" : "none";
+  renderUnitMappingTable(val);
+}
+
+function clearMappingSearch() {
+  const input = document.getElementById("mappingSearchInput");
+  if (input) {
+    input.value = "";
+    const clearBtn = document.getElementById("clearMappingBtn");
+    if (clearBtn) clearBtn.style.display = "none";
+    renderUnitMappingTable("");
+    input.focus();
   }
 }
 
@@ -404,22 +959,29 @@ function calculateFinalBill() {
   const isSummer = document.getElementById("summerToggle")?.checked || false;
   const summerPerc = parseFloat(document.getElementById("summerPerc")?.value) || 0;
 
+  // 1. حساب استهلاك الشهر الماضي (بناءً على القراءة الحالية - القراءة السابقة)
   const lastMonthUsage = Math.max(0, currReading - prevReading);
   const dailyAvg = lastMonthUsage / 30;
+  
+  // 2. حساب الاستهلاك الأساسي للشهر الحالي
   const baseCurrentUsage = dailyAvg * exitDays;
 
+  // 3. حساب زيادة الصيف إن وُجدت
   let summerAddition = 0;
   if (isSummer) {
     summerAddition = baseCurrentUsage * (summerPerc / 100);
   }
 
+  // 4. إجمالي استهلاك الشهر الحالي
   const finalCurrentUsage = baseCurrentUsage + summerAddition;
-  const estimatedFinalReadingExact = currReading + finalCurrentUsage;
   
-  // 🔢 Rounds UP to nearest integer
-  const roundedFinalReading = Math.ceil(estimatedFinalReadingExact);
+  // 5. التقريب لأقرب عدد صحيح لأعلى (Ceil)
   const roundedFinalUsage = Math.ceil(finalCurrentUsage);
 
+  // 6. القراءة الأخيرة = القراءة الحالية (نهاية الشهر الماضي) + الاستهلاك التقريبي للشهر الحالي
+  const roundedFinalReading = currReading + roundedFinalUsage;
+
+  // تحديث الشاشة
   if (document.getElementById("resLastMonthUsage")) document.getElementById("resLastMonthUsage").innerText = `${Math.round(lastMonthUsage)} Units`;
   if (document.getElementById("resDailyAvg")) document.getElementById("resDailyAvg").innerText = `${dailyAvg.toFixed(2)} Units/day`;
   if (document.getElementById("resDaysLabel")) document.getElementById("resDaysLabel").innerText = exitDays;
@@ -428,14 +990,12 @@ function calculateFinalBill() {
   if (document.getElementById("resSummerAddition")) document.getElementById("resSummerAddition").innerText = `+${Math.ceil(summerAddition)} Units`;
   if (document.getElementById("resFinalCurrentUsage")) document.getElementById("resFinalCurrentUsage").innerText = `${roundedFinalUsage} Units`;
 
-  // 🔄 UPDATE READINGS SUMMARY SECTION FOR SYSTEM ENTRY
-  // Previous = Current Reading from Last Month (currReading)
-  // Current  = Estimated Final Meter Reading (roundedFinalReading)
+  // 🔄 تحديث ملخص القراءات للإدخال في النظام (Previous = القراءة الحالية للشهر الماضي، Current = القراءة المتوقعة)
   if (document.getElementById("rsPreviousVal")) {
-    document.getElementById("rsPreviousVal").innerText = currReading ? currReading.toLocaleString() : "0";
+    document.getElementById("rsPreviousVal").innerText = (currReading || 0).toLocaleString();
   }
   if (document.getElementById("rsCurrentVal")) {
-    document.getElementById("rsCurrentVal").innerText = roundedFinalReading ? roundedFinalReading.toLocaleString() : "0";
+    document.getElementById("rsCurrentVal").innerText = (roundedFinalReading || 0).toLocaleString();
   }
 }
 
@@ -827,18 +1387,24 @@ function clearSchedSearch() {
 
 function getUAECurrentDate() {
   const now = new Date();
-  const utcHours = now.getUTCHours();
-  const uaeHours = (utcHours + 4) % 24;
-  let period = uaeHours >= 12 ? "PM" : "AM";
+  const uaeTimeMs = now.getTime() + (4 * 60 * 60 * 1000);
+  const uaeDate = new Date(uaeTimeMs);
+
+  const uaeHours = uaeDate.getUTCHours();
+  const period = uaeHours >= 12 ? "PM" : "AM";
   let hour12 = uaeHours % 12;
   if (hour12 === 0) hour12 = 12;
-  const minute = now.getUTCMinutes();
-  const second = now.getUTCSeconds();
-  const uaeDateObj = new Date(now.getTime() + (4 * 60 * 60 * 1000));
-  const day = uaeDateObj.getUTCDate();
-  const month = uaeDateObj.getUTCMonth() + 1;
-  const year = uaeDateObj.getUTCFullYear();
-  return { year: String(year), month: String(month).padStart(2, '0'), day: String(day).padStart(2, '0'), hour: hour12, hour24: uaeHours, minute: minute, second: second, period: period };
+
+  return { 
+    year: String(uaeDate.getUTCFullYear()), 
+    month: String(uaeDate.getUTCMonth() + 1).padStart(2, '0'), 
+    day: String(uaeDate.getUTCDate()).padStart(2, '0'), 
+    hour: hour12, 
+    hour24: uaeHours, 
+    minute: uaeDate.getUTCMinutes(), 
+    second: uaeDate.getUTCSeconds(), 
+    period: period 
+  };
 }
 
 function startGlobalLiveClock() {
