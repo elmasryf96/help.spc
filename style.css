@@ -456,17 +456,83 @@ input:checked + .slider:before { transform: translateX(20px); }
     color: #15803d;
 }
 
-.final-reading-box {
-    background: var(--dark-navy);
-    color: #ffffff;
-    margin: 12px -10px 0 -10px;
-    padding: 12px;
+/* 📋 READINGS SUMMARY FOR SYSTEM ENTRY STYLES */
+.readings-summary-container {
+    margin-top: 15px;
+    background: #ffffff;
+    border: 2px solid var(--primary-yellow);
     border-radius: 10px;
-    border-bottom: none;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
 }
 
-.final-reading-box span { color: #ffffff; font-weight: 700; }
-.final-reading-box strong { font-size: 20px; color: var(--primary-yellow); }
+.rs-header {
+    background: var(--badge-bg);
+    padding: 8px 12px;
+    font-size: 12.5px;
+    font-weight: 800;
+    color: var(--dark-navy);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-bottom: 1.5px solid var(--primary-yellow);
+}
+
+.rs-body {
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+.rs-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 14px;
+}
+
+.rs-label {
+    font-weight: 700;
+    color: var(--dark-navy);
+    width: 100px;
+}
+
+.rs-value {
+    font-weight: 800;
+    color: var(--dark-navy);
+    flex: 1;
+    text-align: left;
+    font-size: 15px;
+}
+
+.copy-btn {
+    background: #f1f5f9;
+    border: 1.5px solid #cbd5e1;
+    color: var(--dark-navy);
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.copy-btn:hover {
+    background: var(--primary-yellow);
+    border-color: var(--dark-navy);
+    transform: scale(1.05);
+}
+
+.copy-btn.copied {
+    background: #22c55e !important;
+    border-color: #16a34a !important;
+    color: #ffffff !important;
+    transform: scale(1.1);
+}
 
 .search-box {
     margin: 10px 15px;
