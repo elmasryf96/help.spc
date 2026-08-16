@@ -334,7 +334,7 @@ function navigateTo(pageId) {
 }
 
 // ============================================================
-// 🧮 FINAL BILL CALCULATOR FUNCTIONS
+// 🧮 FINAL BILL CALCULATOR FUNCTIONS & READINGS COPY LOGIC
 // ============================================================
 
 function initCalculatorPage() {
@@ -413,7 +413,7 @@ function calculateFinalBill() {
   const finalCurrentUsage = baseCurrentUsage + summerAddition;
   const estimatedFinalReadingExact = currReading + finalCurrentUsage;
   
-  // 🔢 Rounds UP to nearest integer to avoid decimals like 0.03
+  // 🔢 Rounds UP to nearest integer
   const roundedFinalReading = Math.ceil(estimatedFinalReadingExact);
   const roundedFinalUsage = Math.ceil(finalCurrentUsage);
 
@@ -424,7 +424,43 @@ function calculateFinalBill() {
   if (document.getElementById("resPercLabel")) document.getElementById("resPercLabel").innerText = summerPerc;
   if (document.getElementById("resSummerAddition")) document.getElementById("resSummerAddition").innerText = `+${Math.ceil(summerAddition)} Units`;
   if (document.getElementById("resFinalCurrentUsage")) document.getElementById("resFinalCurrentUsage").innerText = `${roundedFinalUsage} Units`;
-  if (document.getElementById("resEstimatedFinalReading")) document.getElementById("resEstimatedFinalReading").innerText = roundedFinalReading;
+
+  // 🔄 UPDATE READINGS SUMMARY SECTION FOR SYSTEM ENTRY
+  // Previous = Current Reading from Last Month (currReading)
+  // Current  = Estimated Final Meter Reading (roundedFinalReading)
+  if (document.getElementById("rsPreviousVal")) {
+    document.getElementById("rsPreviousVal").innerText = currReading ? currReading.toLocaleString() : "0";
+  }
+  if (document.getElementById("rsCurrentVal")) {
+    document.getElementById("rsCurrentVal").innerText = roundedFinalReading ? roundedFinalReading.toLocaleString() : "0";
+  }
+}
+
+// 📋 FUNCTION TO COPY CLEAN READINGS (WITHOUT COMMAS) FOR SYSTEM ENTRY
+function copyReading(elementId, btnElement) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  const textValue = el.innerText;
+  
+  // Clean commas for system entry
+  const cleanValue = textValue.replace(/,/g, '').trim();
+
+  navigator.clipboard.writeText(cleanValue).then(() => {
+    btnElement.classList.add('copied');
+    const icon = btnElement.querySelector('i');
+    if (icon) {
+      icon.className = 'fa-solid fa-check';
+    }
+
+    setTimeout(() => {
+      btnElement.classList.remove('copied');
+      if (icon) {
+        icon.className = 'fa-regular fa-copy';
+      }
+    }, 1200);
+  }).catch(err => {
+    console.error("Failed to copy:", err);
+  });
 }
 
 // ============================================================
