@@ -13,7 +13,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <link rel="stylesheet" href="style.css?v=2026.117">
+    <link rel="stylesheet" href="style.css?v=2026.121">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -21,7 +21,7 @@
     <!-- 🔒 Login Page -->
     <div id="login-page" class="page active-page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; box-sizing: border-box;">
         
-        <!-- Login Card (Sized and Aligned to Match Banner perfectly) -->
+        <!-- Login Card -->
         <div class="login-container" style="margin: 0; max-width: 420px; width: 100%; box-sizing: border-box;">
             <div class="logo-container justify-center margin-bottom-20">
                 <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -54,7 +54,7 @@
             </form>
         </div>
 
-        <!-- 💖 Developer Note & Feedback Banner (Sized to Match Login Box perfectly) -->
+        <!-- 💖 Developer Note & Feedback Banner -->
         <div class="dev-banner-card" style="margin-top: 15px; max-width: 420px; width: 100%; text-align: center; box-sizing: border-box;">
             <div class="dev-banner-header" style="justify-content: center;">
                 <i class="fa-solid fa-heart"></i>
@@ -117,6 +117,13 @@
                     <div class="btn-primary">Open Lookup <i class="fa-solid fa-arrow-right"></i></div>
                 </div>
 
+                <!-- 🧮 Final Bill Calculator Button Card -->
+                <div class="menu-card" onclick="navigateTo('calculator-page')">
+                    <div class="menu-icon"><i class="fa-solid fa-calculator"></i></div>
+                    <h3>Final Bill Calculator</h3>
+                    <div class="btn-primary">Calculate Bill <i class="fa-solid fa-calculator"></i></div>
+                </div>
+
                 <!-- 🛠️ Technical Department Button Card -->
                 <div class="menu-card" onclick="navigateTo('tech-page')">
                     <div class="menu-icon"><i class="fa-solid fa-screwdriver-wrench"></i></div>
@@ -147,11 +154,140 @@
                 </p>
             </div>
 
-            <!-- 👑 ADMIN BUTTON (Small & Bottom - Visible Only to Admin Username 0) -->
+            <!-- 👑 ADMIN BUTTON -->
             <div class="admin-bottom-wrapper">
                 <button id="adminMiniBtn" class="admin-mini-btn" onclick="navigateTo('admin-page')" style="display: none;">
                     <i class="fa-solid fa-user-shield"></i> Admin Panel
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🧮 Final Bill Calculator Page -->
+    <div id="calculator-page" class="page hidden-page">
+        <div class="container">
+            <div class="brand-header relative-header">
+                <button class="back-btn" onclick="navigateTo('home-page')">
+                    <i class="fa-solid fa-arrow-left"></i> Dashboard
+                </button>
+
+                <div class="logo-container">
+                    <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+                        <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+                        <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+                        <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+                    </svg>
+                    <div class="logo-text">Smart <span>Collection</span></div>
+                </div>
+
+                <button class="logout-btn" onclick="handleLogout()" title="Log out">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+
+            <div class="system-title">🧮 Final Bill & Account Closure Consumption Calculator</div>
+
+            <!-- ⚠️ IMPORTANT TOWERS NOTICES (ONLY ON CALCULATOR PAGE) -->
+            <div class="towers-rules-banner">
+                <div class="rule-box rule-danger">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <div>
+                        <strong>Amaya Towers (1 & 2) & Yasmina Towers (1 & 2):</strong> 
+                        Do not process final bills, new accounts, or NOCs for these towers. Please direct all requests to 
+                        <span class="person-highlight"><i class="fa-solid fa-user-tie"></i> Charles Vincent</span>.
+                    </div>
+                </div>
+                <div class="rule-box rule-warning">
+                    <i class="fa-solid fa-ban"></i>
+                    <div>
+                        <strong>No Estimation Allowed:</strong> 
+                        Estimation is not allowed for 
+                        <span class="tower-tag">Silverene Tower</span>, 
+                        <span class="tower-tag">Sobha Waves</span>, and 
+                        <span class="tower-tag">Sobha Waves Grande</span>. 
+                        Please request actual meter readings directly from the <strong>Technical Team</strong>.
+                    </div>
+                </div>
+            </div>
+
+            <div class="calc-wrapper">
+                <div class="calc-card">
+                    <h3><i class="fa-solid fa-file-invoice-dollar"></i> Last Issued Bill Details</h3>
+                    
+                    <div class="calc-form-grid">
+                        <div class="form-group">
+                            <label for="prevReading"><i class="fa-solid fa-arrow-left"></i> Previous Reading (1st of Last Month):</label>
+                            <input type="number" id="prevReading" class="combo-input" placeholder="e.g. 100" oninput="calculateFinalBill()">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="currReading"><i class="fa-solid fa-arrow-right"></i> Current Reading (End of Last Month):</label>
+                            <input type="number" id="currReading" class="combo-input" placeholder="e.g. 250" oninput="calculateFinalBill()">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="moveOutDate"><i class="fa-solid fa-calendar-day"></i> Move-out / Account Closure Date:</label>
+                            <input type="date" id="moveOutDate" class="date-input" onchange="onMoveOutDateChange()">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="exitDays"><i class="fa-solid fa-clock"></i> Days Counted in Current Month:</label>
+                            <input type="number" id="exitDays" class="combo-input" min="1" max="31" placeholder="e.g. 16" oninput="calculateFinalBill()">
+                        </div>
+                    </div>
+
+                    <div class="calc-divider"></div>
+
+                    <h3><i class="fa-solid fa-sun"></i> Summer Seasonal Adjustment</h3>
+                    <div class="calc-toggle-row">
+                        <label class="switch-container">
+                            <input type="checkbox" id="summerToggle" onchange="toggleSummerAdjustment()">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label" id="summerToggleText">Apply Summer Increase</span>
+                        <div class="percentage-input-wrapper" id="customPercWrapper">
+                            <input type="number" id="summerPerc" class="combo-input perc-input" value="12" min="0" max="100" oninput="calculateFinalBill()">
+                            <span class="perc-symbol">%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="calc-card calc-results-card">
+                    <h3><i class="fa-solid fa-chart-line"></i> Estimated Final Reading & Consumption</h3>
+
+                    <div class="res-row">
+                        <span>Last Month Total Usage (30 Days):</span>
+                        <strong id="resLastMonthUsage">0 Units</strong>
+                    </div>
+
+                    <div class="res-row">
+                        <span>Daily Average Usage:</span>
+                        <strong id="resDailyAvg">0 Units/day</strong>
+                    </div>
+
+                    <div class="res-row">
+                        <span>Current Month Base Estimated Usage (<span id="resDaysLabel">0</span> Days):</span>
+                        <strong id="resBaseEstimated">0 Units</strong>
+                    </div>
+
+                    <div class="res-row highlight-summer-row" id="resSummerRow">
+                        <span>Summer Adjustment (+<span id="resPercLabel">12</span>%):</span>
+                        <strong id="resSummerAddition">+0 Units</strong>
+                    </div>
+
+                    <div class="res-row total-usage-row">
+                        <span>Final Current Month Estimated Usage:</span>
+                        <strong id="resFinalCurrentUsage">0 Units</strong>
+                    </div>
+
+                    <div class="res-row final-reading-box">
+                        <span>Estimated Final Meter Reading:</span>
+                        <strong id="resEstimatedFinalReading">0</strong>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -183,7 +319,6 @@
 
             <div class="system-title">🏢 Towers Master Data & Service Fees Search Portal</div>
 
-            <!-- 👑 DIRECT ADMIN ACTION: ADD TOWER BUTTON -->
             <div style="text-align: center; margin-top: 10px;">
                 <button id="directAddTowerBtn" class="btn-add-tower" onclick="showAddTowerForm()" style="display: none;">
                     <i class="fa-solid fa-plus-circle"></i> Add New Tower
@@ -199,7 +334,6 @@
                 <datalist id="towersList"></datalist>
             </div>
 
-            <!-- 👑 DIRECT ADMIN ACTION BAR FOR SELECTED TOWER -->
             <div id="directAdminControls" style="display: none; justify-content: center; gap: 12px; margin: 0 15px 15px 15px; background: #fffbe6; padding: 10px; border-radius: 10px; border: 2px dashed var(--primary-yellow);">
                 <button onclick="saveDirectTowerChanges()" style="background: #22c55e; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer;">
                     💾 Save Tower Changes
@@ -461,7 +595,7 @@
                 </div>
             </div>
 
-            <!-- 👑 SHIFT & AGENTS MANAGEMENT MODAL (FOR ADMIN 0) -->
+            <!-- 👑 SHIFT & AGENTS MANAGEMENT MODAL -->
             <div id="agentManagementModal" class="modal-overlay" style="display: none;">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -556,11 +690,11 @@
         </div>
     </div>
 
-    <!-- 🌐 Firebase SDKs (Compat Libraries) -->
+    <!-- 🌐 Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
     <!-- 📜 Main Application Script -->
-    <script src="script.js?v=2026.117"></script>
+    <script src="script.js?v=2026.121"></script>
 </body>
 </html>
