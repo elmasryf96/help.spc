@@ -37,7 +37,7 @@
 
             <h2 class="login-title">🏠 Step into the Family</h2>
             
-            <form onsubmit="handleLogin(event); return false;">
+            <form onsubmit="event.preventDefault(); handleLogin(event);">
                 <div class="form-group">
                     <label for="username"><i class="fa-solid fa-user"></i> Username</label>
                     <input type="text" id="username" class="login-input" placeholder="Enter username" required autocomplete="off">
@@ -50,7 +50,7 @@
 
                 <div id="login-error" class="login-error-msg">❌ Invalid Username or Password!</div>
 
-                <button type="submit" class="btn-login">Sign In</button>
+                <button type="button" class="btn-login" onclick="handleLogin(event)">Sign In</button>
             </form>
         </div>
 
