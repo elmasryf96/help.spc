@@ -13,7 +13,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <link rel="stylesheet" href="style.css?v=2026.116">
+    <link rel="stylesheet" href="style.css?v=2026.117">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -360,6 +360,10 @@
                 <button class="tab-btn" id="tabFullBtn" onclick="switchRosterTab('full-sheet-view')">
                     <i class="fa-solid fa-table"></i> Full Monthly Roster Table
                 </button>
+                <!-- 👑 ADMIN FAST ROSTER MANAGER BUTTON -->
+                <button id="adminRosterManageBtn" class="tab-btn admin-manage-btn" onclick="openAgentManagementModal()" style="display: none;">
+                    <i class="fa-solid fa-user-gear"></i> Manage Agents & Roster
+                </button>
             </div>
 
             <!-- Tab 1: Live View -->
@@ -432,6 +436,29 @@
                         <table id="monthlyRosterTable" class="roster-full-table">
                             <!-- Populated dynamically via JS -->
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 👑 SHIFT & AGENTS MANAGEMENT MODAL (FOR ADMIN 0) -->
+            <div id="agentManagementModal" class="modal-overlay" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3><i class="fa-solid fa-users-gear"></i> Fast Roster & Agent Manager</h3>
+                        <button class="close-modal-btn" onclick="closeAgentManagementModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                            <input type="text" id="modalAgentSearch" class="combo-input" style="max-width: 300px;" placeholder="🔍 Search Agent Name or Team..." oninput="renderModalAgentsTable(this.value)">
+                            <button class="btn-add-tower" style="margin: 0;" onclick="showAddAgentForm()">
+                                <i class="fa-solid fa-user-plus"></i> Add New Agent
+                            </button>
+                        </div>
+                        <div class="admin-table-wrapper" style="margin: 0; max-height: 400px; overflow-y: auto;">
+                            <table id="modalAgentsTable" class="admin-table">
+                                <!-- Populated dynamically by JS -->
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -513,6 +540,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
     <!-- 📜 Main Application Script -->
-    <script src="script.js?v=2026.116"></script>
+    <script src="script.js?v=2026.117"></script>
 </body>
 </html>
