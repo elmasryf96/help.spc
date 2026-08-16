@@ -117,6 +117,13 @@
                     <div class="btn-primary">Open Lookup <i class="fa-solid fa-arrow-right"></i></div>
                 </div>
 
+                <!-- 🔗 Unit Mapping Tool Button Card -->
+                <div class="menu-card" onclick="navigateTo('unit-mapping-page')">
+                    <div class="menu-icon"><i class="fa-solid fa-arrow-right-arrow-left"></i></div>
+                    <h3>Unit Mapping Tool</h3>
+                    <div class="btn-primary">Search Units <i class="fa-solid fa-magnifying-glass"></i></div>
+                </div>
+
                 <!-- 🧮 Final Bill Calculator Button Card -->
                 <div class="menu-card" onclick="navigateTo('calculator-page')">
                     <div class="menu-icon"><i class="fa-solid fa-calculator"></i></div>
@@ -159,6 +166,63 @@
                 <button id="adminMiniBtn" class="admin-mini-btn" onclick="navigateTo('admin-page')" style="display: none;">
                     <i class="fa-solid fa-user-shield"></i> Admin Panel
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🔗 UNIT MAPPING TOOL PAGE -->
+    <div id="unit-mapping-page" class="page hidden-page">
+        <div class="container">
+            <div class="brand-header relative-header">
+                <button class="back-btn" onclick="navigateTo('home-page')">
+                    <i class="fa-solid fa-arrow-left"></i> Dashboard
+                </button>
+
+                <div class="logo-container">
+                    <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+                        <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+                        <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+                        <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+                    </svg>
+                    <div class="logo-text">Smart <span>Collection</span></div>
+                </div>
+
+                <button class="logout-btn" onclick="handleLogout()" title="Log out">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+
+            <div class="system-title">🏢 Unit Mapping & Reference Cross-Lookup</div>
+
+            <!-- 🏢 Tower Selector Dropdown -->
+            <div class="search-box" style="margin-bottom: 10px;">
+                <label for="mappingTowerSelect">🏢 Select Tower:</label>
+                <select id="mappingTowerSelect" class="combo-input" onchange="onTowerMappingChange()" style="font-weight: 800; border-color: var(--primary-yellow);">
+                    <option value="fairmont">Fairmont Marina Residences</option>
+                    <option value="condor">Condor Marina Star</option>
+                </select>
+            </div>
+
+            <div class="search-box">
+                <label for="mappingSearchInput">🔍 Search Unit / SPA Ref / Physical No / Meter No:</label>
+                <div class="input-wrapper">
+                    <input type="text" id="mappingSearchInput" class="combo-input" placeholder="Type unit or meter number (e.g. V103, 102, 82827361)..." oninput="filterMappingTable()">
+                    <button type="button" id="clearMappingBtn" class="clear-btn" onclick="clearMappingSearch()"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+
+            <div class="mapping-tower-banner">
+                <i class="fa-solid fa-building"></i>
+                <span>Selected Tower: <strong id="selectedMappingTowerName">Fairmont Marina Residences</strong></span>
+            </div>
+
+            <div class="admin-table-wrapper" style="margin: 10px 15px 20px 15px; max-height: 550px; overflow-y: auto;">
+                <table id="unitMappingTable" class="admin-table">
+                    <!-- Populated dynamically via JS -->
+                </table>
             </div>
         </div>
     </div>
@@ -715,6 +779,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
     <!-- 📜 Main Application Script -->
-    <script src="script.js?v=2026.123"></script>
+    <script src="script.js?v=2026.126"></script>
 </body>
 </html>
