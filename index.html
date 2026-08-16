@@ -19,8 +19,10 @@
 <body>
 
     <!-- 🔒 Login Page -->
-    <div id="login-page" class="page active-page">
-        <div class="login-container">
+    <div id="login-page" class="page active-page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; box-sizing: border-box;">
+        
+        <!-- Login Card (Sized and Aligned to Match Banner perfectly) -->
+        <div class="login-container" style="margin: 0; max-width: 420px; width: 100%; box-sizing: border-box;">
             <div class="logo-container justify-center margin-bottom-20">
                 <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <circle cx="35" cy="18" r="5" fill="#E8D567"/>
@@ -33,7 +35,7 @@
                 <div class="logo-text">Smart <span>Collection</span></div>
             </div>
 
-            <h2 class="login-title">Portal Access Login</h2>
+            <h2 class="login-title">🏠 Step into the Family</h2>
             
             <form onsubmit="handleLogin(event); return false;">
                 <div class="form-group">
@@ -51,6 +53,22 @@
                 <button type="submit" class="btn-login">Sign In</button>
             </form>
         </div>
+
+        <!-- 💖 Developer Note & Feedback Banner (Sized to Match Login Box perfectly) -->
+        <div class="dev-banner-card" style="margin-top: 15px; max-width: 420px; width: 100%; text-align: center; box-sizing: border-box;">
+            <div class="dev-banner-header" style="justify-content: center;">
+                <i class="fa-solid fa-heart"></i>
+                <h3>Designed & Developed with Love</h3>
+            </div>
+            <p>
+                Built to support our team's daily efficiency by 
+                <span class="dev-name-badge"><i class="fa-solid fa-user-gear"></i> Fares Elmasry</span>
+            </p>
+            <p style="margin-top: 6px; font-size: 11.5px; color: #5a6a75; font-weight: 700;">
+                <i class="fa-solid fa-comments"></i> For any feedback, updates, or feature requests, contact me directly!
+            </p>
+        </div>
+
     </div>
 
     <!-- 🏠 Main Dashboard -->
@@ -74,7 +92,7 @@
                 </button>
             </div>
 
-            <div class="system-title">🏠 Smart Collection Operations Dashboard</div>
+            <div class="system-title">🏠 SPC Family Home</div>
 
             <!-- 🟢 LIVE ACTIVE SHIFT STATUS WIDGET -->
             <div class="home-live-widget-card">
