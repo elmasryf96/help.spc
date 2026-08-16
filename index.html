@@ -283,10 +283,30 @@
                         <strong id="resFinalCurrentUsage">0 Units</strong>
                     </div>
 
-                    <div class="res-row final-reading-box">
-                        <span>Estimated Final Meter Reading:</span>
-                        <strong id="resEstimatedFinalReading">0</strong>
+                    <!-- 📋 READINGS SUMMARY FOR SYSTEM ENTRY WITH COPY BUTTONS -->
+                    <div class="readings-summary-container">
+                        <div class="rs-header">
+                            <i class="fa-solid fa-copy"></i>
+                            <span>Readings Summary for System Entry</span>
+                        </div>
+                        <div class="rs-body">
+                            <div class="rs-row">
+                                <span class="rs-label">Previous :</span>
+                                <span class="rs-value" id="rsPreviousVal">0</span>
+                                <button class="copy-btn" onclick="copyReading('rsPreviousVal', this)" title="Copy Previous Reading">
+                                    <i class="fa-regular fa-copy"></i>
+                                </button>
+                            </div>
+                            <div class="rs-row">
+                                <span class="rs-label">Current  :</span>
+                                <span class="rs-value" id="rsCurrentVal">0</span>
+                                <button class="copy-btn" onclick="copyReading('rsCurrentVal', this)" title="Copy Current Reading">
+                                    <i class="fa-regular fa-copy"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
+
                 </div>
             </div>
         </div>
@@ -695,6 +715,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
     <!-- 📜 Main Application Script -->
-    <script src="script.js?v=2026.121"></script>
+    <script src="script.js?v=2026.123"></script>
 </body>
 </html>
