@@ -156,7 +156,6 @@ function saveRosterToStorage() {
 // ============================================================
 
 function initFirestoreRealtimeListeners() {
-  // Listen to Towers Data
   db.collection("settings").doc("towersData").onSnapshot((doc) => {
     if (doc.exists) {
       towersData = doc.data();
@@ -170,7 +169,6 @@ function initFirestoreRealtimeListeners() {
     }
   });
 
-  // Listen to Schedule Data
   db.collection("settings").doc("scheduleData").onSnapshot((doc) => {
     if (doc.exists && doc.data().data) {
       scheduleData = doc.data().data;
@@ -180,7 +178,6 @@ function initFirestoreRealtimeListeners() {
     renderScheduleCards();
   });
 
-  // Listen to Roster Data
   db.collection("settings").doc("rosterData").onSnapshot((doc) => {
     if (doc.exists && doc.data().data) {
       rosterData = doc.data().data;
