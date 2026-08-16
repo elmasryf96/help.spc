@@ -600,7 +600,7 @@ body {
     box-shadow: 0 4px 10px rgba(232, 213, 103, 0.4);
 }
 
-/* 📅 ROSTER */
+/* 📅 ROSTER & ADMIN MANAGE BUTTON */
 .roster-tabs-bar {
     margin: 10px 15px 12px 15px;
     display: flex;
@@ -608,6 +608,7 @@ body {
     flex-wrap: wrap;
     border-bottom: 2.5px solid var(--primary-yellow);
     padding-bottom: 6px;
+    align-items: center;
 }
 
 .tab-btn {
@@ -633,6 +634,74 @@ body {
     border: 2px solid var(--dark-navy) !important;
     color: var(--dark-navy) !important;
     box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+/* 👑 ADMIN ROSTER MANAGE BUTTON & MODAL STYLES */
+.admin-manage-btn {
+    background-color: var(--dark-navy) !important;
+    color: var(--primary-yellow) !important;
+    border: 2px solid var(--primary-yellow) !important;
+    margin-left: auto;
+}
+
+.admin-manage-btn:hover {
+    background-color: var(--primary-yellow) !important;
+    color: var(--dark-navy) !important;
+    border-color: var(--dark-navy) !important;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(3px);
+}
+
+.modal-content {
+    background: #ffffff;
+    border: 3.5px solid var(--primary-yellow);
+    border-radius: 16px;
+    width: 92%;
+    max-width: 950px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    overflow: hidden;
+    animation: fadeIn 0.25s ease-in-out;
+}
+
+.modal-header {
+    background: var(--badge-bg);
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--primary-yellow);
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--dark-navy);
+}
+
+.close-modal-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    font-weight: 800;
+    cursor: pointer;
+    color: var(--dark-navy);
+}
+
+.modal-body {
+    padding: 15px;
 }
 
 .live-status-banner {
@@ -1017,6 +1086,7 @@ body {
     .admin-table th, .admin-table td { padding: 4px 2px; }
     .admin-tabs-bar { margin: 10px 5px; }
     .btn-add-tower { margin: 10px 5px; }
+    .admin-manage-btn { margin-left: 0; width: 100%; justify-content: center; }
 }
 
 @media (max-width: 500px) {
