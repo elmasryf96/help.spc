@@ -654,23 +654,44 @@ input:checked + .slider:before { transform: translateX(20px); }
     font-size: 13.5px;
 }
 
-/* 🔧 MAINTENANCE SINGLE ROW */
+/* 🔧 MAINTENANCE SINGLE ROW (Red Alert Style) */
 .maintenance-single-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-top: 15px;
-    padding-top: 10px;
-    border-top: 1.5px dashed var(--primary-yellow);
+    padding: 10px 14px !important;
+    background: #fef2f2 !important;
+    border: 2px solid #ef4444 !important;
+    border-radius: 10px !important;
+    box-shadow: 0 4px 10px rgba(239, 68, 68, 0.15) !important;
 }
 
 .maintenance-single-row .title {
-    font-weight: 800;
-    color: var(--dark-navy);
+    font-weight: 800 !important;
+    color: #991b1b !important;
     font-size: 13.5px;
     display: flex;
     align-items: center;
     gap: 6px;
+}
+
+.maintenance-single-row .title i {
+    color: #ef4444 !important;
+}
+
+/* 🚨 زر المبلغ الأحمر المخصص للصيانة */
+.val-maintenance-red {
+    background-color: #ef4444 !important;
+    border: 1.5px solid #dc2626 !important;
+    color: #ffffff !important;
+    padding: 5px 14px !important;
+    border-radius: 8px !important;
+    font-weight: 900 !important;
+    font-size: 13.5px !important;
+    display: inline-block !important;
+    text-align: center !important;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3) !important;
 }
 
 .bottom-cards-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
