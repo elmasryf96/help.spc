@@ -1089,10 +1089,11 @@ function renderAgentLookup() {
     selectedDay = parseInt(parts[2], 10);
   }
 
-  const agent = rosterData.find(a => a.name === agentName && parseInt(a.month, 10) === targetMonth && parseInt(a.year, 10) === targetYear) || rosterData.find(a => a.name === agentName);
+  // 🎯 البحث بالشهر والسنة والاسم بشكل حصري ومطابق لعدم السحب من أشهر سابقة
+  const agent = rosterData.find(a => a.name === agentName && parseInt(a.month, 10) === targetMonth && parseInt(a.year, 10) === targetYear);
 
   if (!agent) {
-    container.innerHTML = `<div class="no-sched-results"><i class="fa-solid fa-circle-exclamation"></i><p>No schedule records found for ${agentName} in this period.</p></div>`;
+    container.innerHTML = `<div class="no-sched-results"><i class="fa-solid fa-circle-exclamation"></i><p>No schedule records found for ${agentName} in ${targetMonth}/${targetYear}.</p></div>`;
     return;
   }
 
@@ -1118,7 +1119,7 @@ function renderAgentLookup() {
     </div>`;
   }
 
-  container.innerHTML = `<div class="agent-info-banner"><div class="aip-left"><span class="lang-pill ${(agent.lang || 'Ara').toLowerCase()}">${agent.lang || 'Ara'}</span><h2>${agent.name}</h2><span class="team-tag"><i class="fa-solid fa-users"></i> ${agent.dept} Team</span></div><div class="aip-right"><span class="month-label">Monthly Schedule</span></div></div><div class="agent-days-grid">${cardsHTML}</div>`;
+  container.innerHTML = `<div class="agent-info-banner"><div class="aip-left"><span class="lang-pill ${(agent.lang || 'Ara').toLowerCase()}">${agent.lang || 'Ara'}</span><h2>${agent.name}</h2><span class="team-tag"><i class="fa-solid fa-users"></i> ${agent.dept} Team</span></div><div class="aip-right"><span class="month-label">Monthly Schedule (${targetMonth}/${targetYear})</span></div></div><div class="agent-days-grid">${cardsHTML}</div>`;
 }
 
 // ============================================================
