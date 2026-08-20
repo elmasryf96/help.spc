@@ -45,7 +45,10 @@
 
                 <div class="form-group">
                     <label for="password"><i class="fa-solid fa-lock"></i> Password</label>
-                    <input type="password" id="password" class="login-input" placeholder="Enter password" required autocomplete="off">
+                    <div class="pass-input-wrapper">
+                        <input type="password" id="password" class="login-input" placeholder="Enter password" required autocomplete="off">
+                        <button type="button" class="toggle-eye-btn" onclick="togglePassVisibility('password', this)"><i class="fa-solid fa-eye"></i></button>
+                    </div>
                 </div>
 
                 <div id="login-error" class="login-error-msg">❌ Invalid Username or Password!</div>
@@ -87,9 +90,29 @@
                     <div class="logo-text">Smart <span>Collection</span></div>
                 </div>
 
-                <button class="logout-btn" onclick="handleLogout()" title="Log out">
-                    <i class="fa-solid fa-right-from-bracket"></i> Logout
-                </button>
+                <!-- 👤 USER PROFILE DROPDOWN WRAPPER -->
+                <div class="user-menu-wrapper">
+                    <div class="user-badge-card" onclick="toggleProfileDropdown(event)">
+                        <div class="user-avatar-circle" id="userAvatarText">ST</div>
+                        <span id="displayUserFullName" style="font-weight: 800; font-size: 13px; color: var(--dark-navy);">SPC Team</span>
+                        <i class="fa-solid fa-chevron-down" style="font-size: 11px; color: #64748b;"></i>
+                    </div>
+
+                    <!-- 🔽 Dropdown List -->
+                    <div id="profileDropdown" class="profile-dropdown-menu" onclick="event.stopPropagation()">
+                        <div class="dropdown-user-info">
+                            <div id="dropdownFullName" style="font-weight: 800; font-size: 13.5px; color: var(--dark-navy);">-</div>
+                            <div id="dropdownEmail" style="font-size: 11px; font-weight: 700; color: #d97706;">-</div>
+                        </div>
+                        <button class="dropdown-item" onclick="openChangePasswordModal(); hideProfileDropdown();">
+                            <i class="fa-solid fa-key" style="color: #d97706;"></i> Change Password
+                        </button>
+                        <div class="dropdown-divider"></div>
+                        <button class="dropdown-item danger-item" onclick="handleLogout()">
+                            <i class="fa-solid fa-right-from-bracket"></i> Logout
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <div class="system-title">🏠 SPC Family Home</div>
@@ -588,7 +611,6 @@
                 </button>
             </div>
 
-            <!-- 🟢 FIXED TITLE HERE -->
             <div class="system-title">📅 Monthly Duty Roster</div>
 
             <div class="live-status-banner">
@@ -649,7 +671,7 @@
                 </div>
             </div>
 
-            <!-- Tab 2: Agent Lookup (🟢 HIDDEN BY DEFAULT) -->
+            <!-- Tab 2: Agent Lookup -->
             <div id="tab-agent-view" class="roster-tab-content hidden-tab" style="display: none;">
                 <div class="agent-lookup-card">
                     <div class="lookup-header-box">
@@ -681,7 +703,7 @@
                 </div>
             </div>
 
-            <!-- Tab 3: Full Table (🟢 HIDDEN BY DEFAULT) -->
+            <!-- Tab 3: Full Table -->
             <div id="tab-full-sheet-view" class="roster-tab-content hidden-tab" style="display: none;">
                 <div class="full-table-card">
                     <div class="full-table-header">
@@ -791,7 +813,65 @@
         </div>
     </div>
 
+    <!-- 🔑 USER PROFILE & CHANGE PASSWORD MODAL -->
+    <div id="changePasswordModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 420px; border-radius: 16px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-id-card" style="color: var(--dark-navy);"></i> User Profile & Security</h3>
+                <button class="close-modal-btn" onclick="closeChangePasswordModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                
+                <!-- 🆔 User Account Details Card -->
+                <div style="background: var(--badge-bg); border: 1.5px solid var(--primary-yellow); border-radius: 12px; padding: 12px 15px; margin-bottom: 18px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; border-bottom: 1px dashed #d4c255; padding-bottom: 8px;">
+                        <i class="fa-solid fa-circle-user" style="font-size: 30px; color: var(--dark-navy);"></i>
+                        <div>
+                            <div id="modalProfileFullName" style="font-weight: 800; font-size: 15px; color: var(--dark-navy);">-</div>
+                            <div id="modalProfileUsername" style="font-size: 11px; font-weight: 700; color: #64748b;">@username</div>
+                        </div>
+                    </div>
+                    <div style="font-size: 12.5px; font-weight: 700; color: var(--dark-navy); display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-envelope" style="color: #d97706;"></i>
+                        <span id="modalProfileEmail">-</span>
+                    </div>
+                </div>
+
+                <!-- 🔑 Change Password Form -->
+                <h4 style="margin: 0 0 10px 0; font-size: 13.5px; font-weight: 800; color: var(--dark-navy); border-bottom: 1.5px solid var(--primary-yellow); padding-bottom: 4px;">
+                    <i class="fa-solid fa-lock"></i> Change Password
+                </h4>
+
+                <form onsubmit="event.preventDefault(); submitPasswordChange();">
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label style="font-size: 12px;"><i class="fa-solid fa-key"></i> Current Password</label>
+                        <div class="pass-input-wrapper">
+                            <input type="password" id="oldPasswordInput" class="combo-input" placeholder="Enter current password" required autocomplete="off">
+                            <button type="button" class="toggle-eye-btn" onclick="togglePassVisibility('oldPasswordInput', this)"><i class="fa-solid fa-eye"></i></button>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label style="font-size: 12px;"><i class="fa-solid fa-lock-open"></i> New Password</label>
+                        <div class="pass-input-wrapper">
+                            <input type="password" id="newPasswordInput" class="combo-input" placeholder="Enter new password" required autocomplete="off">
+                            <button type="button" class="toggle-eye-btn" onclick="togglePassVisibility('newPasswordInput', this)"><i class="fa-solid fa-eye"></i></button>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label style="font-size: 12px;"><i class="fa-solid fa-check-double"></i> Confirm New Password</label>
+                        <div class="pass-input-wrapper">
+                            <input type="password" id="confirmPasswordInput" class="combo-input" placeholder="Confirm new password" required autocomplete="off">
+                            <button type="button" class="toggle-eye-btn" onclick="togglePassVisibility('confirmPasswordInput', this)"><i class="fa-solid fa-eye"></i></button>
+                        </div>
+                    </div>
+                    <div id="passChangeMsg" style="font-size: 12px; font-weight: bold; margin-bottom: 12px; display: none; text-align: center;"></div>
+                    <button type="submit" class="btn-login" style="width: 100%; padding: 10px; font-size: 14px;">Update Password</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- 📜 Main Application Script -->
-    <script src="script.js?v=2026.130"></script>
+    <script src="script.js?v=2026.133"></script>
 </body>
 </html>
