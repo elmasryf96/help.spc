@@ -1,7 +1,7 @@
 // ============================================================
-// 🌐 GOOGLE SHEETS INTEGRATION URL (UPDATED WITH NEW DEPLOYMENT)
+// 🌐 GOOGLE SHEETS INTEGRATION URL
 // ============================================================
-const GOOGLE_SHEET_API_URL = "https://script.google.com/macros/s/AKfycbw7PKtyeAZk_hP_d6S5hF-m9483de8qPk4eS63qokXSN51obRruNJcEylmsjQ2SJeY-/exec";
+const GOOGLE_SHEET_API_URL = "https://script.google.com/macros/s/AKfycbwJsIbCNqsR1HhGMYbzrBQhJYEYmy2d26_PldXFK9bGUBtfJKpu0xZNHtzvQBR3ZTwR/exec";
 
 // ============================================================
 // 🏢 DYNAMIC TOWERS, SYSTEM DATA & MAPPING DATA
@@ -9,7 +9,23 @@ const GOOGLE_SHEET_API_URL = "https://script.google.com/macros/s/AKfycbw7PKtyeAZ
 let towersData = {};
 let scheduleData = [];
 let rosterData = [];
-let dynamicUnitMapping = []; // 🟢 مصفوفة الشقق الديناميكية الموحدة من الجوجل شيت
+let dynamicUnitMapping = [];
+
+function parseMonthAndYear(val) {
+  if (!val) return { month: 8, year: 2026 };
+  let str = String(val).trim();
+  
+  if (str.includes("/") || str.includes("-")) {
+    let parts = str.split(/[/|-]/);
+    if (parts.length === 3) {
+      return { month: parseInt(parts[1], 10), year: parseInt(parts[2], 10) };
+    } else if (parts.length === 2) {
+      return { month: parseInt(parts[0], 10), year: parseInt(parts[1], 10) };
+    }
+  }
+  
+  return { month: parseInt(str, 10) || 8, year: 2026 };
+}
 
 function fetchAllDataFromGoogleSheet() {
   const nocacheUrl = GOOGLE_SHEET_API_URL + "?t=" + new Date().getTime();
@@ -23,7 +39,6 @@ function fetchAllDataFromGoogleSheet() {
   })
     .then(response => response.json())
     .then(data => {
-      // 1. ✨ تحديث كائن الأبراج بالكامل مباشرة من الإكسيل
       if (data.towers && typeof data.towers === "object") {
         towersData = data.towers;
         populateDatalist();
@@ -33,7 +48,6 @@ function fetchAllDataFromGoogleSheet() {
         }
       }
 
-      // 2. ✨ تحديث الروستر
       let rawRoster = data.roster || data.Roster || data.ROSTER || data.rosters;
       if (rawRoster) {
         if (!Array.isArray(rawRoster) && typeof rawRoster === "object") {
@@ -41,12 +55,17 @@ function fetchAllDataFromGoogleSheet() {
         }
 
         if (Array.isArray(rawRoster) && rawRoster.length > 0) {
-          rosterData = rawRoster.map(agent => ({
-            name: agent.name || agent.Name || agent.Agent || agent.agent || "Unknown",
-            dept: agent.dept || agent.Dept || agent.Department || agent.department || "Calls",
-            lang: agent.lang || agent.Lang || agent.Language || agent.language || "Ara",
-            schedule: agent.schedule || agent.Schedule || agent.days || agent.Days || {}
-          }));
+          rosterData = rawRoster.map(agent => {
+            let parsedDate = parseMonthAndYear(agent.month);
+            return {
+              name: agent.name || agent.Name || agent.Agent || agent.agent || "Unknown",
+              dept: agent.dept || agent.Dept || agent.Department || agent.department || "Calls",
+              lang: agent.lang || agent.Lang || agent.Language || agent.language || "Ara",
+              month: parsedDate.month,
+              year: parsedDate.year,
+              schedule: agent.schedule || agent.Schedule || agent.days || agent.Days || {}
+            };
+          });
 
           populateAgentDropdown();
           renderRosterView();
@@ -55,7 +74,6 @@ function fetchAllDataFromGoogleSheet() {
         }
       }
 
-      // 3. ✨ تحديث جدول المعاينات
       let rawSchedule = data.schedule || data.Schedule || data.SCHEDULE;
       if (rawSchedule && Array.isArray(rawSchedule)) {
         let parsedSchedule = [];
@@ -90,7 +108,6 @@ function fetchAllDataFromGoogleSheet() {
         scheduleData = parsedSchedule;
       }
 
-      // 4. 🟢 استقبال شيت الـ Mapping الموحد للبرجين من الجوجل شيت
       if (data.unitMapping && Array.isArray(data.unitMapping)) {
         dynamicUnitMapping = data.unitMapping;
         renderUnitMappingTable();
@@ -109,8 +126,19 @@ function fetchAllDataFromGoogleSheet() {
 // ============================================================
 // 🗓 HELPER FUNCTIONS
 // ============================================================
-function getDayNameShort(dayNumber) {
-  const date = new Date(2026, 7, dayNumber);
+function getDayNameShort(dayNumber, customMonth, customYear) {
+  const dateInput = document.getElementById("rosterDateInput");
+  
+  let targetYear = customYear || 2026;
+  let targetMonth = customMonth || 8;
+
+  if (!customMonth && dateInput && dateInput.value) {
+    const parts = dateInput.value.split("-");
+    targetYear = parseInt(parts[0], 10);
+    targetMonth = parseInt(parts[1], 10);
+  }
+
+  const date = new Date(targetYear, targetMonth - 1, dayNumber);
   return date.toLocaleDateString('en-US', { weekday: 'short' });
 }
 
@@ -261,7 +289,6 @@ function renderUnitMappingTable(filterText = "") {
   const currentTower = towerSelect ? towerSelect.value.toLowerCase() : "fairmont";
   const search = filterText.toLowerCase().trim();
 
-  // فلترة الوحدات بناءً على البرج المختصر وكلمة البحث من الشيت الديناميكي
   let matches = dynamicUnitMapping.filter(item => {
     const itemTower = (item.tower || "").toLowerCase();
     if (itemTower !== currentTower) return false;
@@ -286,7 +313,6 @@ function renderUnitMappingTable(filterText = "") {
     return;
   }
 
-  // جدول برج Fairmont
   if (currentTower === "fairmont") {
     let html = `<thead>
       <tr>
@@ -310,7 +336,6 @@ function renderUnitMappingTable(filterText = "") {
     html += `</tbody>`;
     table.innerHTML = html;
 
-  // جدول برج Condor
   } else {
     let html = `<thead>
       <tr>
@@ -584,7 +609,6 @@ function updateFields(data, towerName = "") {
       }
     });
 
-    // 🔧 إظهار وتطبيق ستايل الصيانة الأحمر المنفصل
     const mainRow = document.getElementById("maintenance_row");
     const mainEl = document.getElementById("maintenance");
     if (correctData.maintenance && correctData.maintenance !== "-" && correctData.maintenance !== "") {
@@ -662,6 +686,17 @@ function updateFields(data, towerName = "") {
     if (onlineEl) onlineEl.innerText = "-";
     const depositAmt = document.getElementById("deposit_amount");
     if (depositAmt) depositAmt.innerHTML = `<div class="val">-</div>`;
+  }
+
+  // 🚨 SPECIAL WARNING FOR AMAYA & YASMINA TOWERS
+  const warningRow = document.getElementById("tower_warning_row");
+  if (warningRow) {
+    const lowerTower = towerName.toLowerCase();
+    if (lowerTower.includes("amaya") || lowerTower.includes("yasmina")) {
+      warningRow.classList.remove("hidden-page");
+    } else {
+      warningRow.classList.add("hidden-page");
+    }
   }
 }
 
@@ -816,13 +851,18 @@ function updateDashboardLiveWidget() {
   if (!container) return;
   const uae = getUAECurrentDate();
   const dayNum = parseInt(uae.day, 10);
+  const monthNum = parseInt(uae.month, 10);
+  const yearNum = parseInt(uae.year, 10);
   let activeByTeam = { "Calls": [], "Call Outs": [], "Emails": [] };
   
   if (Array.isArray(rosterData)) {
     rosterData.forEach(agent => {
-      if (agent && agent.schedule) {
+      const aMonth = parseInt(agent.month || monthNum, 10);
+      const aYear = parseInt(agent.year || yearNum, 10);
+      
+      if (aMonth === monthNum && aYear === yearNum && agent && agent.schedule) {
         const shift = agent.schedule[dayNum];
-        if (shift && shift !== "OFF+" && isShiftActiveNow(shift)) {
+        if (shift && shift !== "" && shift !== "OFF+" && shift !== "null" && isShiftActiveNow(shift)) {
           if (activeByTeam[agent.dept]) {
             activeByTeam[agent.dept].push({ name: agent.name, shift: shift, lang: agent.lang });
           }
@@ -848,9 +888,11 @@ function initRosterPage() {
   const dateInput = document.getElementById("rosterDateInput");
   const uaeNow = getUAECurrentDate();
   if (dateInput && !dateInput.value) {
-    let defaultDay = uaeNow.month === "08" ? uaeNow.day : "19";
-    dateInput.value = `2026-08-${String(defaultDay).padStart(2, '0')}`;
+    dateInput.value = `${uaeNow.year}-${uaeNow.month}-${uaeNow.day}`;
   }
+  
+  switchRosterTab('live-view');
+  
   populateAgentDropdown();
   renderRosterView();
   renderFullMonthlyTable();
@@ -888,39 +930,65 @@ function switchRosterTab(tabKey) {
 function resetRosterToToday() {
   const dateInput = document.getElementById("rosterDateInput");
   const uae = getUAECurrentDate();
-  let dayStr = uae.month === "08" ? uae.day : "19";
   if (dateInput) {
-    dateInput.value = `2026-08-${String(dayStr).padStart(2, '0')}`;
+    dateInput.value = `${uae.year}-${uae.month}-${uae.day}`;
     renderRosterView();
+    renderFullMonthlyTable();
   }
 }
 
 function renderRosterView() {
   const dateInput = document.getElementById("rosterDateInput");
   if (!dateInput || !dateInput.value) return;
-  const dateParts = dateInput.value.split("-");
-  const dayNum = parseInt(dateParts[2], 10);
+  const [selectedYear, selectedMonth, selectedDay] = dateInput.value.split("-");
+  const dayNum = parseInt(selectedDay, 10);
+  const monthNum = parseInt(selectedMonth, 10);
+  const yearNum = parseInt(selectedYear, 10);
+
   const container = document.getElementById("rosterDeptContainer");
   if (!container) return;
   container.innerHTML = "";
   const depts = ["Calls", "Call Outs", "Emails"];
 
   depts.forEach(deptName => {
-    const deptAgents = Array.isArray(rosterData) ? rosterData.filter(a => a.dept === deptName) : [];
+    const deptAgents = Array.isArray(rosterData) ? rosterData.filter(a => {
+      const aMonth = parseInt(a.month, 10);
+      const aYear = parseInt(a.year, 10);
+      return a.dept === deptName && aMonth === monthNum && aYear === yearNum;
+    }) : [];
+
+    const hasAnyScheduleData = deptAgents.some(agent => {
+      const shift = agent.schedule ? agent.schedule[dayNum] : "";
+      return shift && String(shift).trim() !== "" && String(shift).trim() !== "null";
+    });
+
     const card = document.createElement("div");
     card.className = "dept-roster-card";
     let rowsHTML = "";
-    deptAgents.forEach(agent => {
-      const shift = (agent.schedule && agent.schedule[dayNum]) ? agent.schedule[dayNum] : "OFF+";
-      const isActive = isShiftActiveNow(shift);
-      let shiftBadgeClass = "shift-off-badge";
-      let shiftIcon = `<i class="fa-solid fa-mug-hot"></i>`;
-      if (shift === "Shift 1") { shiftBadgeClass = "shift1-badge"; shiftIcon = `<i class="fa-solid fa-sun"></i>`; }
-      else if (shift === "Shift 2") { shiftBadgeClass = "shift2-badge"; shiftIcon = `<i class="fa-solid fa-cloud-sun"></i>`; }
-      else if (shift === "Shift 3") { shiftBadgeClass = "shift3-badge"; shiftIcon = `<i class="fa-solid fa-moon"></i>`; }
-      let livePulseHTML = isActive ? `<span class="live-active-tag"><i class="fa-solid fa-circle"></i> ON DUTY</span>` : ``;
-      rowsHTML += `<div class="roster-agent-row ${isActive ? 'highlight-active-agent' : ''}"><div class="agent-profile"><span class="lang-pill ${(agent.lang || 'Ara').toLowerCase()}">${agent.lang || 'Ara'}</span><span class="agent-name">${agent.name}</span></div><div class="agent-status-wrapper">${livePulseHTML}<span class="shift-badge ${shiftBadgeClass}">${shiftIcon} ${shift}</span></div></div>`;
-    });
+
+    if (deptAgents.length === 0 || !hasAnyScheduleData) {
+      rowsHTML = `<div style="padding: 20px; text-align: center; color: #94a3b8; font-weight: 600; font-size: 13px;">
+        <i class="fa-solid fa-calendar-xmark" style="font-size: 18px; margin-bottom: 6px; display: block; color: #cbd5e1;"></i>
+        No schedule posted for Day ${dayNum} yet
+      </div>`;
+    } else {
+      deptAgents.forEach(agent => {
+        const shift = (agent.schedule && agent.schedule[dayNum]) ? agent.schedule[dayNum] : "";
+        
+        if (!shift || String(shift).trim() === "" || String(shift).trim() === "null") return;
+
+        const isActive = isShiftActiveNow(shift);
+        let shiftBadgeClass = "shift-off-badge";
+        let shiftIcon = `<i class="fa-solid fa-mug-hot"></i>`;
+        if (shift === "Shift 1") { shiftBadgeClass = "shift1-badge"; shiftIcon = `<i class="fa-solid fa-sun"></i>`; }
+        else if (shift === "Shift 2") { shiftBadgeClass = "shift2-badge"; shiftIcon = `<i class="fa-solid fa-cloud-sun"></i>`; }
+        else if (shift === "Shift 3") { shiftBadgeClass = "shift3-badge"; shiftIcon = `<i class="fa-solid fa-moon"></i>`; }
+        
+        let livePulseHTML = isActive ? `<span class="live-active-tag"><i class="fa-solid fa-circle"></i> ON DUTY</span>` : ``;
+        rowsHTML += `<div class="roster-agent-row ${isActive ? 'highlight-active-agent' : ''}"><div class="agent-profile"><span class="lang-pill ${(agent.lang || 'Ara').toLowerCase()}">${agent.lang || 'Ara'}</span><span class="agent-name">${agent.name}</span></div><div class="agent-status-wrapper">${livePulseHTML}<span class="shift-badge ${shiftBadgeClass}">${shiftIcon} ${shift}</span></div></div>`;
+      });
+    }
+
     card.innerHTML = `<div class="dept-card-header"><i class="fa-solid ${deptName === 'Calls' ? 'fa-headset' : deptName === 'Call Outs' ? 'fa-phone-volume' : 'fa-envelope-open-text'}"></i><h3>${deptName} Team</h3><span class="dept-count">${deptAgents.length} Agents</span></div><div class="dept-agent-list">${rowsHTML}</div>`;
     container.appendChild(card);
   });
@@ -932,19 +1000,28 @@ function updateActiveSummary() {
   const summaryContainer = document.getElementById("activeAgentsSummary");
   const summaryTitle = document.getElementById("activeSummaryTitle");
   if (!dateInput || !summaryContainer) return;
-  const dateParts = dateInput.value.split("-");
-  const dayNum = parseInt(dateParts[2], 10);
+  
+  const [selectedYear, selectedMonth, selectedDay] = dateInput.value.split("-");
+  const dayNum = parseInt(selectedDay, 10);
+  const monthNum = parseInt(selectedMonth, 10);
+  const yearNum = parseInt(selectedYear, 10);
+
   const uae = getUAECurrentDate();
-  const isTodaySelected = (dateParts[1] === "08" && dayNum === parseInt(uae.day, 10));
+  const isTodaySelected = (monthNum === parseInt(uae.month, 10) && dayNum === parseInt(uae.day, 10) && yearNum === parseInt(uae.year, 10));
+  
   if (summaryTitle) {
-    summaryTitle.innerText = isTodaySelected ? "Active On Shift Right Now (UAE Time)" : `Scheduled Duty Roster for Aug ${dayNum}, 2026`;
+    summaryTitle.innerText = isTodaySelected ? "Active On Shift Right Now (UAE Time)" : `Scheduled Duty Roster for Day ${dayNum}`;
   }
+  
   let activeAgentsList = [];
   if (Array.isArray(rosterData)) {
     rosterData.forEach(agent => {
-      if (agent && agent.schedule) {
+      const aMonth = parseInt(agent.month, 10);
+      const aYear = parseInt(agent.year, 10);
+
+      if (aMonth === monthNum && aYear === yearNum && agent && agent.schedule) {
         const shift = agent.schedule[dayNum];
-        if (shift && shift !== "OFF+") {
+        if (shift && shift !== "" && shift !== "OFF+" && shift !== "null") {
           if (isTodaySelected ? isShiftActiveNow(shift) : true) {
             activeAgentsList.push({ name: agent.name, dept: agent.dept, shift: shift, lang: agent.lang });
           }
@@ -963,11 +1040,19 @@ function populateAgentDropdown() {
   if (!dropdown) return;
   dropdown.innerHTML = `<option value="">-- Select Agent Name --</option>`;
   if (!Array.isArray(rosterData)) return;
-  const sortedAgents = [...rosterData].sort((a,b) => a.name.localeCompare(b.name));
-  sortedAgents.forEach(agent => {
+
+  const uniqueAgentNames = [];
+  rosterData.forEach(agent => {
+    if (!uniqueAgentNames.includes(agent.name)) {
+      uniqueAgentNames.push(agent.name);
+    }
+  });
+
+  uniqueAgentNames.sort().forEach(name => {
+    const agentObj = rosterData.find(a => a.name === name);
     let opt = document.createElement("option");
-    opt.value = agent.name;
-    opt.textContent = `${agent.name} (${agent.dept} Team)`;
+    opt.value = name;
+    opt.textContent = `${name} (${agentObj ? agentObj.dept : 'Calls'} Team)`;
     dropdown.appendChild(opt);
   });
 }
@@ -985,31 +1070,55 @@ function renderAgentLookup() {
   const filterDateInput = document.getElementById("agentDateFilter");
   const container = document.getElementById("agentResultContainer");
   if (!dropdown || !container) return;
+  
   const agentName = dropdown.value;
   if (!agentName) {
     container.innerHTML = `<div class="no-sched-results"><i class="fa-solid fa-hand-pointer"></i><p>Please select an agent name above to view their schedule.</p></div>`;
     return;
   }
-  const agent = rosterData.find(a => a.name === agentName);
-  if (!agent) return;
+
+  const uae = getUAECurrentDate();
+  let targetMonth = parseInt(uae.month, 10);
+  let targetYear = parseInt(uae.year, 10);
   let selectedDay = null;
+
   if (filterDateInput && filterDateInput.value) {
     const parts = filterDateInput.value.split("-");
+    targetYear = parseInt(parts[0], 10);
+    targetMonth = parseInt(parts[1], 10);
     selectedDay = parseInt(parts[2], 10);
   }
+
+  const agent = rosterData.find(a => a.name === agentName && parseInt(a.month, 10) === targetMonth && parseInt(a.year, 10) === targetYear) || rosterData.find(a => a.name === agentName);
+
+  if (!agent) {
+    container.innerHTML = `<div class="no-sched-results"><i class="fa-solid fa-circle-exclamation"></i><p>No schedule records found for ${agentName} in this period.</p></div>`;
+    return;
+  }
+
   let cardsHTML = "";
   for (let day = 1; day <= 31; day++) {
     if (selectedDay !== null && day !== selectedDay) continue;
-    const shift = (agent.schedule && agent.schedule[day]) ? agent.schedule[day] : "OFF+";
-    const dayName = getDayNameShort(day);
+    const shift = (agent.schedule && agent.schedule[day]) ? agent.schedule[day] : "";
+    if (!shift || shift === "" || shift === "null") continue;
+
+    const dayName = getDayNameShort(day, targetMonth, targetYear);
     let cardClass = "shift-off-card";
     let icon = `<i class="fa-solid fa-bed"></i>`;
     if (shift === "Shift 1") { cardClass = "shift1-card"; icon = `<i class="fa-solid fa-sun"></i>`; }
     else if (shift === "Shift 2") { cardClass = "shift2-card"; icon = `<i class="fa-solid fa-cloud-sun"></i>`; }
     else if (shift === "Shift 3") { cardClass = "shift3-card"; icon = `<i class="fa-solid fa-moon"></i>`; }
-    cardsHTML += `<div class="agent-day-card ${cardClass}"><div class="adc-day-number">${day}-Aug (${dayName})</div><div class="adc-shift-type">${icon} ${shift}</div></div>`;
+    cardsHTML += `<div class="agent-day-card ${cardClass}"><div class="adc-day-number">Day ${day} (${dayName})</div><div class="adc-shift-type">${icon} ${shift}</div></div>`;
   }
-  container.innerHTML = `<div class="agent-info-banner"><div class="aip-left"><span class="lang-pill ${(agent.lang || 'Ara').toLowerCase()}">${agent.lang || 'Ara'}</span><h2>${agent.name}</h2><span class="team-tag"><i class="fa-solid fa-users"></i> ${agent.dept} Team</span></div><div class="aip-right"><span class="month-label">August 2026 Schedule</span></div></div><div class="agent-days-grid">${cardsHTML}</div>`;
+
+  if (cardsHTML === "") {
+    cardsHTML = `<div style="grid-column: 1/-1; padding: 30px; text-align: center; color: #94a3b8; font-weight: 600;">
+      <i class="fa-solid fa-calendar-xmark" style="font-size: 24px; margin-bottom: 8px; display: block; color: #cbd5e1;"></i>
+      No schedule published for this agent in the selected period.
+    </div>`;
+  }
+
+  container.innerHTML = `<div class="agent-info-banner"><div class="aip-left"><span class="lang-pill ${(agent.lang || 'Ara').toLowerCase()}">${agent.lang || 'Ara'}</span><h2>${agent.name}</h2><span class="team-tag"><i class="fa-solid fa-users"></i> ${agent.dept} Team</span></div><div class="aip-right"><span class="month-label">Monthly Schedule</span></div></div><div class="agent-days-grid">${cardsHTML}</div>`;
 }
 
 // ============================================================
@@ -1017,17 +1126,35 @@ function renderAgentLookup() {
 // ============================================================
 function renderFullMonthlyTable() {
   const table = document.getElementById("monthlyRosterTable");
+  const dateInput = document.getElementById("rosterDateInput");
   if (!table) return;
+
+  const uae = getUAECurrentDate();
+  let monthNum = parseInt(uae.month, 10);
+  let yearNum = parseInt(uae.year, 10);
+
+  if (dateInput && dateInput.value) {
+    const parts = dateInput.value.split("-");
+    yearNum = parseInt(parts[0], 10);
+    monthNum = parseInt(parts[1], 10);
+  }
+
   let headerHTML = `<thead><tr><th class="sticky-col first-col">Team</th><th class="sticky-col second-col">Agent Name</th>`;
   for (let d = 1; d <= 31; d++) {
-    const dayName = getDayNameShort(d);
-    headerHTML += `<th>${d}-Aug<br><span style="font-size: 9px; opacity: 0.8;">${dayName}</span></th>`;
+    const dayName = getDayNameShort(d, monthNum, yearNum);
+    headerHTML += `<th>Day ${d}<br><span style="font-size: 9px; opacity: 0.8;">${dayName}</span></th>`;
   }
   headerHTML += `</tr></thead>`;
   let bodyHTML = `<tbody>`;
   const depts = ["Calls", "Call Outs", "Emails"];
+
   depts.forEach(deptName => {
-    const teamAgents = Array.isArray(rosterData) ? rosterData.filter(a => a.dept === deptName) : [];
+    const teamAgents = Array.isArray(rosterData) ? rosterData.filter(a => {
+      const aMonth = parseInt(a.month, 10);
+      const aYear = parseInt(a.year, 10);
+      return a.dept === deptName && aMonth === monthNum && aYear === yearNum;
+    }) : [];
+
     teamAgents.forEach((agent, idx) => {
       bodyHTML += `<tr>`;
       if (idx === 0) {
@@ -1035,12 +1162,18 @@ function renderFullMonthlyTable() {
       }
       bodyHTML += `<td class="sticky-col second-col name-cell"><strong>${agent.name}</strong> <span class="lang-mini">${agent.lang || 'Ara'}</span></td>`;
       for (let d = 1; d <= 31; d++) {
-        const shift = (agent.schedule && agent.schedule[d]) ? agent.schedule[d] : "OFF+";
+        const shift = (agent.schedule && agent.schedule[d]) ? agent.schedule[d] : "";
         let cellClass = "cell-off";
-        if (shift === "Shift 1") cellClass = "cell-shift1";
-        if (shift === "Shift 2") cellClass = "cell-shift2";
-        if (shift === "Shift 3") cellClass = "cell-shift3";
-        bodyHTML += `<td class="${cellClass}">${shift}</td>`;
+        let displayVal = shift;
+
+        if (!shift || String(shift).trim() === "" || String(shift).trim() === "null") {
+          cellClass = "";
+          displayVal = "-";
+        } else if (shift === "Shift 1") cellClass = "cell-shift1";
+        else if (shift === "Shift 2") cellClass = "cell-shift2";
+        else if (shift === "Shift 3") cellClass = "cell-shift3";
+
+        bodyHTML += `<td class="${cellClass}">${displayVal}</td>`;
       }
       bodyHTML += `</tr>`;
     });
@@ -1050,7 +1183,7 @@ function renderFullMonthlyTable() {
 }
 
 // ============================================================
-// 👑 ADMIN PANEL - READ-ONLY VIEW FROM GOOGLE SHEETS
+// 👑 ADMIN PANEL
 // ============================================================
 function switchAdminTab(tab) {
   document.querySelectorAll(".admin-tab-btn").forEach(btn => btn.classList.remove("active"));
@@ -1138,9 +1271,9 @@ function renderAdminAgentsTable(filter = "") {
   filteredAgents.forEach((agent, index) => {
     let schedSummary = "";
     for (let d = 1; d <= 31; d++) {
-      const shift = (agent.schedule && agent.schedule[d]) ? agent.schedule[d] : "OFF+";
-      let short = shift === "OFF+" ? "⚪" : shift === "Shift 1" ? "🟦" : shift === "Shift 2" ? "🟧" : "🟪";
-      schedSummary += `<span title="${d}-Aug: ${shift}" style="display:inline-block;width:16px;font-size:10px;">${short}</span>`;
+      const shift = (agent.schedule && agent.schedule[d]) ? agent.schedule[d] : "";
+      let short = (!shift || shift === "" || shift === "null") ? "⚪" : shift === "OFF+" ? "⚪" : shift === "Shift 1" ? "🟦" : shift === "Shift 2" ? "🟧" : "🟪";
+      schedSummary += `<span title="Day ${d}: ${shift || 'No Shift'}" style="display:inline-block;width:16px;font-size:10px;">${short}</span>`;
     }
     html += `<tr><td>${index + 1}</td><td><strong>${agent.name}</strong></td><td>${agent.dept}</td><td><span class="lang-pill ${(agent.lang || 'Ara').toLowerCase()}">${agent.lang || 'Ara'}</span></td><td style="min-width:200px;max-width:300px;overflow-x:auto;font-size:10px;white-space:nowrap;">${schedSummary}</td></tr>`;
   });
