@@ -1,15 +1,16 @@
 // ============================================================
 // 🌐 GOOGLE SHEETS INTEGRATION URL
 // ============================================================
-const GOOGLE_SHEET_API_URL = "https://script.google.com/macros/s/AKfycbwJsIbCNqsR1HhGMYbzrBQhJYEYmy2d26_PldXFK9bGUBtfJKpu0xZNHtzvQBR3ZTwR/exec";
+const GOOGLE_SHEET_API_URL = "https://script.google.com/macros/s/AKfycbx-cqDHzHAtMIR2stMUlmHA-ihFE0XlfwvgUHMV5IU9WYv972q0kU_A4N2LE8aIIjtn/exec";
 
 // ============================================================
-// 🏢 DYNAMIC TOWERS, SYSTEM DATA & MAPPING DATA
+// 🏢 DYNAMIC TOWERS, SYSTEM DATA, MAPPING DATA & USERS
 // ============================================================
 let towersData = {};
 let scheduleData = [];
 let rosterData = [];
 let dynamicUnitMapping = [];
+let dynamicUsers = {};
 
 function parseMonthAndYear(val) {
   if (!val) return { month: 8, year: 2026 };
@@ -39,6 +40,11 @@ function fetchAllDataFromGoogleSheet() {
   })
     .then(response => response.json())
     .then(data => {
+      // 👥 جلب بيانات اليوزرات الديناميكية
+      if (data.users && typeof data.users === "object") {
+        dynamicUsers = data.users;
+      }
+
       if (data.towers && typeof data.towers === "object") {
         towersData = data.towers;
         populateDatalist();
@@ -165,37 +171,209 @@ function getDefaultDepositAmountText(towerName) {
 }
 
 let liveClockInterval = null;
-let editingTower = null;
-let editingAgent = null;
 
 // ============================================================
-// 🔐 LOGIN & AUTHENTICATION
+// 🔽 PROFILE DROPDOWN CONTROLS
+// ============================================================
+function toggleProfileDropdown(e) {
+  if (e) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+  const dropdown = document.getElementById("profileDropdown");
+  if (dropdown) {
+    dropdown.classList.toggle("show-menu");
+  }
+}
+
+function hideProfileDropdown() {
+  const dropdown = document.getElementById("profileDropdown");
+  if (dropdown) {
+    dropdown.classList.remove("show-menu");
+  }
+}
+
+document.addEventListener("click", (e) => {
+  const menuWrapper = document.querySelector(".user-menu-wrapper");
+  if (menuWrapper && !menuWrapper.contains(e.target)) {
+    hideProfileDropdown();
+  }
+});
+
+// ============================================================
+// 👁️ TOGGLE PASSWORD VISIBILITY (EYE BUTTON)
+// ============================================================
+function togglePassVisibility(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+
+  const icon = btn.querySelector('i');
+
+  if (input.type === "password") {
+    input.type = "text";
+    if (icon) {
+      icon.className = "fa-solid fa-eye-slash";
+    }
+    btn.style.color = "#d97706";
+  } else {
+    input.type = "password";
+    if (icon) {
+      icon.className = "fa-solid fa-eye";
+    }
+    btn.style.color = "#64748b";
+  }
+}
+
+// ============================================================
+// 🔐 LOGIN, AUTHENTICATION & PROFILE MODAL
 // ============================================================
 function handleLogin(event) {
   if (event) {
     if (typeof event.preventDefault === 'function') event.preventDefault();
-    if (typeof event.stopPropagation === 'function') event.stopPropagation();
   }
   
   const user = document.getElementById("username").value.trim();
   const pass = document.getElementById("password").value.trim();
   const errorMsg = document.getElementById("login-error");
 
-  const users = {
-    "0": { password: "0", role: "admin" },
-    "SPC": { password: "SPC@2026", role: "user" }
-  };
+  let userObj = dynamicUsers[user];
 
-  if (Object.prototype.hasOwnProperty.call(users, user) && users[user].password === pass) {
+  if (!userObj) {
+    const fallbackUsers = {
+      "0": { password: "0", role: "admin", fullName: "Admin2", email: "Admin@Test.com" },
+      "SPC": { password: "SPC@2026", role: "user", fullName: "SPC Team", email: "SPCteam@test.com" }
+    };
+    userObj = fallbackUsers[user];
+  }
+
+  if (userObj && String(userObj.password) === String(pass)) {
     if (errorMsg) errorMsg.style.display = "none";
     localStorage.setItem("loggedInUser", user);
-    localStorage.setItem("userRole", users[user].role);
+    localStorage.setItem("userPassword", pass);
+    localStorage.setItem("userRole", userObj.role || "user");
+    localStorage.setItem("userFullName", userObj.fullName || user);
+    localStorage.setItem("userEmail", userObj.email || "");
+
+    updateUserProfileUI();
     navigateTo('home-page');
   } else {
     if (errorMsg) errorMsg.style.display = "block";
   }
 
   return false;
+}
+
+function updateUserProfileUI() {
+  const fullName = localStorage.getItem("userFullName") || localStorage.getItem("loggedInUser") || "SPC Team";
+  const email = localStorage.getItem("userEmail") || "No email registered";
+
+  const displayEl = document.getElementById("displayUserFullName");
+  if (displayEl) displayEl.innerText = fullName;
+
+  const dropdownName = document.getElementById("dropdownFullName");
+  if (dropdownName) dropdownName.innerText = fullName;
+
+  const dropdownEmail = document.getElementById("dropdownEmail");
+  if (dropdownEmail) dropdownEmail.innerText = email;
+
+  const avatarEl = document.getElementById("userAvatarText");
+  if (avatarEl) {
+    const parts = fullName.trim().split(" ");
+    let initials = parts[0] ? parts[0][0] : "U";
+    if (parts.length > 1) initials += parts[parts.length - 1][0];
+    avatarEl.innerText = initials.toUpperCase();
+  }
+}
+
+function openChangePasswordModal() {
+  const username = localStorage.getItem("loggedInUser") || "-";
+  const fullName = localStorage.getItem("userFullName") || username;
+  const email = localStorage.getItem("userEmail") || "No email registered";
+
+  if (document.getElementById("modalProfileFullName")) document.getElementById("modalProfileFullName").innerText = fullName;
+  if (document.getElementById("modalProfileUsername")) document.getElementById("modalProfileUsername").innerText = "@" + username;
+  if (document.getElementById("modalProfileEmail")) document.getElementById("modalProfileEmail").innerText = email;
+
+  if (document.getElementById("oldPasswordInput")) document.getElementById("oldPasswordInput").value = "";
+  if (document.getElementById("newPasswordInput")) document.getElementById("newPasswordInput").value = "";
+  if (document.getElementById("confirmPasswordInput")) document.getElementById("confirmPasswordInput").value = "";
+  
+  const msgEl = document.getElementById("passChangeMsg");
+  if (msgEl) msgEl.style.display = "none";
+
+  const modal = document.getElementById("changePasswordModal");
+  if (modal) modal.style.display = "flex";
+}
+
+function closeChangePasswordModal() {
+  const modal = document.getElementById("changePasswordModal");
+  if (modal) modal.style.display = "none";
+}
+
+function submitPasswordChange() {
+  const oldPass = document.getElementById("oldPasswordInput").value.trim();
+  const newPass = document.getElementById("newPasswordInput").value.trim();
+  const confirmPass = document.getElementById("confirmPasswordInput").value.trim();
+  const msgEl = document.getElementById("passChangeMsg");
+  const username = localStorage.getItem("loggedInUser");
+
+  // 1. التحقق من تطابق القديم
+  const currentSavedPass = localStorage.getItem("userPassword") || (dynamicUsers[username] ? dynamicUsers[username].password : null);
+  if (currentSavedPass && String(oldPass) !== String(currentSavedPass)) {
+    msgEl.style.color = "#ef4444";
+    msgEl.innerText = "❌ Current password is incorrect!";
+    msgEl.style.display = "block";
+    return;
+  }
+
+  // 2. مطابقة التأكيد
+  if (newPass !== confirmPass) {
+    msgEl.style.color = "#ef4444";
+    msgEl.innerText = "❌ New passwords do not match!";
+    msgEl.style.display = "block";
+    return;
+  }
+
+  msgEl.style.color = "#d97706";
+  msgEl.innerText = "⏳ Updating password in Google Sheet...";
+  msgEl.style.display = "block";
+
+  // 3. إرسال لـ Apps Script للتحديث الفعلي في الشيت
+  fetch(GOOGLE_SHEET_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({
+      action: "changePassword",
+      username: username,
+      newPassword: newPass
+    })
+  })
+  .then(res => res.json())
+  .then(res => {
+    if (res.status === "success") {
+      msgEl.style.color = "#22c55e";
+      msgEl.innerText = "✅ Password updated successfully in Google Sheet!";
+      
+      // تحديث القيم المحلية
+      localStorage.setItem("userPassword", newPass);
+      if (dynamicUsers[username]) {
+        dynamicUsers[username].password = newPass;
+      }
+
+      // إعطاء مهلة وجلب البيانات مجدداً للتأكد من التزامن الكامل
+      setTimeout(() => {
+        fetchAllDataFromGoogleSheet();
+        closeChangePasswordModal();
+      }, 1200);
+    } else {
+      msgEl.style.color = "#ef4444";
+      msgEl.innerText = "❌ Error: " + (res.message || "Failed to update in Sheet");
+    }
+  })
+  .catch(err => {
+    msgEl.style.color = "#ef4444";
+    msgEl.innerText = "❌ Network error. Check connection!";
+  });
 }
 
 function handleLogout() {
@@ -206,7 +384,10 @@ function handleLogout() {
   const errorMsg = document.getElementById("login-error");
   if (errorMsg) errorMsg.style.display = "none";
   localStorage.removeItem("loggedInUser");
+  localStorage.removeItem("userPassword");
   localStorage.removeItem("userRole");
+  localStorage.removeItem("userFullName");
+  localStorage.removeItem("userEmail");
   clearSearch();
   clearSchedSearch();
   clearMappingSearch();
@@ -224,6 +405,7 @@ function updateUIForRole() {
   if (addTowerBtn) addTowerBtn.style.display = isAdmin() ? "inline-flex" : "none";
   const rosterAdminBtn = document.getElementById("adminRosterManageBtn");
   if (rosterAdminBtn) rosterAdminBtn.style.display = isAdmin() ? "inline-flex" : "none";
+  updateUserProfileUI();
 }
 
 // ============================================================
@@ -688,7 +870,6 @@ function updateFields(data, towerName = "") {
     if (depositAmt) depositAmt.innerHTML = `<div class="val">-</div>`;
   }
 
-  // 🚨 SPECIAL WARNING FOR AMAYA & YASMINA TOWERS
   const warningRow = document.getElementById("tower_warning_row");
   if (warningRow) {
     const lowerTower = towerName.toLowerCase();
@@ -1089,7 +1270,6 @@ function renderAgentLookup() {
     selectedDay = parseInt(parts[2], 10);
   }
 
-  // 🎯 البحث بالشهر والسنة والاسم بشكل حصري ومطابق لعدم السحب من أشهر سابقة
   const agent = rosterData.find(a => a.name === agentName && parseInt(a.month, 10) === targetMonth && parseInt(a.year, 10) === targetYear);
 
   if (!agent) {
