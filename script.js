@@ -791,9 +791,10 @@ function updateFields(data, towerName = "") {
       }
     });
 
+    // 🔧 إظهار المينتنانس فقط وحصرياً إذا كانت هناك قيمة حقيقية
     const mainRow = document.getElementById("maintenance_row");
     const mainEl = document.getElementById("maintenance");
-    if (correctData.maintenance && correctData.maintenance !== "-" && correctData.maintenance !== "") {
+    if (correctData.maintenance && correctData.maintenance !== "-" && correctData.maintenance !== "" && correctData.maintenance !== "null") {
       let mainVal = correctData.maintenance;
       if (!isNaN(mainVal) && mainVal !== "") {
         mainVal = parseFloat(mainVal).toFixed(2) + " AED";
@@ -803,25 +804,52 @@ function updateFields(data, towerName = "") {
         mainEl.className = "val-maintenance-red";
       }
       if (mainRow) {
-        mainRow.classList.remove("hidden-page");
+        mainRow.style.setProperty("display", "flex", "important");
         mainRow.className = "maintenance-single-row";
       }
     } else {
-      if (mainRow) mainRow.classList.add("hidden-page");
+      if (mainRow) {
+        mainRow.style.setProperty("display", "none", "important");
+      }
     }
 
+    // 💳 ضبط حالة أونلاين بايمنت متوسّطة في المنتصف
     const onlineEl = document.getElementById("online");
     if (onlineEl) {
       if (userIsAdmin) {
+        onlineEl.innerText = "";
+        onlineEl.className = "val";
+        onlineEl.style.cssText = "";
         onlineEl.innerHTML = `
           <select id="direct_input_online" style="padding: 3px 6px; border: 2px solid var(--primary-yellow); border-radius: 6px; font-weight: bold;">
             <option value="Yes" ${correctData.online === 'Yes' ? 'selected' : ''}>Yes</option>
             <option value="No" ${correctData.online === 'No' ? 'selected' : ''}>No</option>
           </select>`;
       } else {
-        onlineEl.innerText = (correctData.online === "Yes" || String(correctData.online).toLowerCase() === "yes") 
-          ? "Yes" 
-          : "Bank Transfer or ATM Cash Deposit Only";
+        const isOnline = (correctData.online === "Yes" || String(correctData.online).toLowerCase() === "yes");
+        if (isOnline) {
+          onlineEl.innerText = "Yes";
+          onlineEl.className = "val";
+          onlineEl.style.cssText = "";
+        } else if (correctData.online === "No" || String(correctData.online).toLowerCase() === "no") {
+          onlineEl.innerText = "Bank Transfer or Cash Deposit Only (Do not share payment links or SPC bank details)";
+          onlineEl.className = "val-maintenance-red";
+          onlineEl.style.cssText = `
+            font-size: 12.5px !important;
+            padding: 6px 14px !important;
+            border-radius: 8px !important;
+            box-shadow: 0 2px 6px rgba(239, 68, 68, 0.2) !important;
+            white-space: normal !important;
+            text-align: center !important;
+            margin: 0 auto !important;
+            flex: 1 !important;
+            max-width: 80% !important;
+          `;
+        } else {
+          onlineEl.innerText = "-";
+          onlineEl.className = "val";
+          onlineEl.style.cssText = "";
+        }
       }
     }
 
@@ -858,14 +886,22 @@ function updateFields(data, towerName = "") {
       }
     }
   } else {
+    // 🧹 تصفير العناصر وإخفاء المينتنانس تماماً
     fields.forEach(f => {
       const el = document.getElementById(f);
       if(el) el.innerText = "-";
     });
     const mainRow = document.getElementById("maintenance_row");
-    if (mainRow) mainRow.classList.add("hidden-page");
+    if (mainRow) {
+      mainRow.style.setProperty("display", "none", "important");
+    }
+    
     const onlineEl = document.getElementById("online");
-    if (onlineEl) onlineEl.innerText = "-";
+    if (onlineEl) {
+      onlineEl.innerText = "-";
+      onlineEl.className = "val";
+      onlineEl.style.cssText = "";
+    }
     const depositAmt = document.getElementById("deposit_amount");
     if (depositAmt) depositAmt.innerHTML = `<div class="val">-</div>`;
   }
