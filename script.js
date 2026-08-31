@@ -1250,7 +1250,7 @@ function updateActiveSummary() {
 }
 
 // ============================================================
-// 👤 AGENT INDIVIDUAL LOOKUP
+// 👤 AGENT INDIVIDUAL LOOKUP (UPDATED WITH MONTH SELECTOR)
 // ============================================================
 function populateAgentDropdown() {
   const dropdown = document.getElementById("agentDropdown");
@@ -1266,24 +1266,24 @@ function populateAgentDropdown() {
   });
 
   uniqueAgentNames.sort().forEach(name => {
-    const agentObj = rosterData.find(a => a.name === name);
     let opt = document.createElement("option");
     opt.value = name;
-    opt.textContent = `${name} (${agentObj ? agentObj.dept : 'Calls'} Team)`;
+    opt.textContent = name;
     dropdown.appendChild(opt);
   });
 }
 
 function clearAgentDateFilter() {
-  const dateInput = document.getElementById("agentDateFilter");
-  if (dateInput) {
-    dateInput.value = "";
-    renderAgentLookup();
+  const filterDateInput = document.getElementById("agentDateFilter");
+  if (filterDateInput) {
+    filterDateInput.value = "";
   }
+  renderAgentLookup();
 }
 
 function renderAgentLookup() {
   const dropdown = document.getElementById("agentDropdown");
+  const monthSelect = document.getElementById("agentMonthSelect");
   const filterDateInput = document.getElementById("agentDateFilter");
   const container = document.getElementById("agentResultContainer");
   if (!dropdown || !container) return;
@@ -1294,16 +1294,24 @@ function renderAgentLookup() {
     return;
   }
 
-  const uae = getUAECurrentDate();
-  let targetMonth = parseInt(uae.month, 10);
-  let targetYear = parseInt(uae.year, 10);
-  let selectedDay = null;
+  let targetMonth = 9;
+  let targetYear = 2026;
 
+  if (monthSelect && monthSelect.value) {
+    const [m, y] = monthSelect.value.split("-");
+    targetMonth = parseInt(m, 10);
+    targetYear = parseInt(y, 10);
+  }
+
+  let selectedDay = null;
   if (filterDateInput && filterDateInput.value) {
     const parts = filterDateInput.value.split("-");
-    targetYear = parseInt(parts[0], 10);
-    targetMonth = parseInt(parts[1], 10);
-    selectedDay = parseInt(parts[2], 10);
+    const filterYr = parseInt(parts[0], 10);
+    const filterMo = parseInt(parts[1], 10);
+    
+    if (filterYr === targetYear && filterMo === targetMonth) {
+      selectedDay = parseInt(parts[2], 10);
+    }
   }
 
   const agent = rosterData.find(a => a.name === agentName && parseInt(a.month, 10) === targetMonth && parseInt(a.year, 10) === targetYear);
@@ -1313,9 +1321,12 @@ function renderAgentLookup() {
     return;
   }
 
+  const daysInMonth = new Date(targetYear, targetMonth, 0).getDate();
+
   let cardsHTML = "";
-  for (let day = 1; day <= 31; day++) {
+  for (let day = 1; day <= daysInMonth; day++) {
     if (selectedDay !== null && day !== selectedDay) continue;
+
     const shift = (agent.schedule && agent.schedule[day]) ? agent.schedule[day] : "";
     if (!shift || shift === "" || shift === "null") continue;
 
@@ -1325,6 +1336,7 @@ function renderAgentLookup() {
     if (shift === "Shift 1") { cardClass = "shift1-card"; icon = `<i class="fa-solid fa-sun"></i>`; }
     else if (shift === "Shift 2") { cardClass = "shift2-card"; icon = `<i class="fa-solid fa-cloud-sun"></i>`; }
     else if (shift === "Shift 3") { cardClass = "shift3-card"; icon = `<i class="fa-solid fa-moon"></i>`; }
+    
     cardsHTML += `<div class="agent-day-card ${cardClass}"><div class="adc-day-number">Day ${day} (${dayName})</div><div class="adc-shift-type">${icon} ${shift}</div></div>`;
   }
 
@@ -1343,6 +1355,7 @@ function renderAgentLookup() {
 // ============================================================
 function renderFullMonthlyTable() {
   const table = document.getElementById("monthlyRosterTable");
+  const monthSelect = document.getElementById("fullRosterMonthSelect");
   const dateInput = document.getElementById("rosterDateInput");
   if (!table) return;
 
@@ -1350,14 +1363,21 @@ function renderFullMonthlyTable() {
   let monthNum = parseInt(uae.month, 10);
   let yearNum = parseInt(uae.year, 10);
 
-  if (dateInput && dateInput.value) {
+  if (monthSelect && monthSelect.value) {
+    const [m, y] = monthSelect.value.split("-");
+    monthNum = parseInt(m, 10);
+    yearNum = parseInt(y, 10);
+  } 
+  else if (dateInput && dateInput.value) {
     const parts = dateInput.value.split("-");
     yearNum = parseInt(parts[0], 10);
     monthNum = parseInt(parts[1], 10);
   }
 
+  const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
+
   let headerHTML = `<thead><tr><th class="sticky-col first-col">Team</th><th class="sticky-col second-col">Agent Name</th>`;
-  for (let d = 1; d <= 31; d++) {
+  for (let d = 1; d <= daysInMonth; d++) {
     const dayName = getDayNameShort(d, monthNum, yearNum);
     headerHTML += `<th>Day ${d}<br><span style="font-size: 9px; opacity: 0.8;">${dayName}</span></th>`;
   }
@@ -1378,7 +1398,7 @@ function renderFullMonthlyTable() {
         bodyHTML += `<td rowspan="${teamAgents.length}" class="sticky-col first-col dept-cell">${deptName} Team</td>`;
       }
       bodyHTML += `<td class="sticky-col second-col name-cell"><strong>${agent.name}</strong> <span class="lang-mini">${agent.lang || 'Ara'}</span></td>`;
-      for (let d = 1; d <= 31; d++) {
+      for (let d = 1; d <= daysInMonth; d++) {
         const shift = (agent.schedule && agent.schedule[d]) ? agent.schedule[d] : "";
         let cellClass = "cell-off";
         let displayVal = shift;
