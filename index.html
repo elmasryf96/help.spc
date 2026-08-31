@@ -685,10 +685,21 @@
                                 <option value="">-- Choose Agent --</option>
                             </select>
                         </div>
+
+                        <!-- 📅 قائمة اختيار الشهر المستقلة -->
                         <div class="form-group flex-1">
-                            <label for="agentDateFilter"><i class="fa-solid fa-filter"></i> Specific Date Filter (Optional):</label>
+                            <label for="agentMonthSelect"><i class="fa-solid fa-calendar-days"></i> Select Month:</label>
+                            <select id="agentMonthSelect" class="combo-input" onchange="renderAgentLookup()" style="font-weight: 800; border-color: var(--primary-yellow);">
+                                <option value="9-2026" selected>September 2026 (Month 9)</option>
+                                <option value="8-2026">August 2026 (Month 8)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group flex-1">
+                            <label for="agentDateFilter"><i class="fa-solid fa-filter"></i> Specific Day Filter (Optional):</label>
                             <input type="date" id="agentDateFilter" class="date-input" onchange="renderAgentLookup()">
                         </div>
+
                         <button class="btn-today-quick align-self-end" onclick="clearAgentDateFilter()"><i class="fa-solid fa-arrows-rotate"></i> Show All Month</button>
                     </div>
                 </div>
@@ -703,12 +714,23 @@
                 </div>
             </div>
 
-            <!-- Tab 3: Full Table -->
+            <!-- Tab 3: Full Table (UPDATED WITH MONTH SELECTOR) -->
             <div id="tab-full-sheet-view" class="roster-tab-content hidden-tab" style="display: none;">
                 <div class="full-table-card">
-                    <div class="full-table-header">
-                        <i class="fa-solid fa-calendar-days"></i>
-                        <h3>Full Team Monthly Schedule</h3>
+                    <div class="full-table-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-calendar-days"></i>
+                            <h3>Full Team Monthly Schedule</h3>
+                        </div>
+                        
+                        <!-- 📅 قائمة اختيار الشهر -->
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <label for="fullRosterMonthSelect" style="font-weight: 800; font-size: 13px; color: var(--dark-navy);">🗓️ Select Month:</label>
+                            <select id="fullRosterMonthSelect" class="combo-input" onchange="renderFullMonthlyTable()" style="width: auto; padding: 4px 10px; font-weight: 800; border-color: var(--primary-yellow);">
+                                <option value="9-2026" selected>September 2026 (Month 9)</option>
+                                <option value="8-2026">August 2026 (Month 8)</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="table-scroll-wrapper">
                         <table id="monthlyRosterTable" class="roster-full-table">
@@ -872,6 +894,6 @@
     </div>
 
     <!-- 📜 Main Application Script -->
-    <script src="script.js?v=2026.133"></script>
+    <script src="script.js?v=2026.136"></script>
 </body>
 </html>
