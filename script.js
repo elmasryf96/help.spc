@@ -1,7 +1,8 @@
 // ============================================================
-// 🌐 GOOGLE SHEETS INTEGRATION URL
+// 🌐 GOOGLE SHEETS INTEGRATION URL & BACKEND API URL
 // ============================================================
 const GOOGLE_SHEET_API_URL = "https://script.google.com/macros/s/AKfycbx-cqDHzHAtMIR2stMUlmHA-ihFE0XlfwvgUHMV5IU9WYv972q0kU_A4N2LE8aIIjtn/exec";
+const PYTHON_BACKEND_NOC_URL = "http://127.0.0.1:8000/generate-noc";
 
 // ============================================================
 // 🏢 DYNAMIC TOWERS, SYSTEM DATA, MAPPING DATA & USERS
@@ -40,7 +41,6 @@ function fetchAllDataFromGoogleSheet() {
   })
     .then(response => response.json())
     .then(data => {
-      // 👥 جلب بيانات اليوزرات الديناميكية
       if (data.users && typeof data.users === "object") {
         dynamicUsers = data.users;
       }
@@ -317,7 +317,6 @@ function submitPasswordChange() {
   const msgEl = document.getElementById("passChangeMsg");
   const username = localStorage.getItem("loggedInUser");
 
-  // 1. التحقق من تطابق القديم
   const currentSavedPass = localStorage.getItem("userPassword") || (dynamicUsers[username] ? dynamicUsers[username].password : null);
   if (currentSavedPass && String(oldPass) !== String(currentSavedPass)) {
     msgEl.style.color = "#ef4444";
@@ -326,7 +325,6 @@ function submitPasswordChange() {
     return;
   }
 
-  // 2. مطابقة التأكيد
   if (newPass !== confirmPass) {
     msgEl.style.color = "#ef4444";
     msgEl.innerText = "❌ New passwords do not match!";
@@ -338,7 +336,6 @@ function submitPasswordChange() {
   msgEl.innerText = "⏳ Updating password in Google Sheet...";
   msgEl.style.display = "block";
 
-  // 3. إرسال لـ Apps Script للتحديث الفعلي في الشيت
   fetch(GOOGLE_SHEET_API_URL, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -354,13 +351,11 @@ function submitPasswordChange() {
       msgEl.style.color = "#22c55e";
       msgEl.innerText = "✅ Password updated successfully in Google Sheet!";
       
-      // تحديث القيم المحلية
       localStorage.setItem("userPassword", newPass);
       if (dynamicUsers[username]) {
         dynamicUsers[username].password = newPass;
       }
 
-      // إعطاء مهلة وجلب البيانات مجدداً للتأكد من التزامن الكامل
       setTimeout(() => {
         fetchAllDataFromGoogleSheet();
         closeChangePasswordModal();
@@ -409,6 +404,66 @@ function updateUIForRole() {
 }
 
 // ============================================================
+// 📄 NOC GENERATOR LOGIC
+// ============================================================
+function initNocPage() {
+    const dateInput = document.getElementById("nocDate");
+    if (dateInput && !dateInput.value) {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        dateInput.value = `${yyyy}-${mm}-${dd}`;
+    }
+}
+
+function handleNocSubmission() {
+    const btn = document.getElementById("btnNocSubmit");
+    const originalText = btn.innerHTML;
+
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Generating NOC PDF... Please wait.`;
+
+    const payload = {
+        tenant_name: document.getElementById("nocTenantName").value.trim() || "N/A",
+        tower_name: document.getElementById("nocTowerName").value.trim() || "N/A",
+        unit_no: document.getElementById("nocUnitNo").value.trim() || "N/A",
+        tenant_contract: document.getElementById("nocTenantContract").value.trim() || "N/A",
+        noc_date: document.getElementById("nocDate").value,
+        owner_name: document.getElementById("nocOwnerName").value.trim() || "N/A",
+        owner_contract: document.getElementById("nocOwnerContract").value.trim() || "N/A"
+    };
+
+    fetch(PYTHON_BACKEND_NOC_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    })
+    .then(response => {
+        if (!response.ok) throw new Error("Failed to generate PDF");
+        return response.blob();
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `NOC_${payload.tenant_name}_${payload.unit_no}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    })
+    .catch(err => {
+        alert("❌ Error generating PDF. Make sure Python backend server is running!");
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
+}
+
+// ============================================================
 // 🧭 NAVIGATION
 // ============================================================
 function navigateTo(pageId) {
@@ -438,6 +493,8 @@ function navigateTo(pageId) {
       renderUnitMappingTable();
     } else if (pageId === 'calculator-page') {
       initCalculatorPage();
+    } else if (pageId === 'noc-page') {
+      initNocPage();
     } else if (pageId === 'tech-page') {
       renderScheduleCards();
     } else if (pageId === 'roster-page') {
@@ -791,7 +848,6 @@ function updateFields(data, towerName = "") {
       }
     });
 
-    // 🔧 إظهار المينتنانس فقط وحصرياً إذا كانت هناك قيمة حقيقية
     const mainRow = document.getElementById("maintenance_row");
     const mainEl = document.getElementById("maintenance");
     if (correctData.maintenance && correctData.maintenance !== "-" && correctData.maintenance !== "" && correctData.maintenance !== "null") {
@@ -813,7 +869,6 @@ function updateFields(data, towerName = "") {
       }
     }
 
-    // 💳 ضبط حالة أونلاين بايمنت متوسّطة في المنتصف
     const onlineEl = document.getElementById("online");
     if (onlineEl) {
       if (userIsAdmin) {
@@ -886,7 +941,6 @@ function updateFields(data, towerName = "") {
       }
     }
   } else {
-    // 🧹 تصفير العناصر وإخفاء المينتنانس تماماً
     fields.forEach(f => {
       const el = document.getElementById(f);
       if(el) el.innerText = "-";
@@ -1250,7 +1304,7 @@ function updateActiveSummary() {
 }
 
 // ============================================================
-// 👤 AGENT INDIVIDUAL LOOKUP (UPDATED WITH MONTH SELECTOR)
+// 👤 AGENT INDIVIDUAL LOOKUP
 // ============================================================
 function populateAgentDropdown() {
   const dropdown = document.getElementById("agentDropdown");
