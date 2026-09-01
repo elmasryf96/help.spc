@@ -91,18 +91,27 @@ async def generate_noc(data: TenantNocRequest):
             if len(parts) == 3 and len(parts[0]) == 4:
                 formatted_date = f"{parts[2]}-{parts[1]}-{parts[0]}"
 
-        # حماية ضد القيم الفاضية أو الـ None في الخانات الاختيارية
         owner_name_clean = (data.owner_name or "N/A").strip()
         owner_contract_clean = (data.owner_contract or "N/A").strip()
 
+        # Context شامل يغطي جميع احتمالات التسمية داخل قالب Word
         context = {
             "noc_date": formatted_date,
-            "tenant_name": (data.tenant_name or "").upper(),
+            "date": formatted_date,
+            "Date": formatted_date,
             "tower_name": data.tower_name,
             "unit_no": data.unit_no,
+            "building_name": data.tower_name,
+            "unit_number": data.unit_no,
+            "tenant_name": (data.tenant_name or "").upper(),
+            "customer_name": (data.tenant_name or "").upper(),
             "tenant_contract": data.tenant_contract,
+            "contract_no": data.tenant_contract,
+            "contract_number": data.tenant_contract,
             "owner_name": owner_name_clean.upper() if owner_name_clean else "N/A",
-            "owner_contract": owner_contract_clean if owner_contract_clean else "N/A"
+            "owner_consumer_name": owner_name_clean.upper() if owner_name_clean else "N/A",
+            "owner_contract": owner_contract_clean if owner_contract_clean else "N/A",
+            "owner_contract_no": owner_contract_clean if owner_contract_clean else "N/A"
         }
 
         return convert_and_return_pdf("NOC_Template.docx", context, data.unit_no, "Tenant_NOC")
@@ -121,8 +130,12 @@ async def generate_owner_noc(data: OwnerNocRequest):
 
         context = {
             "noc_date": formatted_date,
+            "date": formatted_date,
+            "Date": formatted_date,
             "owner_name": (data.owner_name or "").upper(),
+            "customer_name": (data.owner_name or "").upper(),
             "owner_contract": data.owner_contract,
+            "contract_no": data.owner_contract,
             "new_owner_name": (data.new_owner_name or "").upper(),
             "new_owner_contract": data.new_owner_contract,
             "tower_name": data.tower_name,
@@ -145,8 +158,12 @@ async def generate_rent_noc(data: RentNocRequest):
 
         context = {
             "noc_date": formatted_date,
+            "date": formatted_date,
+            "Date": formatted_date,
             "owner_name": (data.owner_name or "").upper(),
+            "customer_name": (data.owner_name or "").upper(),
             "owner_contract": data.owner_contract,
+            "contract_no": data.owner_contract,
             "tower_name": data.tower_name,
             "unit_no": data.unit_no
         }
@@ -167,7 +184,10 @@ async def generate_move_in_clearance(data: MoveInClearanceRequest):
 
         context = {
             "noc_date": formatted_date,
+            "date": formatted_date,
+            "Date": formatted_date,
             "account_holder_name": (data.account_holder_name or "").upper(),
+            "customer_name": (data.account_holder_name or "").upper(),
             "account_type": (data.account_type or "").upper(),
             "tower_name": data.tower_name,
             "unit_no": data.unit_no,
