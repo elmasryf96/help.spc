@@ -229,30 +229,42 @@
 
             <div class="calc-wrapper" style="grid-template-columns: 1fr; max-width: 750px; margin: 0 auto;">
                 <div class="calc-card">
-                    <h3><i class="fa-solid fa-file-contract"></i> Issue New Tenant NOC Certificate</h3>
+                    <h3><i class="fa-solid fa-file-contract"></i> Issue NOC Certificate</h3>
                     
                     <form id="nocForm" onsubmit="event.preventDefault(); handleNocSubmission();">
                         <div class="calc-form-grid">
-                            <div class="section-title" style="font-weight: 800; color: var(--dark-navy); margin-top: 5px;"><i class="fa-solid fa-user-check" style="color: #d97706;"></i> 1. Tenant & Property Details</div>
+                            
+                            <!-- 🔘 NOC TYPE SELECTOR -->
+                            <div class="form-group" style="grid-column: 1 / -1; margin-bottom: 10px;">
+                                <label for="nocTypeSelect"><i class="fa-solid fa-layer-group"></i> NOC Type / نوع الشهادة:</label>
+                                <select id="nocTypeSelect" onchange="toggleNocFormType()" class="combo-input" style="font-weight: 800; border-color: var(--primary-yellow); padding: 10px;">
+                                    <option value="tenant">Tenant to Owner NOC (مستأجر لمالك)</option>
+                                    <option value="owner">Owner to New Owner NOC (مالك لمالك جديد)</option>
+                                </select>
+                            </div>
+
+                            <div class="section-title" id="section1Title" style="font-weight: 800; color: var(--dark-navy); margin-top: 5px; grid-column: 1 / -1;">
+                                <i class="fa-solid fa-user-check" style="color: #d97706;"></i> 1. Tenant & Property Details
+                            </div>
 
                             <div class="form-group">
-                                <label><i class="fa-solid fa-user"></i> Tenant Consumer Name:</label>
+                                <label id="labelTenantName"><i class="fa-solid fa-user"></i> Tenant Consumer Name:</label>
                                 <input type="text" id="nocTenantName" class="combo-input" placeholder="e.g. Timur Yeginzhanov" required>
                             </div>
 
                             <div class="form-group">
                                 <label><i class="fa-solid fa-building"></i> Building / Tower Name:</label>
-                                <input type="text" id="nocTowerName" class="combo-input" placeholder="e.g. The Bridges 6" required>
+                                <input type="text" id="nocTowerName" class="combo-input" placeholder="e.g. TORINO BY ORO24" required>
                             </div>
 
                             <div class="form-group">
                                 <label><i class="fa-solid fa-door-closed"></i> Unit / Apartment No.:</label>
-                                <input type="text" id="nocUnitNo" class="combo-input" placeholder="e.g. Unit T6 -601" required>
+                                <input type="text" id="nocUnitNo" class="combo-input" placeholder="e.g. Unit B1-519" required>
                             </div>
 
                             <div class="form-group">
-                                <label><i class="fa-solid fa-file-signature"></i> Tenant Contract Number:</label>
-                                <input type="text" id="nocTenantContract" class="combo-input" placeholder="e.g. BRT6 - 601 - T3" required>
+                                <label id="labelTenantContract"><i class="fa-solid fa-file-signature"></i> Tenant Contract Number:</label>
+                                <input type="text" id="nocTenantContract" class="combo-input" placeholder="e.g. TBO-B1-519-O2" required>
                             </div>
 
                             <div class="form-group">
@@ -260,27 +272,43 @@
                                 <input type="date" id="nocDate" class="date-input" required>
                             </div>
 
-                            <div class="calc-divider"></div>
+                            <div class="calc-divider" style="grid-column: 1 / -1;"></div>
 
-                            <div class="section-title" style="font-weight: 800; color: var(--dark-navy);"><i class="fa-solid fa-user-tie" style="color: #d97706;"></i> 2. Owner Details (Optional)</div>
+                            <div class="section-title" id="section2Title" style="font-weight: 800; color: var(--dark-navy); grid-column: 1 / -1;">
+                                <i class="fa-solid fa-user-tie" style="color: #d97706;"></i> 2. Owner Details (Optional)
+                            </div>
 
                             <div class="form-group">
-                                <label><i class="fa-solid fa-user"></i> Owner Consumer Name:</label>
+                                <label id="labelOwnerName"><i class="fa-solid fa-user"></i> Owner Consumer Name:</label>
                                 <input type="text" id="nocOwnerName" class="combo-input" placeholder="e.g. N/A or Owner Full Name">
                             </div>
 
                             <div class="form-group">
-                                <label><i class="fa-solid fa-file-invoice"></i> Owner Contract Number:</label>
+                                <label id="labelOwnerContract"><i class="fa-solid fa-file-invoice"></i> Owner Contract Number:</label>
                                 <input type="text" id="nocOwnerContract" class="combo-input" placeholder="e.g. N/A or Owner Contract No.">
                             </div>
 
-                            <button type="submit" id="btnNocSubmit" class="btn-primary" style="margin-top: 15px; padding: 12px; font-size: 15px;">
+                            <button type="submit" id="btnNocSubmit" class="btn-primary" style="margin-top: 15px; padding: 12px; font-size: 15px; grid-column: 1 / -1;">
                                 🚀 Generate & Download NOC PDF
                             </button>
                         </div>
                     </form>
                 </div>
             </div>
+
+            <!-- 💖 Developer Note Banner -->
+            <div class="dev-banner-card" style="margin-top: 20px;">
+                <div class="dev-banner-header">
+                    <i class="fa-solid fa-heart"></i>
+                    <h3>Designed & Developed with Love</h3>
+                </div>
+                <p>
+                    Built to support our team's daily efficiency by 
+                    <span class="dev-name-badge"><i class="fa-solid fa-user-gear"></i> Fares Elmasry</span>
+                </p>
+            </div>
+        </div>
+    </div>
 
             <!-- 💖 Developer Note Banner -->
             <div class="dev-banner-card" style="margin-top: 20px;">
