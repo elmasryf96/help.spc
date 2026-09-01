@@ -1,6 +1,5 @@
 services:
   - type: web
     name: help-spc
-    env: python
-    buildCommand: "apt-get update && apt-get install -y libreoffice && pip install -r requirements.txt"
-    startCommand: "uvicorn server:app --host 0.0.0.0 --port $PORT"
+    env: docker
+    plan: free
