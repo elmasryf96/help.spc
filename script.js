@@ -511,6 +511,7 @@ function handleNocSubmission() {
 
     let targetUrl = PYTHON_BACKEND_NOC_URL;
     let payload = {};
+    let downloadFileName = `NOC_${document.getElementById("nocUnitNo").value.trim() || "Document"}.pdf`;
 
     if (nocType === "rent") {
         targetUrl = PYTHON_BACKEND_RENT_NOC_URL;
@@ -521,6 +522,7 @@ function handleNocSubmission() {
             unit_no: document.getElementById("nocUnitNo").value.trim() || "N/A",
             noc_date: document.getElementById("nocDate").value
         };
+        downloadFileName = `Owner_Clearance_For_Rent_${payload.unit_no}.pdf`;
     } else if (nocType === "owner") {
         targetUrl = PYTHON_BACKEND_OWNER_NOC_URL;
         payload = {
@@ -532,6 +534,7 @@ function handleNocSubmission() {
             unit_no: document.getElementById("nocUnitNo").value.trim() || "N/A",
             noc_date: document.getElementById("nocDate").value
         };
+        downloadFileName = `Owner_NOC_${payload.unit_no}.pdf`;
     } else {
         payload = {
             tenant_name: document.getElementById("nocTenantName").value.trim() || "N/A",
@@ -542,6 +545,7 @@ function handleNocSubmission() {
             owner_name: document.getElementById("nocOwnerName").value.trim() || "N/A",
             owner_contract: document.getElementById("nocOwnerContract").value.trim() || "N/A"
         };
+        downloadFileName = `Tenant_NOC_${payload.unit_no}.pdf`;
     }
 
     fetch(targetUrl, {
@@ -557,7 +561,7 @@ function handleNocSubmission() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `NOC_${payload.unit_no}.pdf`;
+        a.download = downloadFileName;
         document.body.appendChild(a);
         a.click();
         a.remove();
