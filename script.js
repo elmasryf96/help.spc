@@ -1,11 +1,37 @@
 // ============================================================
 // 🌐 GOOGLE SHEETS INTEGRATION URL & BACKEND API URL
 // ============================================================
-const GOOGLE_SHEET_API_URL = "https://script.google.com/macros/s/AKfycbx-cqDHzHAtMIR2stMUlmHA-ihFE0XlfwvgUHMV5IU9WYv972q0kU_A4N2LE8aIIjtn/exec";
+const GOOGLE_SHEET_API_URL = "https://script.google.com/macros/s/AKfycbyoHwUGR_Hi7BcJ7cHLCeV3OTG4llBdNWGK2Ohh8fTRHkc4d-XRHZmF3Lff1r4UMW6d/exec";
 const PYTHON_BACKEND_NOC_URL = "https://help-spc.onrender.com/generate-noc";
 const PYTHON_BACKEND_OWNER_NOC_URL = "https://help-spc.onrender.com/generate-owner-noc";
 const PYTHON_BACKEND_RENT_NOC_URL = "https://help-spc.onrender.com/generate-rent-noc";
 const PYTHON_BACKEND_MOVE_IN_URL = "https://help-spc.onrender.com/generate-move-in-clearance";
+
+// ============================================================
+// 📝 LOGGING FUNCTION TO GOOGLE SHEETS (NOC & CLEARANCE LOGS)
+// ============================================================
+function sendLogToGoogleSheet(logPayload) {
+  const currentUser = localStorage.getItem("loggedInUser") || "Unknown User";
+
+  const dataToSend = {
+    action: "logNoc",
+    user: currentUser,
+    noc_type: logPayload.noc_type || "-",
+    tenant_name: logPayload.tenant_name || "-",
+    tenant_contract: logPayload.tenant_contract || "-",
+    owner_name: logPayload.owner_name || "-",
+    owner_contract: logPayload.owner_contract || "-",
+    tower_name: logPayload.tower_name || "-",
+    unit_no: logPayload.unit_no || "-"
+  };
+
+  fetch(GOOGLE_SHEET_API_URL, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dataToSend)
+  }).catch(err => console.error("Error logging to Google Sheet:", err));
+}
 
 // ============================================================
 // 🏢 DYNAMIC TOWERS, SYSTEM DATA, MAPPING DATA & USERS
@@ -436,7 +462,7 @@ function updateUIForRole() {
 }
 
 // ============================================================
-// 📄 NOC GENERATOR LOGIC
+// 📄 NOC GENERATOR LOGIC & AUTOMATIC LOGGING
 // ============================================================
 function initNocPage() {
     const dateInput = document.getElementById("nocDate");
@@ -542,6 +568,7 @@ function handleNocSubmission() {
 
     let targetUrl = PYTHON_BACKEND_NOC_URL;
     let payload = {};
+    let logPayload = {};
     let downloadFileName = `NOC_${document.getElementById("nocUnitNo").value.trim() || "Document"}.pdf`;
 
     if (nocType === "movein") {
@@ -555,6 +582,16 @@ function handleNocSubmission() {
             noc_date: document.getElementById("nocDate").value
         };
         downloadFileName = `Move_In_Clearance_${payload.unit_no}.pdf`;
+
+        logPayload = {
+            noc_type: "Move-In Clearance",
+            tenant_name: payload.account_holder_name,
+            tenant_contract: payload.spc_account_no,
+            owner_name: "-",
+            owner_contract: "-",
+            tower_name: payload.tower_name,
+            unit_no: payload.unit_no
+        };
     } else if (nocType === "rent") {
         targetUrl = PYTHON_BACKEND_RENT_NOC_URL;
         payload = {
@@ -565,6 +602,16 @@ function handleNocSubmission() {
             noc_date: document.getElementById("nocDate").value
         };
         downloadFileName = `Owner_Clearance_For_Rent_${payload.unit_no}.pdf`;
+
+        logPayload = {
+            noc_type: "Owner Clearance For Rent",
+            tenant_name: "-",
+            tenant_contract: "-",
+            owner_name: payload.owner_name,
+            owner_contract: payload.owner_contract,
+            tower_name: payload.tower_name,
+            unit_no: payload.unit_no
+        };
     } else if (nocType === "owner") {
         targetUrl = PYTHON_BACKEND_OWNER_NOC_URL;
         payload = {
@@ -577,6 +624,16 @@ function handleNocSubmission() {
             noc_date: document.getElementById("nocDate").value
         };
         downloadFileName = `Owner_NOC_${payload.unit_no}.pdf`;
+
+        logPayload = {
+            noc_type: "Owner NOC",
+            tenant_name: "-",
+            tenant_contract: "-",
+            owner_name: `${payload.owner_name} ➔ ${payload.new_owner_name}`,
+            owner_contract: `${payload.owner_contract} / ${payload.new_owner_contract}`,
+            tower_name: payload.tower_name,
+            unit_no: payload.unit_no
+        };
     } else {
         payload = {
             tenant_name: document.getElementById("nocTenantName").value.trim() || "N/A",
@@ -588,6 +645,16 @@ function handleNocSubmission() {
             owner_contract: document.getElementById("nocOwnerContract").value.trim() || "N/A"
         };
         downloadFileName = `Tenant_NOC_${payload.unit_no}.pdf`;
+
+        logPayload = {
+            noc_type: "Tenant NOC",
+            tenant_name: payload.tenant_name,
+            tenant_contract: payload.tenant_contract,
+            owner_name: payload.owner_name,
+            owner_contract: payload.owner_contract,
+            tower_name: payload.tower_name,
+            unit_no: payload.unit_no
+        };
     }
 
     fetch(targetUrl, {
@@ -608,6 +675,9 @@ function handleNocSubmission() {
         a.click();
         a.remove();
         window.URL.revokeObjectURL(url);
+
+        // 🟢 إرسال اللوج تلقائياً بعد نجاح تنزيل ملف الـ PDF
+        sendLogToGoogleSheet(logPayload);
 
         btn.disabled = false;
         btn.innerHTML = originalText;
