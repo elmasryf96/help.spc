@@ -1,192 +1,56 @@
-from fastapi import FastAPI, Response, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from docxtpl import DocxTemplate
-from datetime import datetime
-import os
-import tempfile
-import requests
-
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-class NOCData(BaseModel):
-    tenant_name: str
+class MoveInClearanceRequest(BaseModel):
+    account_holder_name: str
+    account_type: str
     tower_name: str
     unit_no: str
-    tenant_contract: str
-    noc_date: str
-    owner_name: str
-    owner_contract: str
-
-class OwnerNOCData(BaseModel):
-    owner_name: str
-    owner_contract: str
-    new_owner_name: str
-    new_owner_contract: str
-    tower_name: str
-    unit_no: str
+    spc_account_no: str
     noc_date: str
 
-# --- Rent NOC Data Model ---
-class RentNOCData(BaseModel):
-    owner_name: str
-    owner_contract: str
-    tower_name: str
-    unit_no: str
-    noc_date: str
-
-@app.get("/")
-def read_root():
-    return {"status": "SPC NOC API is live and running!"}
-
-@app.head("/")
-def read_root_head():
-    return Response(status_code=200)
-
-@app.post("/generate-noc")
-def generate_noc(data: NOCData):
+@app.post("/generate-move-in-clearance")
+async def generate_move_in_clearance(data: MoveInClearanceRequest):
     try:
-        try:
-            date_obj = datetime.strptime(data.noc_date, "%Y-%m-%d")
-            formatted_date = date_obj.strftime("%d/%m/%Y")
-        except Exception:
-            formatted_date = data.noc_date
+        template_path = "Move_In_Clearance_Template.docx"
+        if not os.path.exists(template_path):
+            raise HTTPException(status_code=500, detail="Move-in template file not found!")
+
+        doc = DocxTemplate(template_path)
+        
+        # تنسيق التاريخ ليظهر بالشكل DD-MM-YYYY
+        formatted_date = data.noc_date
+        if "-" in data.noc_date:
+            parts = data.noc_date.split("-")
+            if len(parts) == 3 and len(parts[0]) == 4:
+                formatted_date = f"{parts[2]}-{parts[1]}-{parts[0]}"
 
         context = {
-            'TENANT_NAME': data.tenant_name,
-            'TOWER': data.tower_name,
-            'UNIT': data.unit_no,
-            'TENANT_CONTRACT': data.tenant_contract,
-            'DATE': formatted_date,
-            'OWNER_NAME': data.owner_name,
-            'OWNER_CONTRACT': data.owner_contract
+            "noc_date": formatted_date,
+            "account_holder_name": data.account_holder_name.upper(),
+            "account_type": data.account_type.upper(),
+            "tower_name": data.tower_name,
+            "unit_no": data.unit_no,
+            "spc_account_no": data.spc_account_no
         }
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            docx_path = os.path.join(temp_dir, "temp_noc.docx")
-            pdf_path = os.path.join(temp_dir, "temp_noc.pdf")
+        doc.render(context)
+        
+        temp_docx = f"temp_movein_{data.unit_no}.docx"
+        
+        doc.save(temp_docx)
 
-            doc = DocxTemplate("NOC_Template.docx")
-            doc.render(context)
-            doc.save(docx_path)
+        # تحويل Docx إلى PDF باستخدام LibreOffice على Render
+        cmd = f"libreoffice --headless --convert-to pdf {temp_docx} --outdir ."
+        subprocess.run(cmd, shell=True, check=True)
 
-            try:
-                with open(docx_path, 'rb') as f:
-                    files = {'files': ('document.docx', f, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')}
-                    res = requests.post('https://demo.gotenberg.dev/forms/libreoffice/convert', files=files, timeout=30)
-                    if res.status_code == 200:
-                        with open(pdf_path, 'wb') as pdf_out:
-                            pdf_out.write(res.content)
-            except Exception as conv_err:
-                print("Conversion error:", conv_err)
+        generated_pdf = temp_docx.replace(".docx", ".pdf")
 
-            if os.path.exists(pdf_path) and os.path.getsize(pdf_path) > 0:
-                with open(pdf_path, "rb") as f:
-                    pdf_bytes = f.read()
-                return Response(content=pdf_bytes, media_type="application/pdf")
-            else:
-                raise HTTPException(status_code=500, detail="Could not convert document to PDF")
+        if os.path.exists(temp_docx):
+            os.remove(temp_docx)
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/generate-owner-noc")
-def generate_owner_noc(data: OwnerNOCData):
-    try:
-        try:
-            date_obj = datetime.strptime(data.noc_date, "%Y-%m-%d")
-            formatted_date = date_obj.strftime("%d/%m/%Y")
-        except Exception:
-            formatted_date = data.noc_date
-
-        context = {
-            'OWNER_NAME': data.owner_name,
-            'OWNER_CONTRACT': data.owner_contract,
-            'NEW_OWNER_NAME': data.new_owner_name,
-            'NEW_OWNER_CONTRACT': data.new_owner_contract,
-            'TOWER': data.tower_name,
-            'UNIT': data.unit_no,
-            'DATE': formatted_date
-        }
-
-        with tempfile.TemporaryDirectory() as temp_dir:
-            docx_path = os.path.join(temp_dir, "temp_owner_noc.docx")
-            pdf_path = os.path.join(temp_dir, "temp_owner_noc.pdf")
-
-            doc = DocxTemplate("NOC_Owner_Template.docx")
-            doc.render(context)
-            doc.save(docx_path)
-
-            try:
-                with open(docx_path, 'rb') as f:
-                    files = {'files': ('document.docx', f, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')}
-                    res = requests.post('https://demo.gotenberg.dev/forms/libreoffice/convert', files=files, timeout=30)
-                    if res.status_code == 200:
-                        with open(pdf_path, 'wb') as pdf_out:
-                            pdf_out.write(res.content)
-            except Exception as conv_err:
-                print("Conversion error:", conv_err)
-
-            if os.path.exists(pdf_path) and os.path.getsize(pdf_path) > 0:
-                with open(pdf_path, "rb") as f:
-                    pdf_bytes = f.read()
-                return Response(content=pdf_bytes, media_type="application/pdf")
-            else:
-                raise HTTPException(status_code=500, detail="Could not convert document to PDF")
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# --- Rent NOC Endpoint ---
-@app.post("/generate-rent-noc")
-def generate_rent_noc(data: RentNOCData):
-    try:
-        try:
-            date_obj = datetime.strptime(data.noc_date, "%Y-%m-%d")
-            formatted_date = date_obj.strftime("%d/%m/%Y")
-        except Exception:
-            formatted_date = data.noc_date
-
-        context = {
-            'OWNER_NAME': data.owner_name,
-            'OWNER_CONTRACT': data.owner_contract,
-            'TOWER': data.tower_name,
-            'UNIT': data.unit_no,
-            'DATE': formatted_date
-        }
-
-        with tempfile.TemporaryDirectory() as temp_dir:
-            docx_path = os.path.join(temp_dir, "temp_rent_noc.docx")
-            pdf_path = os.path.join(temp_dir, "temp_rent_noc.pdf")
-
-            doc = DocxTemplate("NOC_Rent_Template.docx")
-            doc.render(context)
-            doc.save(docx_path)
-
-            try:
-                with open(docx_path, 'rb') as f:
-                    files = {'files': ('document.docx', f, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')}
-                    res = requests.post('https://demo.gotenberg.dev/forms/libreoffice/convert', files=files, timeout=30)
-                    if res.status_code == 200:
-                        with open(pdf_path, 'wb') as pdf_out:
-                            pdf_out.write(res.content)
-            except Exception as conv_err:
-                print("Conversion error:", conv_err)
-
-            if os.path.exists(pdf_path) and os.path.getsize(pdf_path) > 0:
-                with open(pdf_path, "rb") as f:
-                    pdf_bytes = f.read()
-                return Response(content=pdf_bytes, media_type="application/pdf")
-            else:
-                raise HTTPException(status_code=500, detail="Could not convert document to PDF")
+        return FileResponse(
+            generated_pdf, 
+            media_type="application/pdf", 
+            filename=f"Move_In_Clearance_{data.unit_no}.pdf"
+        )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -57,7 +57,7 @@
             </form>
         </div>
 
-        <!-- 💖 Developer Note & Feedback Banner (Dynamic - will be added by JS) -->
+        <!-- 💖 Developer Note & Feedback Banner -->
         <div id="login-banner-container" style="margin-top: 15px; max-width: 420px; width: 100%; text-align: center; box-sizing: border-box;"></div>
 
     </div>
@@ -121,42 +121,36 @@
             </div>
 
             <div class="dashboard-grid3">
-                <!-- 🏢 Master Data Button Card -->
                 <div class="menu-card" onclick="navigateTo('towers-page')">
                     <div class="menu-icon"><i class="fa-solid fa-database"></i></div>
                     <h3>Master Data & Tower Info</h3>
                     <div class="btn-primary">Open Lookup <i class="fa-solid fa-arrow-right"></i></div>
                 </div>
 
-                <!-- 🔗 Unit Mapping Tool Button Card -->
                 <div class="menu-card" onclick="navigateTo('unit-mapping-page')">
                     <div class="menu-icon"><i class="fa-solid fa-arrow-right-arrow-left"></i></div>
                     <h3>Unit Mapping Tool</h3>
                     <div class="btn-primary">Search Units <i class="fa-solid fa-magnifying-glass"></i></div>
                 </div>
 
-                <!-- 🧮 Final Bill Calculator Button Card -->
                 <div class="menu-card" onclick="navigateTo('calculator-page')">
                     <div class="menu-icon"><i class="fa-solid fa-calculator"></i></div>
                     <h3>Final Bill Calculator</h3>
                     <div class="btn-primary">Calculate Bill <i class="fa-solid fa-calculator"></i></div>
                 </div>
 
-                <!-- 📄 NOC Certificate Generator Button Card -->
                 <div class="menu-card" onclick="navigateTo('noc-page')">
                     <div class="menu-icon"><i class="fa-solid fa-file-pdf"></i></div>
                     <h3>NOC Generator</h3>
                     <div class="btn-primary">Generate NOC <i class="fa-solid fa-file-contract"></i></div>
                 </div>
 
-                <!-- 🛠️ Technical Department Button Card -->
                 <div class="menu-card" onclick="navigateTo('tech-page')">
                     <div class="menu-icon"><i class="fa-solid fa-screwdriver-wrench"></i></div>
                     <h3>Technical Schedule & Tracker</h3>
                     <div class="btn-primary">Open Schedule <i class="fa-solid fa-calendar-days"></i></div>
                 </div>
 
-                <!-- 📅 Duty Roster Button Card -->
                 <div class="menu-card" onclick="navigateTo('roster-page')">
                     <div class="menu-icon"><i class="fa-solid fa-users-gear"></i></div>
                     <h3>Monthly Duty Roster</h3>
@@ -164,10 +158,8 @@
                 </div>
             </div>
 
-            <!-- 💖 Developer Note Banner (Dynamic) -->
             <div id="home-banner-container"></div>
 
-            <!-- 👑 ADMIN BUTTON -->
             <div class="admin-bottom-wrapper">
                 <button id="adminMiniBtn" class="admin-mini-btn" onclick="navigateTo('admin-page')" style="display: none;">
                     <i class="fa-solid fa-user-shield"></i> Admin Panel
@@ -214,9 +206,10 @@
                             <div class="form-group" style="grid-column: 1 / -1; margin-bottom: 10px;">
                                 <label for="nocTypeSelect"><i class="fa-solid fa-layer-group"></i> NOC Type:</label>
                                 <select id="nocTypeSelect" onchange="toggleNocFormType()" class="combo-input" style="font-weight: 800; border-color: var(--primary-yellow); padding: 10px;">
-                                    <option value="tenant">Tenant NOC </option>
-                                    <option value="owner">Owner NOC </option>
-                                    <option value="rent">Owner Clearance For Rent </option>
+                                    <option value="tenant">Tenant NOC</option>
+                                    <option value="owner">Owner NOC</option>
+                                    <option value="rent">Owner Clearance For Rent</option>
+                                    <option value="movein">Move-in Clearance Letter</option>
                                 </select>
                             </div>
 
@@ -224,9 +217,9 @@
                                 <i class="fa-solid fa-user-check" style="color: #d97706;"></i> 1. Tenant & Property Details
                             </div>
 
-                            <div class="form-group">
+                            <div class="form-group" id="groupTenantName">
                                 <label id="labelTenantName"><i class="fa-solid fa-user"></i> Tenant Consumer Name:</label>
-                                <input type="text" id="nocTenantName" class="combo-input" placeholder="e.g. Timur Yeginzhanov" required>
+                                <input type="text" id="nocTenantName" class="combo-input" placeholder="e.g. Timur Yeginzhanov">
                             </div>
 
                             <div class="form-group">
@@ -239,9 +232,23 @@
                                 <input type="text" id="nocUnitNo" class="combo-input" placeholder="e.g. Unit B1-519" required>
                             </div>
 
-                            <div class="form-group">
+                            <div class="form-group" id="groupTenantContract">
                                 <label id="labelTenantContract"><i class="fa-solid fa-file-signature"></i> Tenant Contract Number:</label>
-                                <input type="text" id="nocTenantContract" class="combo-input" placeholder="e.g. TBO-B1-519-O2" required>
+                                <input type="text" id="nocTenantContract" class="combo-input" placeholder="e.g. TBO-B1-519-O2">
+                            </div>
+
+                            <!-- 🟢 MOVE-IN SPECIFIC FIELDS -->
+                            <div class="form-group" id="groupMoveInAccountType" style="display: none;">
+                                <label id="labelMoveInAccountType"><i class="fa-solid fa-users-gear"></i> Account Type:</label>
+                                <select id="moveInAccountType" class="combo-input" style="font-weight: 800; padding: 10px;">
+                                    <option value="TENANT">TENANT</option>
+                                    <option value="OWNER">OWNER</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="groupMoveInSpcAccount" style="display: none;">
+                                <label id="labelMoveInSpcAccount"><i class="fa-solid fa-hashtag"></i> SPC Account Number:</label>
+                                <input type="text" id="moveInSpcAccount" class="combo-input" placeholder="e.g. CST21106T5">
                             </div>
 
                             <div class="form-group">
@@ -255,12 +262,12 @@
                                 <i class="fa-solid fa-user-tie" style="color: #d97706;"></i> 2. Owner Details (Optional)
                             </div>
 
-                            <div class="form-group">
+                            <div class="form-group" id="groupOwnerName">
                                 <label id="labelOwnerName"><i class="fa-solid fa-user"></i> Owner Consumer Name:</label>
                                 <input type="text" id="nocOwnerName" class="combo-input" placeholder="e.g. N/A or Owner Full Name">
                             </div>
 
-                            <div class="form-group">
+                            <div class="form-group" id="groupOwnerContract">
                                 <label id="labelOwnerContract"><i class="fa-solid fa-file-invoice"></i> Owner Contract Number:</label>
                                 <input type="text" id="nocOwnerContract" class="combo-input" placeholder="e.g. N/A or Owner Contract No.">
                             </div>
@@ -273,7 +280,6 @@
                 </div>
             </div>
 
-            <!-- 💖 Developer Note Banner (Dynamic) -->
             <div id="noc-banner-container"></div>
         </div>
     </div>
@@ -305,7 +311,6 @@
 
             <div class="system-title">🏢 Unit Mapping & Reference Cross-Lookup</div>
 
-            <!-- 🏢 Tower Selector Dropdown -->
             <div class="search-box" style="margin-bottom: 10px;">
                 <label for="mappingTowerSelect">🏢 Select Tower:</label>
                 <select id="mappingTowerSelect" class="combo-input" onchange="onTowerMappingChange()" style="font-weight: 800; border-color: var(--primary-yellow);">
@@ -333,7 +338,6 @@
                 </table>
             </div>
 
-            <!-- 💖 Developer Note Banner (Dynamic) -->
             <div id="unit-mapping-banner-container"></div>
         </div>
     </div>
@@ -365,7 +369,6 @@
 
             <div class="system-title">🧮 Final Bill & Account Closure Consumption Calculator</div>
 
-            <!-- ⚠️ IMPORTANT TOWERS NOTICES (ONLY ON CALCULATOR PAGE) -->
             <div class="towers-rules-banner">
                 <div class="rule-box rule-danger">
                     <i class="fa-solid fa-triangle-exclamation"></i>
@@ -461,7 +464,6 @@
                         <strong id="resFinalCurrentUsage">0 Units</strong>
                     </div>
 
-                    <!-- 📋 READINGS SUMMARY FOR SYSTEM ENTRY WITH COPY BUTTONS -->
                     <div class="readings-summary-container">
                         <div class="rs-header">
                             <i class="fa-solid fa-copy"></i>
@@ -488,7 +490,6 @@
                 </div>
             </div>
 
-            <!-- 💖 Developer Note Banner (Dynamic) -->
             <div id="calculator-banner-container"></div>
         </div>
     </div>
@@ -569,7 +570,6 @@
                         <span class="val" id="maintenance">-</span>
                     </div>
 
-                    <!-- 🚨 SPECIAL WARNING BANNER FOR AMAYA & YASMINA -->
                     <div id="tower_warning_row" class="hidden-page" style="margin-top: 15px;">
                       <div style="background-color: #fef2f2; border: 1.5px solid #ef4444; color: #991b1b; padding: 12px 16px; border-radius: 8px; font-weight: 600; font-size: 13.5px; display: flex; align-items: center; gap: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                         <i class="fa-solid fa-triangle-exclamation" style="color: #dc2626; font-size: 18px;"></i>
@@ -599,7 +599,6 @@
                 </div>
             </div>
 
-            <!-- 💖 Developer Note Banner (Dynamic) -->
             <div id="towers-banner-container"></div>
         </div>
     </div>
@@ -678,7 +677,6 @@
                 </div>
             </div>
 
-            <!-- 💖 Developer Note Banner (Dynamic) -->
             <div id="tech-banner-container"></div>
         </div>
     </div>
@@ -735,7 +733,6 @@
                 <button class="tab-btn" id="tabFullBtn" onclick="switchRosterTab('full-sheet-view')">
                     <i class="fa-solid fa-table"></i> Full Monthly Roster Table
                 </button>
-                <!-- 👑 ADMIN FAST ROSTER MANAGER BUTTON -->
                 <button id="adminRosterManageBtn" class="tab-btn admin-manage-btn" onclick="openAgentManagementModal()" style="display: none;">
                     <i class="fa-solid fa-user-gear"></i> Manage Agents & Roster
                 </button>
@@ -783,7 +780,6 @@
                             </select>
                         </div>
 
-                        <!-- 📅 قائمة اختيار الشهر المستقلة -->
                         <div class="form-group flex-1">
                             <label for="agentMonthSelect"><i class="fa-solid fa-calendar-days"></i> Select Month:</label>
                             <select id="agentMonthSelect" class="combo-input" onchange="renderAgentLookup()" style="font-weight: 800; border-color: var(--primary-yellow);">
@@ -820,7 +816,6 @@
                             <h3>Full Team Monthly Schedule</h3>
                         </div>
                         
-                        <!-- 📅 قائمة اختيار الشهر -->
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <label for="fullRosterMonthSelect" style="font-weight: 800; font-size: 13px; color: var(--dark-navy);">🗓️ Select Month:</label>
                             <select id="fullRosterMonthSelect" class="combo-input" onchange="renderFullMonthlyTable()" style="width: auto; padding: 4px 10px; font-weight: 800; border-color: var(--primary-yellow);">
@@ -860,7 +855,6 @@
                 </div>
             </div>
 
-            <!-- 💖 Developer Note Banner (Dynamic) -->
             <div id="roster-banner-container"></div>
         </div>
     </div>
@@ -933,7 +927,6 @@
                 </div>
             </div>
 
-            <!-- 💖 Developer Note Banner (Dynamic) -->
             <div id="admin-banner-container"></div>
         </div>
     </div>
@@ -947,7 +940,6 @@
             </div>
             <div class="modal-body" style="padding: 20px;">
                 
-                <!-- 🆔 User Account Details Card -->
                 <div style="background: var(--badge-bg); border: 1.5px solid var(--primary-yellow); border-radius: 12px; padding: 12px 15px; margin-bottom: 18px;">
                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; border-bottom: 1px dashed #d4c255; padding-bottom: 8px;">
                         <i class="fa-solid fa-circle-user" style="font-size: 30px; color: var(--dark-navy);"></i>
@@ -962,7 +954,6 @@
                     </div>
                 </div>
 
-                <!-- 🔑 Change Password Form -->
                 <h4 style="margin: 0 0 10px 0; font-size: 13.5px; font-weight: 800; color: var(--dark-navy); border-bottom: 1.5px solid var(--primary-yellow); padding-bottom: 4px;">
                     <i class="fa-solid fa-lock"></i> Change Password
                 </h4>
@@ -997,6 +988,6 @@
     </div>
 
     <!-- 📜 Main Application Script -->
-    <script src="script.js?v=2026.138"></script>
+    <script src="script.js?v=2026.139"></script>
 </body>
 </html>

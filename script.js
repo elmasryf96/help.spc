@@ -5,6 +5,7 @@ const GOOGLE_SHEET_API_URL = "https://script.google.com/macros/s/AKfycbx-cqDHzHA
 const PYTHON_BACKEND_NOC_URL = "https://help-spc.onrender.com/generate-noc";
 const PYTHON_BACKEND_OWNER_NOC_URL = "https://help-spc.onrender.com/generate-owner-noc";
 const PYTHON_BACKEND_RENT_NOC_URL = "https://help-spc.onrender.com/generate-rent-noc";
+const PYTHON_BACKEND_MOVE_IN_URL = "https://help-spc.onrender.com/generate-move-in-clearance";
 
 // ============================================================
 // 🏢 DYNAMIC TOWERS, SYSTEM DATA, MAPPING DATA & USERS
@@ -181,7 +182,6 @@ function createDevBanner(containerId, showFeedback = true) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
-    // Check if banner already exists to avoid duplicates
     if (container.querySelector('.dev-banner-card')) return;
 
     const bannerHTML = `
@@ -463,21 +463,47 @@ function toggleNocFormType() {
     const section1Title = document.getElementById("section1Title");
     const section2Title = document.getElementById("section2Title");
 
-    const ownerNameGroup = document.getElementById("nocOwnerName")?.closest('.form-group');
-    const ownerContractGroup = document.getElementById("nocOwnerContract")?.closest('.form-group');
+    const groupTenantName = document.getElementById("groupTenantName");
+    const groupTenantContract = document.getElementById("groupTenantContract");
+    const groupOwnerName = document.getElementById("groupOwnerName");
+    const groupOwnerContract = document.getElementById("groupOwnerContract");
+    const groupMoveInAccountType = document.getElementById("groupMoveInAccountType");
+    const groupMoveInSpcAccount = document.getElementById("groupMoveInSpcAccount");
 
-    if (nocType === "rent") {
+    if (nocType === "movein") {
         if (section2Title) section2Title.style.display = "none";
-        if (ownerNameGroup) ownerNameGroup.style.display = "none";
-        if (ownerContractGroup) ownerContractGroup.style.display = "none";
+        if (groupOwnerName) groupOwnerName.style.display = "none";
+        if (groupOwnerContract) groupOwnerContract.style.display = "none";
+
+        if (groupTenantName) groupTenantName.style.display = "block";
+        if (groupTenantContract) groupTenantContract.style.display = "none";
+        if (groupMoveInAccountType) groupMoveInAccountType.style.display = "block";
+        if (groupMoveInSpcAccount) groupMoveInSpcAccount.style.display = "block";
+
+        if (section1Title) section1Title.innerHTML = `<i class="fa-solid fa-file-circle-check" style="color: #d97706;"></i> Move-In Clearance Details`;
+        if (labelTenantName) labelTenantName.innerHTML = `<i class="fa-solid fa-user"></i> Account Holder Full Name:`;
+    } else if (nocType === "rent") {
+        if (section2Title) section2Title.style.display = "none";
+        if (groupOwnerName) groupOwnerName.style.display = "none";
+        if (groupOwnerContract) groupOwnerContract.style.display = "none";
+
+        if (groupTenantName) groupTenantName.style.display = "block";
+        if (groupTenantContract) groupTenantContract.style.display = "block";
+        if (groupMoveInAccountType) groupMoveInAccountType.style.display = "none";
+        if (groupMoveInSpcAccount) groupMoveInSpcAccount.style.display = "none";
 
         if (section1Title) section1Title.innerHTML = `<i class="fa-solid fa-user-check" style="color: #d97706;"></i> 1. Owner Information`;
         if (labelTenantName) labelTenantName.innerHTML = `<i class="fa-solid fa-user"></i> Owner Consumer Name:`;
         if (labelTenantContract) labelTenantContract.innerHTML = `<i class="fa-solid fa-file-signature"></i> Contract Number:`;
     } else if (nocType === "owner") {
         if (section2Title) section2Title.style.display = "block";
-        if (ownerNameGroup) ownerNameGroup.style.display = "block";
-        if (ownerContractGroup) ownerContractGroup.style.display = "block";
+        if (groupOwnerName) groupOwnerName.style.display = "block";
+        if (groupOwnerContract) groupOwnerContract.style.display = "block";
+
+        if (groupTenantName) groupTenantName.style.display = "block";
+        if (groupTenantContract) groupTenantContract.style.display = "block";
+        if (groupMoveInAccountType) groupMoveInAccountType.style.display = "none";
+        if (groupMoveInSpcAccount) groupMoveInSpcAccount.style.display = "none";
 
         if (section1Title) section1Title.innerHTML = `<i class="fa-solid fa-user-check" style="color: #d97706;"></i> 1. Current Owner Information`;
         if (section2Title) section2Title.innerHTML = `<i class="fa-solid fa-user-tie" style="color: #d97706;"></i> 2. New Owner Information`;
@@ -488,8 +514,13 @@ function toggleNocFormType() {
         if (labelOwnerContract) labelOwnerContract.innerHTML = `<i class="fa-solid fa-file-invoice"></i> New Owner Contract Number:`;
     } else {
         if (section2Title) section2Title.style.display = "block";
-        if (ownerNameGroup) ownerNameGroup.style.display = "block";
-        if (ownerContractGroup) ownerContractGroup.style.display = "block";
+        if (groupOwnerName) groupOwnerName.style.display = "block";
+        if (groupOwnerContract) groupOwnerContract.style.display = "block";
+
+        if (groupTenantName) groupTenantName.style.display = "block";
+        if (groupTenantContract) groupTenantContract.style.display = "block";
+        if (groupMoveInAccountType) groupMoveInAccountType.style.display = "none";
+        if (groupMoveInSpcAccount) groupMoveInSpcAccount.style.display = "none";
 
         if (section1Title) section1Title.innerHTML = `<i class="fa-solid fa-user-check" style="color: #d97706;"></i> 1. Tenant & Property Details`;
         if (section2Title) section2Title.innerHTML = `<i class="fa-solid fa-user-tie" style="color: #d97706;"></i> 2. Owner Details (Optional)`;
@@ -507,13 +538,24 @@ function handleNocSubmission() {
     const nocType = document.getElementById("nocTypeSelect").value;
 
     btn.disabled = true;
-    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Generating NOC PDF... Please wait.`;
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Generating PDF... Please wait.`;
 
     let targetUrl = PYTHON_BACKEND_NOC_URL;
     let payload = {};
     let downloadFileName = `NOC_${document.getElementById("nocUnitNo").value.trim() || "Document"}.pdf`;
 
-    if (nocType === "rent") {
+    if (nocType === "movein") {
+        targetUrl = PYTHON_BACKEND_MOVE_IN_URL;
+        payload = {
+            account_holder_name: document.getElementById("nocTenantName").value.trim() || "N/A",
+            account_type: document.getElementById("moveInAccountType").value,
+            tower_name: document.getElementById("nocTowerName").value.trim() || "N/A",
+            unit_no: document.getElementById("nocUnitNo").value.trim() || "N/A",
+            spc_account_no: document.getElementById("moveInSpcAccount").value.trim() || "N/A",
+            noc_date: document.getElementById("nocDate").value
+        };
+        downloadFileName = `Move_In_Clearance_${payload.unit_no}.pdf`;
+    } else if (nocType === "rent") {
         targetUrl = PYTHON_BACKEND_RENT_NOC_URL;
         payload = {
             owner_name: document.getElementById("nocTenantName").value.trim() || "N/A",
@@ -597,7 +639,6 @@ function navigateTo(pageId) {
     targetPage.classList.remove('hidden-page');
     targetPage.classList.add('active-page');
     
-    // 🔥 Dynamic Banner Containers Mapping
     const bannerMap = {
       'home-page': { id: 'home-banner-container', feedback: true },
       'login-page': { id: 'login-banner-container', feedback: true },
@@ -610,7 +651,6 @@ function navigateTo(pageId) {
       'admin-page': { id: 'admin-banner-container', feedback: false }
     };
 
-    // Create banner dynamically
     if (bannerMap[pageId]) {
       createDevBanner(bannerMap[pageId].id, bannerMap[pageId].feedback);
     }
