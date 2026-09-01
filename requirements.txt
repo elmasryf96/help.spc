@@ -3,3 +3,4 @@ uvicorn
 docxtpl
 python-docx
 pydantic
+docx2pdf
