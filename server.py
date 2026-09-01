@@ -2,10 +2,20 @@ import os
 import subprocess
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from docxtpl import DocxTemplate
 
 app = FastAPI()
+
+# 🌐 إضافة CORS Middleware للسماح للفرونت إند بالاتصال بالباك إند
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class MoveInClearanceRequest(BaseModel):
     account_holder_name: str
@@ -20,7 +30,7 @@ async def generate_move_in_clearance(data: MoveInClearanceRequest):
     try:
         template_path = "Move_In_Clearance_Template.docx"
         if not os.path.exists(template_path):
-            raise HTTPException(status_code=500, detail="Move-in template file not found!")
+            raise HTTPException(status_code=500, detail="Move-in template file not found on server!")
 
         doc = DocxTemplate(template_path)
         
@@ -43,7 +53,6 @@ async def generate_move_in_clearance(data: MoveInClearanceRequest):
         doc.render(context)
         
         temp_docx = f"temp_movein_{data.unit_no}.docx"
-        
         doc.save(temp_docx)
 
         # تحويل Docx إلى PDF باستخدام LibreOffice على Render
