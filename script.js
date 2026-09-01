@@ -173,6 +173,36 @@ function getDefaultDepositAmountText(towerName) {
 let liveClockInterval = null;
 
 // ============================================================
+// 💖 Dynamic Developer Banner
+// ============================================================
+function createDevBanner(containerId, showFeedback = true) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    // Check if banner already exists to avoid duplicates
+    if (container.querySelector('.dev-banner-card')) return;
+
+    const bannerHTML = `
+        <div class="dev-banner-card">
+            <div class="dev-banner-header">
+                <i class="fa-solid fa-heart"></i>
+                <h3>Designed & Developed with Love</h3>
+            </div>
+            <p>
+                Built to support our team's daily efficiency by 
+                <span class="dev-name-badge"><i class="fa-solid fa-user-gear"></i> Fares Elmasry</span>
+            </p>
+            ${showFeedback ? `
+            <p style="margin-top: 6px; font-size: 11.5px; color: #5a6a75; font-weight: 700;">
+                <i class="fa-solid fa-comments"></i> For any feedback, updates, or feature requests, contact me directly!
+            </p>` : ''}
+        </div>
+    `;
+
+    container.insertAdjacentHTML('beforeend', bannerHTML);
+}
+
+// ============================================================
 // 🔽 PROFILE DROPDOWN CONTROLS
 // ============================================================
 function toggleProfileDropdown(e) {
@@ -534,6 +564,24 @@ function navigateTo(pageId) {
   if (targetPage) {
     targetPage.classList.remove('hidden-page');
     targetPage.classList.add('active-page');
+    
+    // 🔥 Dynamic Banner Containers Mapping
+    const bannerMap = {
+      'home-page': { id: 'home-banner-container', feedback: true },
+      'login-page': { id: 'login-banner-container', feedback: true },
+      'towers-page': { id: 'towers-banner-container', feedback: false },
+      'unit-mapping-page': { id: 'unit-mapping-banner-container', feedback: false },
+      'calculator-page': { id: 'calculator-banner-container', feedback: false },
+      'noc-page': { id: 'noc-banner-container', feedback: false },
+      'tech-page': { id: 'tech-banner-container', feedback: false },
+      'roster-page': { id: 'roster-banner-container', feedback: false },
+      'admin-page': { id: 'admin-banner-container', feedback: false }
+    };
+
+    // Create banner dynamically
+    if (bannerMap[pageId]) {
+      createDevBanner(bannerMap[pageId].id, bannerMap[pageId].feedback);
+    }
     
     if (pageId === 'home-page') {
       updateDashboardLiveWidget();
