@@ -3,6 +3,8 @@
 // ============================================================
 const GOOGLE_SHEET_API_URL = "https://script.google.com/macros/s/AKfycbx-cqDHzHAtMIR2stMUlmHA-ihFE0XlfwvgUHMV5IU9WYv972q0kU_A4N2LE8aIIjtn/exec";
 const PYTHON_BACKEND_NOC_URL = "https://help-spc.onrender.com/generate-noc";
+const PYTHON_BACKEND_OWNER_NOC_URL = "https://help-spc.onrender.com/generate-owner-noc";
+const PYTHON_BACKEND_RENT_NOC_URL = "https://help-spc.onrender.com/generate-rent-noc";
 
 // ============================================================
 // 🏢 DYNAMIC TOWERS, SYSTEM DATA, MAPPING DATA & USERS
@@ -436,8 +438,6 @@ function updateUIForRole() {
 // ============================================================
 // 📄 NOC GENERATOR LOGIC
 // ============================================================
-const PYTHON_BACKEND_OWNER_NOC_URL = "https://help-spc.onrender.com/generate-owner-noc";
-
 function initNocPage() {
     const dateInput = document.getElementById("nocDate");
     if (dateInput && !dateInput.value) {
@@ -454,7 +454,7 @@ function toggleNocFormType() {
     const typeSelect = document.getElementById("nocTypeSelect");
     if (!typeSelect) return;
 
-    const isOwner = typeSelect.value === "owner";
+    const nocType = typeSelect.value;
 
     const labelTenantName = document.getElementById("labelTenantName");
     const labelTenantContract = document.getElementById("labelTenantContract");
@@ -463,7 +463,22 @@ function toggleNocFormType() {
     const section1Title = document.getElementById("section1Title");
     const section2Title = document.getElementById("section2Title");
 
-    if (isOwner) {
+    const ownerNameGroup = document.getElementById("nocOwnerName")?.closest('.form-group');
+    const ownerContractGroup = document.getElementById("nocOwnerContract")?.closest('.form-group');
+
+    if (nocType === "rent") {
+        if (section2Title) section2Title.style.display = "none";
+        if (ownerNameGroup) ownerNameGroup.style.display = "none";
+        if (ownerContractGroup) ownerContractGroup.style.display = "none";
+
+        if (section1Title) section1Title.innerHTML = `<i class="fa-solid fa-user-check" style="color: #d97706;"></i> 1. Owner Information`;
+        if (labelTenantName) labelTenantName.innerHTML = `<i class="fa-solid fa-user"></i> Owner Consumer Name:`;
+        if (labelTenantContract) labelTenantContract.innerHTML = `<i class="fa-solid fa-file-signature"></i> Contract Number:`;
+    } else if (nocType === "owner") {
+        if (section2Title) section2Title.style.display = "block";
+        if (ownerNameGroup) ownerNameGroup.style.display = "block";
+        if (ownerContractGroup) ownerContractGroup.style.display = "block";
+
         if (section1Title) section1Title.innerHTML = `<i class="fa-solid fa-user-check" style="color: #d97706;"></i> 1. Current Owner Information`;
         if (section2Title) section2Title.innerHTML = `<i class="fa-solid fa-user-tie" style="color: #d97706;"></i> 2. New Owner Information`;
 
@@ -472,6 +487,10 @@ function toggleNocFormType() {
         if (labelOwnerName) labelOwnerName.innerHTML = `<i class="fa-solid fa-user"></i> New Owner Consumer Name:`;
         if (labelOwnerContract) labelOwnerContract.innerHTML = `<i class="fa-solid fa-file-invoice"></i> New Owner Contract Number:`;
     } else {
+        if (section2Title) section2Title.style.display = "block";
+        if (ownerNameGroup) ownerNameGroup.style.display = "block";
+        if (ownerContractGroup) ownerContractGroup.style.display = "block";
+
         if (section1Title) section1Title.innerHTML = `<i class="fa-solid fa-user-check" style="color: #d97706;"></i> 1. Tenant & Property Details`;
         if (section2Title) section2Title.innerHTML = `<i class="fa-solid fa-user-tie" style="color: #d97706;"></i> 2. Owner Details (Optional)`;
 
@@ -493,7 +512,16 @@ function handleNocSubmission() {
     let targetUrl = PYTHON_BACKEND_NOC_URL;
     let payload = {};
 
-    if (nocType === "owner") {
+    if (nocType === "rent") {
+        targetUrl = PYTHON_BACKEND_RENT_NOC_URL;
+        payload = {
+            owner_name: document.getElementById("nocTenantName").value.trim() || "N/A",
+            owner_contract: document.getElementById("nocTenantContract").value.trim() || "N/A",
+            tower_name: document.getElementById("nocTowerName").value.trim() || "N/A",
+            unit_no: document.getElementById("nocUnitNo").value.trim() || "N/A",
+            noc_date: document.getElementById("nocDate").value
+        };
+    } else if (nocType === "owner") {
         targetUrl = PYTHON_BACKEND_OWNER_NOC_URL;
         payload = {
             owner_name: document.getElementById("nocTenantName").value.trim() || "N/A",
