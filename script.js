@@ -2,7 +2,7 @@
 // 🌐 GOOGLE SHEETS INTEGRATION URL & BACKEND API URL
 // ============================================================
 const GOOGLE_SHEET_API_URL = "https://script.google.com/macros/s/AKfycbx-cqDHzHAtMIR2stMUlmHA-ihFE0XlfwvgUHMV5IU9WYv972q0kU_A4N2LE8aIIjtn/exec";
-const PYTHON_BACKEND_NOC_URL = "http://127.0.0.1:8000/generate-noc";
+const PYTHON_BACKEND_NOC_URL = "https://help-spc.onrender.com/generate-noc";
 
 // ============================================================
 // 🏢 DYNAMIC TOWERS, SYSTEM DATA, MAPPING DATA & USERS
