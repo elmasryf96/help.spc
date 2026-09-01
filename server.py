@@ -1,3 +1,12 @@
+import os
+import subprocess
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+from docxtpl import DocxTemplate
+
+app = FastAPI()
+
 class MoveInClearanceRequest(BaseModel):
     account_holder_name: str
     account_type: str
