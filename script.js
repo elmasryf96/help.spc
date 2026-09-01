@@ -406,6 +406,8 @@ function updateUIForRole() {
 // ============================================================
 // 📄 NOC GENERATOR LOGIC
 // ============================================================
+const PYTHON_BACKEND_OWNER_NOC_URL = "https://help-spc.onrender.com/generate-owner-noc";
+
 function initNocPage() {
     const dateInput = document.getElementById("nocDate");
     if (dateInput && !dateInput.value) {
@@ -415,26 +417,76 @@ function initNocPage() {
         const dd = String(today.getDate()).padStart(2, '0');
         dateInput.value = `${yyyy}-${mm}-${dd}`;
     }
+    toggleNocFormType();
+}
+
+function toggleNocFormType() {
+    const typeSelect = document.getElementById("nocTypeSelect");
+    if (!typeSelect) return;
+
+    const isOwner = typeSelect.value === "owner";
+
+    const labelTenantName = document.getElementById("labelTenantName");
+    const labelTenantContract = document.getElementById("labelTenantContract");
+    const labelOwnerName = document.getElementById("labelOwnerName");
+    const labelOwnerContract = document.getElementById("labelOwnerContract");
+    const section1Title = document.getElementById("section1Title");
+    const section2Title = document.getElementById("section2Title");
+
+    if (isOwner) {
+        if (section1Title) section1Title.innerHTML = `<i class="fa-solid fa-user-check" style="color: #d97706;"></i> 1. Current Owner Information`;
+        if (section2Title) section2Title.innerHTML = `<i class="fa-solid fa-user-tie" style="color: #d97706;"></i> 2. New Owner Information`;
+
+        if (labelTenantName) labelTenantName.innerHTML = `<i class="fa-solid fa-user"></i> Current Owner Consumer Name:`;
+        if (labelTenantContract) labelTenantContract.innerHTML = `<i class="fa-solid fa-file-signature"></i> Current Owner Contract Number:`;
+        if (labelOwnerName) labelOwnerName.innerHTML = `<i class="fa-solid fa-user"></i> New Owner Consumer Name:`;
+        if (labelOwnerContract) labelOwnerContract.innerHTML = `<i class="fa-solid fa-file-invoice"></i> New Owner Contract Number:`;
+    } else {
+        if (section1Title) section1Title.innerHTML = `<i class="fa-solid fa-user-check" style="color: #d97706;"></i> 1. Tenant & Property Details`;
+        if (section2Title) section2Title.innerHTML = `<i class="fa-solid fa-user-tie" style="color: #d97706;"></i> 2. Owner Details (Optional)`;
+
+        if (labelTenantName) labelTenantName.innerHTML = `<i class="fa-solid fa-user"></i> Tenant Consumer Name:`;
+        if (labelTenantContract) labelTenantContract.innerHTML = `<i class="fa-solid fa-file-signature"></i> Tenant Contract Number:`;
+        if (labelOwnerName) labelOwnerName.innerHTML = `<i class="fa-solid fa-user"></i> Owner Consumer Name:`;
+        if (labelOwnerContract) labelOwnerContract.innerHTML = `<i class="fa-solid fa-file-invoice"></i> Owner Contract Number:`;
+    }
 }
 
 function handleNocSubmission() {
     const btn = document.getElementById("btnNocSubmit");
     const originalText = btn.innerHTML;
+    const nocType = document.getElementById("nocTypeSelect").value;
 
     btn.disabled = true;
     btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Generating NOC PDF... Please wait.`;
 
-    const payload = {
-        tenant_name: document.getElementById("nocTenantName").value.trim() || "N/A",
-        tower_name: document.getElementById("nocTowerName").value.trim() || "N/A",
-        unit_no: document.getElementById("nocUnitNo").value.trim() || "N/A",
-        tenant_contract: document.getElementById("nocTenantContract").value.trim() || "N/A",
-        noc_date: document.getElementById("nocDate").value,
-        owner_name: document.getElementById("nocOwnerName").value.trim() || "N/A",
-        owner_contract: document.getElementById("nocOwnerContract").value.trim() || "N/A"
-    };
+    let targetUrl = PYTHON_BACKEND_NOC_URL;
+    let payload = {};
 
-    fetch(PYTHON_BACKEND_NOC_URL, {
+    if (nocType === "owner") {
+        targetUrl = PYTHON_BACKEND_OWNER_NOC_URL;
+        payload = {
+            owner_name: document.getElementById("nocTenantName").value.trim() || "N/A",
+            owner_contract: document.getElementById("nocTenantContract").value.trim() || "N/A",
+            new_owner_name: document.getElementById("nocOwnerName").value.trim() || "N/A",
+            new_owner_contract: document.getElementById("nocOwnerContract").value.trim() || "N/A",
+            tower_name: document.getElementById("nocTowerName").value.trim() || "N/A",
+            unit_no: document.getElementById("nocUnitNo").value.trim() || "N/A",
+            noc_date: document.getElementById("nocDate").value
+        };
+    } else {
+        payload = {
+            tenant_name: document.getElementById("nocTenantName").value.trim() || "N/A",
+            tower_name: document.getElementById("nocTowerName").value.trim() || "N/A",
+            unit_no: document.getElementById("nocUnitNo").value.trim() || "N/A",
+            tenant_contract: document.getElementById("nocTenantContract").value.trim() || "N/A",
+            noc_date: document.getElementById("nocDate").value,
+            owner_name: document.getElementById("nocOwnerName").value.trim() || "N/A",
+            owner_contract: document.getElementById("nocOwnerContract").value.trim() || "N/A"
+        };
+    }
+
+    fetch(targetUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -447,7 +499,7 @@ function handleNocSubmission() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `NOC_${payload.tenant_name}_${payload.unit_no}.pdf`;
+        a.download = `NOC_${payload.unit_no}.pdf`;
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -457,7 +509,7 @@ function handleNocSubmission() {
         btn.innerHTML = originalText;
     })
     .catch(err => {
-        alert("❌ Error generating PDF. Make sure Python backend server is running!");
+        alert("❌ Error generating PDF. Please check backend connection!");
         btn.disabled = false;
         btn.innerHTML = originalText;
     });
