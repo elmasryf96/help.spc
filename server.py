@@ -5,10 +5,10 @@ from docxtpl import DocxTemplate
 from datetime import datetime
 import os
 import tempfile
+import subprocess
 
 app = FastAPI()
 
-# تفعيل CORS للتواصل مع Frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,12 +28,11 @@ class NOCData(BaseModel):
 
 @app.get("/")
 def read_root():
-    return {"status": "SPC NOC API is live and running!"}
+    return {"status": "SPC NOC API is active"}
 
 @app.post("/generate-noc")
 def generate_noc(data: NOCData):
     try:
-        # تنسيق التاريخ DD/MM/YYYY
         try:
             date_obj = datetime.strptime(data.noc_date, "%Y-%m-%d")
             formatted_date = date_obj.strftime("%d/%m/%Y")
@@ -54,51 +53,22 @@ def generate_noc(data: NOCData):
             docx_path = os.path.join(temp_dir, "temp_noc.docx")
             pdf_path = os.path.join(temp_dir, "temp_noc.pdf")
 
-            # تعبئة القالب
+            # 1. تعبئة القالب
             doc = DocxTemplate("NOC_Template.docx")
             doc.render(context)
             doc.save(docx_path)
 
-            # محاولة التحويل عبر LibreOffice إذا كان متاحاً على السيرفر
-            conversion_success = False
-            try:
-                import subprocess
-                subprocess.run(
-                    ["libreoffice", "--headless", "--convert-to", "pdf", docx_path, "--outdir", temp_dir],
-                    check=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    timeout=30
-                )
-                if os.path.exists(pdf_path):
-                    conversion_success = True
-            except Exception:
-                pass
+            # 2. التحويل لـ PDF باستخدام LibreOffice على سيرفر Linux
+            cmd = ["libreoffice", "--headless", "--convert-to", "pdf", docx_path, "--outdir", temp_dir]
+            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-            # لو بيئة ويندوز محلياً (Fallback)
-            if not conversion_success:
-                try:
-                    import pythoncom
-                    from docx2pdf import convert
-                    pythoncom.CoInitialize()
-                    convert(docx_path, pdf_path)
-                    if os.path.exists(pdf_path):
-                        conversion_success = True
-                except Exception:
-                    pass
+            if not os.path.exists(pdf_path):
+                raise Exception("PDF conversion failed")
 
-            # إذا نجح التحويل إلى PDF نرسله، وإلا نرسل ملف Word جاهز ومُعبأ
-            if conversion_success and os.path.exists(pdf_path):
-                with open(pdf_path, "rb") as f:
-                    file_bytes = f.read()
-                return Response(content=file_bytes, media_type="application/pdf")
-            else:
-                with open(docx_path, "rb") as f:
-                    file_bytes = f.read()
-                return Response(
-                    content=file_bytes, 
-                    media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
+            with open(pdf_path, "rb") as f:
+                pdf_bytes = f.read()
+
+        return Response(content=pdf_bytes, media_type="application/pdf")
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
