@@ -11,7 +11,7 @@ const PYTHON_BACKEND_MOVE_IN_URL = "https://help-spc.onrender.com/generate-move-
 // 📝 LOGGING FUNCTION TO GOOGLE SHEETS (NOC & CLEARANCE LOGS)
 // ============================================================
 function sendLogToGoogleSheet(logPayload) {
-  const currentUser = localStorage.getItem("loggedInUser") || "Unknown User";
+  const currentUser = localStorage.getItem("userFullName") || localStorage.getItem("loggedInUser") || "Unknown User";
 
   // حساب وقت وتاريخ الإمارات (Asia/Dubai) دائماً بغض النظر عن موقع الموظف
   const now = new Date();
