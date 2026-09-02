@@ -8,6 +8,46 @@ const PYTHON_BACKEND_RENT_NOC_URL = "https://help-spc.onrender.com/generate-rent
 const PYTHON_BACKEND_MOVE_IN_URL = "https://help-spc.onrender.com/generate-move-in-clearance";
 
 // ============================================================
+// ⏱️ AUTO-LOGOUT ON INACTIVITY (20 MINUTES)
+// ============================================================
+let inactivityTimer;
+const INACTIVITY_LIMIT = 20 * 60 * 1000; // 20 دقيقة بالمللي ثانية
+
+function resetInactivityTimer() {
+  clearTimeout(inactivityTimer);
+  
+  // التشغيل فقط إذا كان المستخدم مسجل دخول بالفعل
+  if (localStorage.getItem("loggedInUser")) {
+    inactivityTimer = setTimeout(autoLogoutUser, INACTIVITY_LIMIT);
+  }
+}
+
+function autoLogoutUser() {
+  // 1. مسح الجلسة وبيانات الدخول
+  localStorage.removeItem("loggedInUser");
+  localStorage.removeItem("userPassword");
+  localStorage.removeItem("userRole");
+  localStorage.removeItem("userFullName");
+  localStorage.removeItem("userEmail");
+  
+  // 2. تنظيف محركات البحث المفتوحة
+  clearSearch();
+  clearSchedSearch();
+  clearMappingSearch();
+
+  // 3. التوجيه الفوري لشاشة تسجيل الدخول
+  navigateTo('login-page');
+  
+  // 4. إظهار رسالة تنبيه مخصصة
+  alert("⚠️ Session expired due to 20 minutes of inactivity. Please log in again.");
+}
+
+// مراقبة أفعال المستخدم لإعادة ضبط المؤقت باستمرار عند التفاعل
+['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(event => {
+  window.addEventListener(event, resetInactivityTimer);
+});
+
+// ============================================================
 // 📝 LOGGING FUNCTION TO GOOGLE SHEETS (NOC & CLEARANCE LOGS)
 // ============================================================
 function sendLogToGoogleSheet(logPayload) {
@@ -330,6 +370,7 @@ function handleLogin(event) {
     localStorage.setItem("userEmail", userObj.email || "");
 
     updateUserProfileUI();
+    resetInactivityTimer(); // تشغيل مؤقت الخمول عند تسجيل الدخول الناجح
     navigateTo('home-page');
   } else {
     if (errorMsg) errorMsg.style.display = "block";
@@ -447,6 +488,7 @@ function submitPasswordChange() {
 }
 
 function handleLogout() {
+  clearTimeout(inactivityTimer); // إيقاف مؤقت الخمول عند الخروج اليدوي
   const userInp = document.getElementById("username");
   if (userInp) userInp.value = "";
   const passInp = document.getElementById("password");
@@ -1019,6 +1061,7 @@ document.addEventListener("DOMContentLoaded", () => {
   
   const loggedUser = localStorage.getItem("loggedInUser");
   if (loggedUser) {
+    resetInactivityTimer(); // تفعيل المؤقت فور تحميل الصفحة لو كان مسجل دخول
     navigateTo('home-page');
   }
 });
