@@ -1,7 +1,7 @@
 // ============================================================
 // 🌐 GOOGLE SHEETS INTEGRATION URL & BACKEND API URL
 // ============================================================
-const GOOGLE_SHEET_API_URL = "https://script.google.com/macros/s/AKfycbyoHwUGR_Hi7BcJ7cHLCeV3OTG4llBdNWGK2Ohh8fTRHkc4d-XRHZmF3Lff1r4UMW6d/exec";
+const GOOGLE_SHEET_API_URL = "https://script.google.com/macros/s/AKfycbzhjZ7HOUzKzcmCMrzsIUQMnX9dsbS3_qrEM0-v696OjjlMX3A5wSJUkbs5BDEH7UyM/exec";
 const PYTHON_BACKEND_NOC_URL = "https://help-spc.onrender.com/generate-noc";
 const PYTHON_BACKEND_OWNER_NOC_URL = "https://help-spc.onrender.com/generate-owner-noc";
 const PYTHON_BACKEND_RENT_NOC_URL = "https://help-spc.onrender.com/generate-rent-noc";
@@ -13,6 +13,22 @@ const PYTHON_BACKEND_MOVE_IN_URL = "https://help-spc.onrender.com/generate-move-
 function sendLogToGoogleSheet(logPayload) {
   const currentUser = localStorage.getItem("loggedInUser") || "Unknown User";
 
+  // حساب وقت وتاريخ الإمارات (Asia/Dubai) دائماً بغض النظر عن موقع الموظف
+  const now = new Date();
+  const options = {
+    timeZone: "Asia/Dubai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  };
+  
+  const formatter = new Intl.DateTimeFormat("en-CA", options);
+  const uaeTimestamp = formatter.format(now).replace(",", "");
+
   const dataToSend = {
     action: "logNoc",
     user: currentUser,
@@ -22,7 +38,8 @@ function sendLogToGoogleSheet(logPayload) {
     owner_name: logPayload.owner_name || "-",
     owner_contract: logPayload.owner_contract || "-",
     tower_name: logPayload.tower_name || "-",
-    unit_no: logPayload.unit_no || "-"
+    unit_no: logPayload.unit_no || "-",
+    timestamp: uaeTimestamp
   };
 
   fetch(GOOGLE_SHEET_API_URL, {
