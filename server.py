@@ -49,7 +49,7 @@ class MoveInClearanceRequest(BaseModel):
     spc_account_no: str
     noc_date: str
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def read_root():
     return {"status": "Backend is online and running!"}
 
