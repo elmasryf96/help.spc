@@ -341,42 +341,69 @@ async def push_batch_to_sheet(client: httpx.AsyncClient, rows: list):
     await client.post(sheet_url, json=payload, timeout=120)
 
 
+sync_status = {"running": False, "totalPages": 0, "pagesDone": 0, "message": "لسه ما بدأش"}
+
+
+async def run_sync_job():
+    sync_status["running"] = True
+    sync_status["message"] = "بدأ تسجيل الدخول..."
+    sync_status["pagesDone"] = 0
+
+    try:
+        async with httpx.AsyncClient(timeout=30, follow_redirects=False) as client:
+            await sync_login(client)
+
+            first_page_html = await fetch_list_page(client, 1)
+            total_pages = total_pages_from_html(first_page_html) or 1
+            sync_status["totalPages"] = total_pages
+            sync_status["message"] = f"شغال... 0 / {total_pages} صفحة"
+
+            semaphore = asyncio.Semaphore(SYNC_CONCURRENCY)
+            page_batch_size = 5
+            all_page_numbers = list(range(1, total_pages + 1))
+
+            for batch_start in range(0, len(all_page_numbers), page_batch_size):
+                batch_pages = all_page_numbers[batch_start:batch_start + page_batch_size]
+
+                page_htmls = await asyncio.gather(*[
+                    fetch_list_page(client, p) if p != 1 else asyncio.sleep(0, result=first_page_html)
+                    for p in batch_pages
+                ])
+
+                all_rows = []
+                for html in page_htmls:
+                    all_rows.extend(parse_customer_blocks(html))
+
+                processed = await asyncio.gather(*[
+                    process_contract(client, semaphore, r) for r in all_rows
+                ])
+
+                await push_batch_to_sheet(client, processed)
+
+                sync_status["pagesDone"] = min(batch_start + page_batch_size, total_pages)
+                sync_status["message"] = f"شغال... {sync_status['pagesDone']} / {total_pages} صفحة"
+
+        sync_status["message"] = f"✅ خلص! تمت معالجة {sync_status['totalPages']} صفحة بالكامل."
+    except Exception as e:
+        sync_status["message"] = f"❌ حصل خطأ: {str(e)}"
+    finally:
+        sync_status["running"] = False
+
+
 @app.get("/sync-contracts")
 async def sync_contracts(secret: str = ""):
     if secret != os.environ.get("SYNC_SECRET", ""):
         return {"status": "error", "message": "Unauthorized"}
 
-    async with httpx.AsyncClient(timeout=30, follow_redirects=False) as client:
-        await sync_login(client)
+    if sync_status["running"]:
+        return {"status": "already_running", "detail": sync_status}
 
-        first_page_html = await fetch_list_page(client, 1)
-        total_pages = total_pages_from_html(first_page_html) or 1
+    asyncio.create_task(run_sync_job())
+    return {"status": "started", "message": "السينك بدأ يشتغل في الخلفية. استخدم /sync-status عشان تتابع."}
 
-        semaphore = asyncio.Semaphore(SYNC_CONCURRENCY)
-        page_batch_size = 5  # كل ما نخلص 5 صفحات، نبعتهم للشيت دفعة واحدة
 
-        all_page_numbers = list(range(1, total_pages + 1))
-
-        for batch_start in range(0, len(all_page_numbers), page_batch_size):
-            batch_pages = all_page_numbers[batch_start:batch_start + page_batch_size]
-
-            page_htmls = await asyncio.gather(*[
-                fetch_list_page(client, p) if p != 1 else asyncio.sleep(0, result=first_page_html)
-                for p in batch_pages
-            ])
-
-            all_rows = []
-            for html in page_htmls:
-                all_rows.extend(parse_customer_blocks(html))
-
-            processed = await asyncio.gather(*[
-                process_contract(client, semaphore, r) for r in all_rows
-            ])
-
-            await push_batch_to_sheet(client, processed)
-
-        return {
-            "status": "success",
-            "totalPages": total_pages,
-            "message": f"تم مسح {total_pages} صفحة وإرسالها للشيت"
-        }
+@app.get("/sync-status")
+async def get_sync_status(secret: str = ""):
+    if secret != os.environ.get("SYNC_SECRET", ""):
+        return {"status": "error", "message": "Unauthorized"}
+    return sync_status
