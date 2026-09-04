@@ -237,21 +237,19 @@ async def get_3cx_agent_status():
     async with httpx.AsyncClient(timeout=15) as client:
         token = await get_3cx_token(client)
 
-        users_resp = await client.get(
+        query_url = (
             f"https://{THREECX_FQDN}/xapi/v1/Users"
-            "?$select=Number,DisplayName,CurrentProfileName,QueueStatus",
-            headers={"Authorization": f"Bearer {token}"},
+            "?$select=Number,DisplayName,CurrentProfileName,QueueStatus"
+            "&$expand=ForwardingProfiles($select=Name,CustomName)"
         )
+
+        users_resp = await client.get(query_url, headers={"Authorization": f"Bearer {token}"})
 
         # لو التوكن رفضه بشكل غير متوقع (Expired/Revoked)، نجدده مرة واحدة ونعيد المحاولة
         if users_resp.status_code == 401:
             _token_cache["token"] = None
             token = await get_3cx_token(client)
-            users_resp = await client.get(
-                f"https://{THREECX_FQDN}/xapi/v1/Users"
-                "?$select=Number,DisplayName,CurrentProfileName,QueueStatus",
-                headers={"Authorization": f"Bearer {token}"},
-            )
+            users_resp = await client.get(query_url, headers={"Authorization": f"Bearer {token}"})
 
         users_resp.raise_for_status()
         users = users_resp.json()["value"]
@@ -259,13 +257,27 @@ async def get_3cx_agent_status():
     result = []
     for u in users:
         number = u.get("Number")
-        if number in AGENT_MAP:
-            result.append({
-                "name": AGENT_MAP[number],
-                "number": number,
-                "status": u.get("CurrentProfileName"),
-                "queueStatus": u.get("QueueStatus"),
-            })
+        if number not in AGENT_MAP:
+            continue
+
+        current_profile = u.get("CurrentProfileName")
+        display_status = current_profile
+
+        # نبحث في ملفات التوجيه بتاعة نفس الإيجنت عن الاسم المخصص اللي حطه هو بنفسه
+        for profile in (u.get("ForwardingProfiles") or []):
+            if profile.get("Name") == current_profile:
+                custom_name = (profile.get("CustomName") or "").strip()
+                if custom_name:
+                    display_status = custom_name
+                break
+
+        result.append({
+            "name": AGENT_MAP[number],
+            "number": number,
+            "status": display_status,
+            "rawStatus": current_profile,
+            "queueStatus": u.get("QueueStatus"),
+        })
     return result
 
 
