@@ -211,21 +211,48 @@ AGENT_MAP = {
 }
 
 
+import time
+
+_token_cache = {"token": None, "expires_at": 0}
+
+
+async def get_3cx_token(client: httpx.AsyncClient) -> str:
+    # لو عندنا توكن لسه صالح لأكتر من 5 دقايق، نستخدمه زي ما هو
+    if _token_cache["token"] and time.time() < _token_cache["expires_at"] - 300:
+        return _token_cache["token"]
+
+    login_resp = await client.post(
+        f"https://{THREECX_FQDN}/webclient/api/Login/GetAccessToken",
+        json={"Username": THREECX_USERNAME, "Password": THREECX_PASSWORD, "SecurityCode": ""},
+        headers={"Content-Type": "application/json", "Ngsw-Bypass": "bypass"},
+    )
+    login_resp.raise_for_status()
+    token_data = login_resp.json()["Token"]
+    _token_cache["token"] = token_data["access_token"]
+    _token_cache["expires_at"] = time.time() + token_data.get("expires_in", 3600)
+    return _token_cache["token"]
+
+
 async def get_3cx_agent_status():
     async with httpx.AsyncClient(timeout=15) as client:
-        login_resp = await client.post(
-            f"https://{THREECX_FQDN}/webclient/api/Login/GetAccessToken",
-            json={"Username": THREECX_USERNAME, "Password": THREECX_PASSWORD, "SecurityCode": ""},
-            headers={"Content-Type": "application/json", "Ngsw-Bypass": "bypass"},
-        )
-        login_resp.raise_for_status()
-        token = login_resp.json()["Token"]["access_token"]
+        token = await get_3cx_token(client)
 
         users_resp = await client.get(
             f"https://{THREECX_FQDN}/xapi/v1/Users"
             "?$select=Number,DisplayName,CurrentProfileName,QueueStatus",
             headers={"Authorization": f"Bearer {token}"},
         )
+
+        # لو التوكن رفضه بشكل غير متوقع (Expired/Revoked)، نجدده مرة واحدة ونعيد المحاولة
+        if users_resp.status_code == 401:
+            _token_cache["token"] = None
+            token = await get_3cx_token(client)
+            users_resp = await client.get(
+                f"https://{THREECX_FQDN}/xapi/v1/Users"
+                "?$select=Number,DisplayName,CurrentProfileName,QueueStatus",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+
         users_resp.raise_for_status()
         users = users_resp.json()["value"]
 
