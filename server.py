@@ -186,7 +186,7 @@ async def generate_move_in_clearance(data: MoveInClearanceRequest):
 
 BILLING_BASE_URL = "https://billing.smartcollection.co"
 SYNC_PAGE_SIZE = 200
-SYNC_CONCURRENCY = 12  # رجّعناها لـ 12 بعد ترقية الخطة لـ 0.5 CPU
+SYNC_CONCURRENCY = 8  # وسط بين السرعة واستهلاك الذاكرة (الرام لسه 512MB حتى بعد الترقية)
 
 
 async def sync_login(client: httpx.AsyncClient):
@@ -350,7 +350,11 @@ async def run_sync_job():
     sync_status["pagesDone"] = 0
 
     try:
-        async with httpx.AsyncClient(timeout=30, follow_redirects=False) as client:
+        async with httpx.AsyncClient(
+        timeout=30,
+        follow_redirects=False,
+        limits=httpx.Limits(max_connections=15, max_keepalive_connections=5)
+    ) as client:
             await sync_login(client)
 
             first_page_html = await fetch_list_page(client, 1)
@@ -359,7 +363,7 @@ async def run_sync_job():
             sync_status["message"] = f"شغال... 0 / {total_pages} صفحة"
 
             semaphore = asyncio.Semaphore(SYNC_CONCURRENCY)
-            page_batch_size = 5  # رجّعناها لـ 5 بعد ترقية الخطة
+            page_batch_size = 1  # صفحة واحدة في المرة، عشان نتحكم في الذاكرة (الرام لسه 512MB)
             all_page_numbers = list(range(1, total_pages + 1))
 
             for batch_start in range(0, len(all_page_numbers), page_batch_size):
