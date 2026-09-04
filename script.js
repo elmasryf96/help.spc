@@ -208,6 +208,7 @@ function fetchAllDataFromGoogleSheet() {
 
       if (data.contracts && Array.isArray(data.contracts)) {
         dynamicContracts = data.contracts;
+        populateNocTowerSelect();
       }
 
       renderScheduleCards(document.getElementById("schedSearchInput")?.value || "");
@@ -529,6 +530,7 @@ function updateUIForRole() {
 // 📄 NOC GENERATOR LOGIC & AUTOMATIC LOGGING
 // ============================================================
 function initNocPage() {
+    populateNocTowerSelect();
     const dateInput = document.getElementById("nocDate");
     if (dateInput && !dateInput.value) {
         const today = new Date();
@@ -815,7 +817,7 @@ function navigateTo(pageId) {
 }
 
 // ============================================================
-// 🔗 NOC PAGE — DYNAMIC TOWER & CONTRACT AUTOCOMPLETE
+// 🔗 NOC PAGE — DYNAMIC TOWER & CONTRACT DROPDOWNS
 // ============================================================
 function getContractsForTower(towerName) {
   const t = (towerName || "").trim().toLowerCase();
@@ -823,19 +825,65 @@ function getContractsForTower(towerName) {
   return dynamicContracts.filter(function (c) { return c.tower.toLowerCase() === t; });
 }
 
-function populateNocContractsList() {
-  const towerInput = document.getElementById("nocTowerName");
-  const datalist = document.getElementById("nocContractsList");
-  if (!towerInput || !datalist) return;
-
-  const matches = getContractsForTower(towerInput.value);
-  datalist.innerHTML = "";
-  matches.forEach(function (c) {
-    const opt = document.createElement("option");
-    opt.value = c.contractNo;
-    opt.label = c.name + " - Unit " + c.unitNo;
-    datalist.appendChild(opt);
+function getUniqueTowerNames_() {
+  const seen = {};
+  const towers = [];
+  dynamicContracts.forEach(function (c) {
+    const key = c.tower.toLowerCase();
+    if (!seen[key] && c.tower) {
+      seen[key] = true;
+      towers.push(c.tower);
+    }
   });
+  towers.sort();
+  return towers;
+}
+
+function populateNocTowerSelect() {
+  const select = document.getElementById("nocTowerName");
+  if (!select) return;
+
+  const currentValue = select.value;
+  const towers = getUniqueTowerNames_();
+
+  select.innerHTML = '<option value="">Select Tower</option>';
+  towers.forEach(function (t) {
+    const opt = document.createElement("option");
+    opt.value = t;
+    opt.textContent = t;
+    select.appendChild(opt);
+  });
+
+  if (towers.indexOf(currentValue) !== -1) {
+    select.value = currentValue;
+  }
+}
+
+function populateNocContractSelect() {
+  const towerSelect = document.getElementById("nocTowerName");
+  const tenantSelect = document.getElementById("nocTenantContract");
+  const ownerSelect = document.getElementById("nocOwnerContract");
+  if (!towerSelect) return;
+
+  const matches = getContractsForTower(towerSelect.value);
+
+  [tenantSelect, ownerSelect].forEach(function (sel) {
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Select Contract</option>';
+    matches.forEach(function (c) {
+      const opt = document.createElement("option");
+      opt.value = c.contractNo;
+      opt.textContent = c.contractNo + " — " + c.name + " (Unit " + c.unitNo + ")";
+      sel.appendChild(opt);
+    });
+  });
+
+  const unitField = document.getElementById("nocUnitNo");
+  if (unitField) unitField.value = "";
+  const tenantNameField = document.getElementById("nocTenantName");
+  if (tenantNameField) tenantNameField.value = "";
+  const ownerNameField = document.getElementById("nocOwnerName");
+  if (ownerNameField) ownerNameField.value = "";
 }
 
 function findContractByNumber(contractNo) {
@@ -845,8 +893,8 @@ function findContractByNumber(contractNo) {
 }
 
 function onNocTenantContractInput() {
-  const input = document.getElementById("nocTenantContract");
-  const match = findContractByNumber(input.value);
+  const select = document.getElementById("nocTenantContract");
+  const match = findContractByNumber(select.value);
   if (match) {
     const unitField = document.getElementById("nocUnitNo");
     const nameField = document.getElementById("nocTenantName");
@@ -856,8 +904,8 @@ function onNocTenantContractInput() {
 }
 
 function onNocOwnerContractInput() {
-  const input = document.getElementById("nocOwnerContract");
-  const match = findContractByNumber(input.value);
+  const select = document.getElementById("nocOwnerContract");
+  const match = findContractByNumber(select.value);
   if (match) {
     const nameField = document.getElementById("nocOwnerName");
     const unitField = document.getElementById("nocUnitNo");
