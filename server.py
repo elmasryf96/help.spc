@@ -186,7 +186,7 @@ async def generate_move_in_clearance(data: MoveInClearanceRequest):
 
 BILLING_BASE_URL = "https://billing.smartcollection.co"
 SYNC_PAGE_SIZE = 200
-SYNC_CONCURRENCY = 12  # عدد الطلبات المتوازية - ابدأ بالرقم ده، غيّره لو حبيت
+SYNC_CONCURRENCY = 12  # رجّعناها لـ 12 بعد ترقية الخطة لـ 0.5 CPU
 
 
 async def sync_login(client: httpx.AsyncClient):
@@ -359,7 +359,7 @@ async def run_sync_job():
             sync_status["message"] = f"شغال... 0 / {total_pages} صفحة"
 
             semaphore = asyncio.Semaphore(SYNC_CONCURRENCY)
-            page_batch_size = 5
+            page_batch_size = 5  # رجّعناها لـ 5 بعد ترقية الخطة
             all_page_numbers = list(range(1, total_pages + 1))
 
             for batch_start in range(0, len(all_page_numbers), page_batch_size):
@@ -373,15 +373,19 @@ async def run_sync_job():
                 all_rows = []
                 for html in page_htmls:
                     all_rows.extend(parse_customer_blocks(html))
+                    del html  # نفضي المتغير بعد ما نستخرج منه البيانات
 
                 processed = await asyncio.gather(*[
                     process_contract(client, semaphore, r) for r in all_rows
                 ])
 
                 await push_batch_to_sheet(client, processed)
+                del all_rows, processed, page_htmls  # تنضيف الذاكرة بين كل صفحة والتانية
 
                 sync_status["pagesDone"] = min(batch_start + page_batch_size, total_pages)
                 sync_status["message"] = f"شغال... {sync_status['pagesDone']} / {total_pages} صفحة"
+
+                await asyncio.sleep(0)  # نديله فرصة يستجيب لأي طلب تاني جاي (زي فحوصات Render الصحية)
 
         sync_status["message"] = f"✅ خلص! تمت معالجة {sync_status['totalPages']} صفحة بالكامل."
     except Exception as e:
