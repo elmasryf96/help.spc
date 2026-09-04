@@ -98,6 +98,7 @@ let scheduleData = [];
 let rosterData = [];
 let dynamicUnitMapping = [];
 let dynamicUsers = {};
+let dynamicContracts = [];
 
 function parseMonthAndYear(val) {
   if (!val) return { month: 8, year: 2026 };
@@ -203,6 +204,10 @@ function fetchAllDataFromGoogleSheet() {
       if (data.unitMapping && Array.isArray(data.unitMapping)) {
         dynamicUnitMapping = data.unitMapping;
         renderUnitMappingTable();
+      }
+
+      if (data.contracts && Array.isArray(data.contracts)) {
+        dynamicContracts = data.contracts;
       }
 
       renderScheduleCards(document.getElementById("schedSearchInput")?.value || "");
@@ -806,6 +811,58 @@ function navigateTo(pageId) {
       renderAdminAgentsTable();
       switchAdminTab('towers');
     }
+  }
+}
+
+// ============================================================
+// 🔗 NOC PAGE — DYNAMIC TOWER & CONTRACT AUTOCOMPLETE
+// ============================================================
+function getContractsForTower(towerName) {
+  const t = (towerName || "").trim().toLowerCase();
+  if (!t) return [];
+  return dynamicContracts.filter(function (c) { return c.tower.toLowerCase() === t; });
+}
+
+function populateNocContractsList() {
+  const towerInput = document.getElementById("nocTowerName");
+  const datalist = document.getElementById("nocContractsList");
+  if (!towerInput || !datalist) return;
+
+  const matches = getContractsForTower(towerInput.value);
+  datalist.innerHTML = "";
+  matches.forEach(function (c) {
+    const opt = document.createElement("option");
+    opt.value = c.contractNo;
+    opt.label = c.name + " - Unit " + c.unitNo;
+    datalist.appendChild(opt);
+  });
+}
+
+function findContractByNumber(contractNo) {
+  const cn = (contractNo || "").trim().toLowerCase();
+  if (!cn) return null;
+  return dynamicContracts.find(function (c) { return c.contractNo.toLowerCase() === cn; }) || null;
+}
+
+function onNocTenantContractInput() {
+  const input = document.getElementById("nocTenantContract");
+  const match = findContractByNumber(input.value);
+  if (match) {
+    const unitField = document.getElementById("nocUnitNo");
+    const nameField = document.getElementById("nocTenantName");
+    if (unitField) unitField.value = match.unitNo;
+    if (nameField) nameField.value = match.name;
+  }
+}
+
+function onNocOwnerContractInput() {
+  const input = document.getElementById("nocOwnerContract");
+  const match = findContractByNumber(input.value);
+  if (match) {
+    const nameField = document.getElementById("nocOwnerName");
+    const unitField = document.getElementById("nocUnitNo");
+    if (nameField) nameField.value = match.name;
+    if (unitField && !unitField.value) unitField.value = match.unitNo;
   }
 }
 
