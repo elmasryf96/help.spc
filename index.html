@@ -224,7 +224,9 @@
 
                             <div class="form-group">
                                 <label><i class="fa-solid fa-building"></i> Building / Tower Name:</label>
-                                <input type="text" id="nocTowerName" class="combo-input" list="towersList" placeholder="اكتب اسم البرج..." oninput="populateNocContractsList()" required>
+                                <select id="nocTowerName" class="combo-input" onchange="populateNocContractSelect()" required>
+                                    <option value="">Select Tower</option>
+                                </select>
                             </div>
 
                             <div class="form-group">
@@ -234,7 +236,9 @@
 
                             <div class="form-group" id="groupTenantContract">
                                 <label id="labelTenantContract"><i class="fa-solid fa-file-signature"></i> Tenant Contract Number:</label>
-                                <input type="text" id="nocTenantContract" class="combo-input" list="nocContractsList" placeholder="اختار البرج الأول، وبعدين اكتب رقم العقد" oninput="onNocTenantContractInput()">
+                                <select id="nocTenantContract" class="combo-input" onchange="onNocTenantContractInput()">
+                                    <option value="">Select Contract</option>
+                                </select>
                             </div>
 
                             <!-- 🟢 MOVE-IN SPECIFIC FIELDS -->
@@ -269,7 +273,9 @@
 
                             <div class="form-group" id="groupOwnerContract">
                                 <label id="labelOwnerContract"><i class="fa-solid fa-file-invoice"></i> Owner Contract Number:</label>
-                                <input type="text" id="nocOwnerContract" class="combo-input" list="nocContractsList" placeholder="اختار البرج الأول، وبعدين اكتب رقم العقد" oninput="onNocOwnerContractInput()">
+                                <select id="nocOwnerContract" class="combo-input" onchange="onNocOwnerContractInput()">
+                                    <option value="">Select Contract</option>
+                                </select>
                             </div>
 
                             <button type="submit" id="btnNocSubmit" class="btn-primary" style="margin-top: 15px; padding: 12px; font-size: 15px; grid-column: 1 / -1;">
@@ -534,7 +540,6 @@
                     <button type="button" id="clearBtn" class="clear-btn" onclick="clearSearch()"><i class="fa-solid fa-xmark"></i></button>
                 </div>
                 <datalist id="towersList"></datalist>
-                <datalist id="nocContractsList"></datalist>
             </div>
 
             <div id="directAdminControls" style="display: none; justify-content: center; gap: 12px; margin: 0 15px 15px 15px; background: #fffbe6; padding: 10px; border-radius: 10px; border: 2px dashed var(--primary-yellow);">
