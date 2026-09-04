@@ -376,8 +376,9 @@ async def run_sync_job():
 
                 all_rows = []
                 for html in page_htmls:
-                    all_rows.extend(parse_customer_blocks(html))
-                    del html  # نفضي المتغير بعد ما نستخرج منه البيانات
+                    parsed = await asyncio.to_thread(parse_customer_blocks, html)
+                    all_rows.extend(parsed)
+                    del html
 
                 processed = await asyncio.gather(*[
                     process_contract(client, semaphore, r) for r in all_rows
@@ -393,6 +394,8 @@ async def run_sync_job():
 
         sync_status["message"] = f"✅ خلص! تمت معالجة {sync_status['totalPages']} صفحة بالكامل."
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         sync_status["message"] = f"❌ حصل خطأ: {str(e)}"
     finally:
         sync_status["running"] = False
