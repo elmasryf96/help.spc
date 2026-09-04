@@ -176,6 +176,81 @@ async def generate_move_in_clearance(data: MoveInClearanceRequest):
 
 
 # ============================================================
+# 📞 3CX LIVE AGENT STATUS
+# محتاج تضيف الـ Environment Variables دي في Render:
+#   THREECX_FQDN      -> smartcollection.3cx.ae:5001
+#   THREECX_USERNAME  -> رقم الإيجستنشن المستخدم للمراقبة (حالياً 106)
+#   THREECX_PASSWORD  -> باسورد نفس الإيجستنشن
+# (فيه قيمة افتراضية في الكود لو نسيت تضيفهم، بس الأفضل تضيفهم على Render)
+# ============================================================
+
+THREECX_FQDN = os.environ.get("THREECX_FQDN", "smartcollection.3cx.ae:5001")
+THREECX_USERNAME = os.environ.get("THREECX_USERNAME", "106")
+THREECX_PASSWORD = os.environ.get("THREECX_PASSWORD", "Lara@@2110")
+
+# رقم الإيجستنشن في 3CX -> الاسم زي ما هو في الروستر
+# (أي حد في 3CX مش موجود هنا بيتجاهل تلقائياً)
+AGENT_MAP = {
+    "100": "Charles",
+    "101": "Shadi",
+    "102": "Mirna",
+    "104": "Janani",
+    "110": "Waqas",
+    "112": "Hanya",
+    "114": "Faris",
+    "115": "Ahmed",
+    "116": "Zunair",
+    "117": "Priya",
+    "118": "Omar",
+    "119": "Salma",
+    "125": "Mostafa",
+    "126": "Saim",
+    "127": "Zain",
+    "128": "Fatemeh",
+    "129": "Hajra",
+}
+
+
+async def get_3cx_agent_status():
+    async with httpx.AsyncClient(timeout=15) as client:
+        login_resp = await client.post(
+            f"https://{THREECX_FQDN}/webclient/api/Login/GetAccessToken",
+            json={"Username": THREECX_USERNAME, "Password": THREECX_PASSWORD, "SecurityCode": ""},
+            headers={"Content-Type": "application/json", "Ngsw-Bypass": "bypass"},
+        )
+        login_resp.raise_for_status()
+        token = login_resp.json()["Token"]["access_token"]
+
+        users_resp = await client.get(
+            f"https://{THREECX_FQDN}/xapi/v1/Users"
+            "?$select=Number,DisplayName,CurrentProfileName,QueueStatus",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        users_resp.raise_for_status()
+        users = users_resp.json()["value"]
+
+    result = []
+    for u in users:
+        number = u.get("Number")
+        if number in AGENT_MAP:
+            result.append({
+                "name": AGENT_MAP[number],
+                "number": number,
+                "status": u.get("CurrentProfileName"),
+                "queueStatus": u.get("QueueStatus"),
+            })
+    return result
+
+
+@app.get("/api/agent-status")
+async def agent_status():
+    try:
+        return await get_3cx_agent_status()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"3CX fetch failed: {e}")
+
+
+# ============================================================
 # 🔄 CONTRACT SYNC — نسخة سريعة بطلبات متوازية (Concurrent)
 # محتاج تضيف الـ Environment Variables دي في Render:
 #   SC_USERNAME          -> يوزرنيم بورتال الفوترة
