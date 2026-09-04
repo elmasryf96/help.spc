@@ -4,3 +4,4 @@ docxtpl
 python-docx
 pydantic
 requests
+httpx
