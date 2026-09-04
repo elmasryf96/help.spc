@@ -208,6 +208,8 @@ AGENT_MAP = {
     "127": "Zain",
     "128": "Fatemeh",
     "129": "Hajra",
+    "123": "Gulsher",
+    "122": "Sana",
 }
 
 
