@@ -250,6 +250,58 @@ async def agent_status():
         raise HTTPException(status_code=502, detail=f"3CX fetch failed: {e}")
 
 
+# ------------------------------------------------------------
+# 🔴 مراقبة لحظية للتغييرات + تسجيلها فوراً في الشيت
+# ------------------------------------------------------------
+
+# آخر حالة معروفة لكل إيجنت (في الذاكرة، بتتصفر لو السيرفر عمل Restart)
+_last_known_status = {}
+
+AGENT_STATUS_POLL_SECONDS = 10
+
+
+async def log_status_change_to_sheet(client: httpx.AsyncClient, name, number, old_status, new_status):
+    try:
+        sheet_url = os.environ["GOOGLE_SHEET_API_URL"]
+        payload = {
+            "action": "logAgentStatusChange",
+            "name": name,
+            "number": number,
+            "oldStatus": old_status or "-",
+            "newStatus": new_status,
+        }
+        await client.post(sheet_url, json=payload, timeout=30)
+    except Exception as e:
+        print(f"❌ فشل تسجيل تغيير حالة {name}: {e}")
+
+
+async def agent_status_watcher():
+    async with httpx.AsyncClient(timeout=30) as client:
+        while True:
+            try:
+                agents = await get_3cx_agent_status()
+                for agent in agents:
+                    key = agent["number"]
+                    new_status = agent["status"]
+                    old_status = _last_known_status.get(key)
+
+                    if old_status is not None and old_status != new_status:
+                        await log_status_change_to_sheet(
+                            client, agent["name"], key, old_status, new_status
+                        )
+
+                    _last_known_status[key] = new_status
+            except Exception as e:
+                print(f"❌ خطأ في مراقبة حالة 3CX: {e}")
+
+            await asyncio.sleep(AGENT_STATUS_POLL_SECONDS)
+
+
+@app.on_event("startup")
+async def start_agent_status_watcher():
+    asyncio.create_task(agent_status_watcher())
+
+
 # ============================================================
 # 🔄 CONTRACT SYNC — نسخة سريعة بطلبات متوازية (Concurrent)
 # محتاج تضيف الـ Environment Variables دي في Render:
