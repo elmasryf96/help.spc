@@ -2151,7 +2151,7 @@ function renderCcPulseSingleAgentReport(data) {
     return;
   }
 
-  const statusColors = { "Available": "#107c41", "Break": "#d97706", "Emails": "#1a252f" };
+  const statusColors = { "Available": "#107c41", "Break": "#d97706", "Emails": "#1a252f", "Custom 1": "#6d28d9", "Custom 2": "#0369a1" };
 
   const totalsHtml = Object.keys(data.totals || {}).map(st => `
     <div class="ccp-metric-card">
