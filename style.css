@@ -484,6 +484,7 @@ body {
     transition: all 0.25s ease-in-out;
     display: inline-flex;
     align-items: center;
+    white-space: nowrap;
     justify-content: center;
     gap: 6px;
 }
