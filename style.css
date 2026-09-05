@@ -1748,3 +1748,30 @@ input:checked + .slider:before { transform: translateX(20px); }
 .ccp-error {
     color: var(--coral-red);
 }
+
+.ccp-timeline-wrap {
+    margin-bottom: 12px;
+}
+.ccp-timeline-bar {
+    position: relative;
+    height: 28px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f1e285;
+}
+.ccp-tl-segment {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+}
+.ccp-timeline-axis {
+    position: relative;
+    height: 16px;
+    margin-top: 4px;
+}
+.ccp-tl-mark {
+    position: absolute;
+    font-size: 10.5px;
+    color: var(--text-muted);
+    font-weight: 700;
+}
