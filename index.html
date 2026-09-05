@@ -13,7 +13,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <link rel="stylesheet" href="./style.css?v=2026.141">
+    <link rel="stylesheet" href="./style.css?v=2026.143">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -158,9 +158,9 @@
                 </div>
 
                 <div class="menu-card" id="ccPulseMenuCard" onclick="navigateTo('cc-pulse-page')" style="display: none;">
-                    <div class="menu-icon"><i class="fa-solid fa-gauge-high"></i></div>
+                    <div class="menu-icon"><i class="fa-solid fa-tower-broadcast"></i></div>
                     <h3>CC Pulse</h3>
-                    <div class="btn-primary">Open CC Pulse <i class="fa-solid fa-tower-broadcast"></i></div>
+                    <div class="btn-primary">Open CC Pulse <i class="fa-solid fa-satellite-dish"></i></div>
                 </div>
             </div>
 
@@ -177,27 +177,7 @@
     <!-- 📡 CC PULSE - LIVE AGENT STATUS (ADMIN ONLY) -->
     <div id="cc-pulse-page" class="page hidden-page">
         <div class="container">
-            <div class="brand-header relative-header">
-                <button class="back-btn" onclick="navigateTo('home-page')">
-                    <i class="fa-solid fa-arrow-left"></i> Dashboard
-                </button>
-
-                <div class="logo-container">
-                    <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="35" cy="18" r="5" fill="#E8D567"/>
-                        <circle cx="68" cy="18" r="5" fill="#E8D567"/>
-                        <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
-                        <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
-                        <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
-                        <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
-                    </svg>
-                    <div class="logo-text">Smart <span>Collection</span></div>
-                </div>
-
-                <button class="logout-btn" onclick="handleLogout()" title="Log out">
-                    <i class="fa-solid fa-right-from-bracket"></i> Logout
-                </button>
-            </div>
+            <div data-include="partials/sub-page-header.html"></div>
 
             <div class="system-title">📡 CC Pulse - Live Agent Status</div>
 
@@ -246,27 +226,7 @@
     <!-- 📄 NOC GENERATOR PAGE -->
     <div id="noc-page" class="page hidden-page">
         <div class="container">
-            <div class="brand-header relative-header">
-                <button class="back-btn" onclick="navigateTo('home-page')">
-                    <i class="fa-solid fa-arrow-left"></i> Dashboard
-                </button>
-
-                <div class="logo-container">
-                    <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="35" cy="18" r="5" fill="#E8D567"/>
-                        <circle cx="68" cy="18" r="5" fill="#E8D567"/>
-                        <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
-                        <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
-                        <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
-                        <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
-                    </svg>
-                    <div class="logo-text">Smart <span>Collection</span></div>
-                </div>
-
-                <button class="logout-btn" onclick="handleLogout()" title="Log out">
-                    <i class="fa-solid fa-right-from-bracket"></i> Logout
-                </button>
-            </div>
+            <div data-include="partials/sub-page-header.html"></div>
 
             <div class="system-title">📄 NOC Certificate Generator</div>
 
@@ -362,27 +322,7 @@
     <!-- 🔗 UNIT MAPPING TOOL PAGE -->
     <div id="unit-mapping-page" class="page hidden-page">
         <div class="container">
-            <div class="brand-header relative-header">
-                <button class="back-btn" onclick="navigateTo('home-page')">
-                    <i class="fa-solid fa-arrow-left"></i> Dashboard
-                </button>
-
-                <div class="logo-container">
-                    <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="35" cy="18" r="5" fill="#E8D567"/>
-                        <circle cx="68" cy="18" r="5" fill="#E8D567"/>
-                        <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
-                        <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
-                        <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
-                        <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
-                    </svg>
-                    <div class="logo-text">Smart <span>Collection</span></div>
-                </div>
-
-                <button class="logout-btn" onclick="handleLogout()" title="Log out">
-                    <i class="fa-solid fa-right-from-bracket"></i> Logout
-                </button>
-            </div>
+            <div data-include="partials/sub-page-header.html"></div>
 
             <div class="system-title">🏢 Unit Mapping & Reference Cross-Lookup</div>
 
@@ -420,27 +360,7 @@
     <!-- 🧮 Final Bill Calculator Page -->
     <div id="calculator-page" class="page hidden-page">
         <div class="container">
-            <div class="brand-header relative-header">
-                <button class="back-btn" onclick="navigateTo('home-page')">
-                    <i class="fa-solid fa-arrow-left"></i> Dashboard
-                </button>
-
-                <div class="logo-container">
-                    <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="35" cy="18" r="5" fill="#E8D567"/>
-                        <circle cx="68" cy="18" r="5" fill="#E8D567"/>
-                        <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
-                        <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
-                        <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
-                        <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
-                    </svg>
-                    <div class="logo-text">Smart <span>Collection</span></div>
-                </div>
-
-                <button class="logout-btn" onclick="handleLogout()" title="Log out">
-                    <i class="fa-solid fa-right-from-bracket"></i> Logout
-                </button>
-            </div>
+            <div data-include="partials/sub-page-header.html"></div>
 
             <div class="system-title">🧮 Final Bill & Account Closure Consumption Calculator</div>
 
@@ -572,27 +492,7 @@
     <!-- 🏢 Towers Master Data Page -->
     <div id="towers-page" class="page hidden-page">
         <div class="container">
-            <div class="brand-header relative-header">
-                <button class="back-btn" onclick="navigateTo('home-page')">
-                    <i class="fa-solid fa-arrow-left"></i> Dashboard
-                </button>
-
-                <div class="logo-container">
-                    <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="35" cy="18" r="5" fill="#E8D567"/>
-                        <circle cx="68" cy="18" r="5" fill="#E8D567"/>
-                        <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
-                        <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
-                        <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
-                        <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
-                    </svg>
-                    <div class="logo-text">Smart <span>Collection</span></div>
-                </div>
-
-                <button class="logout-btn" onclick="handleLogout()" title="Log out">
-                    <i class="fa-solid fa-right-from-bracket"></i> Logout
-                </button>
-            </div>
+            <div data-include="partials/sub-page-header.html"></div>
 
             <div class="system-title">🏢 Towers Master Data & Service Fees Search Portal</div>
 
@@ -681,27 +581,7 @@
     <!-- 🛠️ Technical Department Page -->
     <div id="tech-page" class="page hidden-page">
         <div class="container">
-            <div class="brand-header relative-header">
-                <button class="back-btn" onclick="navigateTo('home-page')">
-                    <i class="fa-solid fa-arrow-left"></i> Dashboard
-                </button>
-
-                <div class="logo-container">
-                    <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="35" cy="18" r="5" fill="#E8D567"/>
-                        <circle cx="68" cy="18" r="5" fill="#E8D567"/>
-                        <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
-                        <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
-                        <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
-                        <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
-                    </svg>
-                    <div class="logo-text">Smart <span>Collection</span></div>
-                </div>
-
-                <button class="logout-btn" onclick="handleLogout()" title="Log out">
-                    <i class="fa-solid fa-right-from-bracket"></i> Logout
-                </button>
-            </div>
+            <div data-include="partials/sub-page-header.html"></div>
 
             <div class="system-title">📋 Technical Department - Inspection Schedule</div>
 
@@ -759,27 +639,7 @@
     <!-- 📅 Team Duty Roster Page -->
     <div id="roster-page" class="page hidden-page">
         <div class="container">
-            <div class="brand-header relative-header">
-                <button class="back-btn" onclick="navigateTo('home-page')">
-                    <i class="fa-solid fa-arrow-left"></i> Dashboard
-                </button>
-
-                <div class="logo-container">
-                    <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="35" cy="18" r="5" fill="#E8D567"/>
-                        <circle cx="68" cy="18" r="5" fill="#E8D567"/>
-                        <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
-                        <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
-                        <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
-                        <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
-                    </svg>
-                    <div class="logo-text">Smart <span>Collection</span></div>
-                </div>
-
-                <button class="logout-btn" onclick="handleLogout()" title="Log out">
-                    <i class="fa-solid fa-right-from-bracket"></i> Logout
-                </button>
-            </div>
+            <div data-include="partials/sub-page-header.html"></div>
 
             <div class="system-title">📅 Monthly Duty Roster</div>
 
@@ -937,27 +797,7 @@
     <!-- 👑 ADMIN PANEL PAGE -->
     <div id="admin-page" class="page hidden-page">
         <div class="container">
-            <div class="brand-header relative-header">
-                <button class="back-btn" onclick="navigateTo('home-page')">
-                    <i class="fa-solid fa-arrow-left"></i> Dashboard
-                </button>
-
-                <div class="logo-container">
-                    <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="35" cy="18" r="5" fill="#E8D567"/>
-                        <circle cx="68" cy="18" r="5" fill="#E8D567"/>
-                        <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
-                        <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
-                        <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
-                        <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
-                    </svg>
-                    <div class="logo-text">Smart <span>Collection</span></div>
-                </div>
-
-                <button class="logout-btn" onclick="handleLogout()" title="Log out">
-                    <i class="fa-solid fa-right-from-bracket"></i> Logout
-                </button>
-            </div>
+            <div data-include="partials/sub-page-header.html"></div>
 
             <div class="system-title">👑 Admin Panel - Manage Towers & Agents</div>
 
@@ -1063,6 +903,6 @@
     </div>
 
     <!-- 📜 Main Application Script -->
-    <script src="script.js?v=2026.141"></script>
+    <script src="script.js?v=2026.143"></script>
 </body>
 </html>
