@@ -6,6 +6,7 @@ const PYTHON_BACKEND_NOC_URL = "https://help-spc.onrender.com/generate-noc";
 const PYTHON_BACKEND_OWNER_NOC_URL = "https://help-spc.onrender.com/generate-owner-noc";
 const PYTHON_BACKEND_RENT_NOC_URL = "https://help-spc.onrender.com/generate-rent-noc";
 const PYTHON_BACKEND_MOVE_IN_URL = "https://help-spc.onrender.com/generate-move-in-clearance";
+const PYTHON_BACKEND_AGENT_STATUS_URL = "https://help-spc.onrender.com/api/agent-status";
 
 // ============================================================
 // ⏱️ AUTO-LOGOUT ON INACTIVITY (20 MINUTES)
@@ -517,6 +518,8 @@ function updateUIForRole() {
   if (addTowerBtn) addTowerBtn.style.display = isAdmin() ? "inline-flex" : "none";
   const rosterAdminBtn = document.getElementById("adminRosterManageBtn");
   if (rosterAdminBtn) rosterAdminBtn.style.display = isAdmin() ? "inline-flex" : "none";
+  const ccPulseMenuCard = document.getElementById("ccPulseMenuCard");
+  if (ccPulseMenuCard) ccPulseMenuCard.style.display = isAdmin() ? "block" : "none";
   updateUserProfileUI();
 }
 
@@ -756,12 +759,18 @@ function navigateTo(pageId) {
     alert("⛔ Access Denied! Admin privileges required.");
     return;
   }
+  if (pageId === 'cc-pulse-page' && !isAdmin()) {
+    alert("⛔ Access Denied! Admin privileges required.");
+    return;
+  }
 
   const pages = document.querySelectorAll('.page');
   pages.forEach(page => {
     page.classList.remove('active-page');
     page.classList.add('hidden-page');
   });
+
+  stopCcPulsePolling();
 
   const targetPage = document.getElementById(pageId);
   if (targetPage) {
@@ -805,6 +814,8 @@ function navigateTo(pageId) {
       renderAdminTable();
       renderAdminAgentsTable();
       switchAdminTab('towers');
+    } else if (pageId === 'cc-pulse-page') {
+      initCcPulsePage();
     }
   }
 }
@@ -1872,4 +1883,249 @@ function renderAdminAgentsTable(filter = "") {
   });
   html += `</tbody>`;
   table.innerHTML = html;
+}
+
+
+// ============================================================
+// 📡 CC PULSE - LIVE AGENT STATUS (ADMIN ONLY)
+// ============================================================
+let ccPulsePollTimer = null;
+let ccPulseTickTimer = null;
+let ccPulseAgentsCache = [];
+let ccPulseMode = "day";
+
+function initCcPulsePage() {
+  const uae = getUAECurrentDate();
+  const todayStr = `${uae.year}-${uae.month}-${uae.day}`;
+
+  const dayInput = document.getElementById("ccpDayInput");
+  if (dayInput) dayInput.value = todayStr;
+
+  const rangeStartInput = document.getElementById("ccpRangeStartInput");
+  const rangeEndInput = document.getElementById("ccpRangeEndInput");
+  if (rangeStartInput) rangeStartInput.value = todayStr;
+  if (rangeEndInput) rangeEndInput.value = todayStr;
+
+  const monthInput = document.getElementById("ccpMonthInput");
+  if (monthInput) monthInput.value = todayStr.slice(0, 7);
+
+  const select = document.getElementById("ccPulseAgentSelect");
+  if (select) select.dataset.populated = "false";
+
+  setCcPulseMode("day");
+  fetchCcPulseLiveStatus();
+  startCcPulsePolling();
+}
+
+function startCcPulsePolling() {
+  stopCcPulsePolling();
+  ccPulsePollTimer = setInterval(fetchCcPulseLiveStatus, 10000);
+  ccPulseTickTimer = setInterval(tickCcPulseCounters, 1000);
+}
+
+function stopCcPulsePolling() {
+  if (ccPulsePollTimer) clearInterval(ccPulsePollTimer);
+  if (ccPulseTickTimer) clearInterval(ccPulseTickTimer);
+  ccPulsePollTimer = null;
+  ccPulseTickTimer = null;
+}
+
+async function fetchCcPulseLiveStatus() {
+  const grid = document.getElementById("ccPulseLiveGrid");
+  if (!grid) return;
+  try {
+    const res = await fetch(PYTHON_BACKEND_AGENT_STATUS_URL);
+    const agents = await res.json();
+    ccPulseAgentsCache = Array.isArray(agents) ? agents : [];
+    renderCcPulseLiveGrid();
+    populateCcPulseAgentSelect();
+  } catch (e) {
+    grid.innerHTML = `<div class="ccp-error">⚠️ Could not load live status</div>`;
+  }
+}
+
+function formatCcPulseElapsed(seconds) {
+  seconds = Math.max(0, Math.floor(seconds));
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  const pad = (n) => String(n).padStart(2, "0");
+  return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+}
+
+function renderCcPulseLiveGrid() {
+  const grid = document.getElementById("ccPulseLiveGrid");
+  if (!grid) return;
+
+  const nowSec = Date.now() / 1000;
+
+  grid.innerHTML = ccPulseAgentsCache.map(a => {
+    const isAway = a.status === "Away";
+    const statusClass = isAway ? "ccp-status-away" : "ccp-status-active";
+    let counterHtml = "";
+    if (!isAway && a.sessionStartedAt) {
+      const elapsed = nowSec - a.sessionStartedAt;
+      counterHtml = `<div class="ccp-counter" data-session-start="${a.sessionStartedAt}">${formatCcPulseElapsed(elapsed)}</div>`;
+    }
+    return `
+      <div class="ccp-agent-card">
+        <div class="ccp-agent-name">${a.name}</div>
+        <div class="ccp-status-badge ${statusClass}">${a.status}</div>
+        ${counterHtml}
+      </div>`;
+  }).join("");
+}
+
+function tickCcPulseCounters() {
+  const nowSec = Date.now() / 1000;
+  document.querySelectorAll("#ccPulseLiveGrid .ccp-counter").forEach(el => {
+    const start = parseFloat(el.getAttribute("data-session-start"));
+    if (!isNaN(start)) el.textContent = formatCcPulseElapsed(nowSec - start);
+  });
+}
+
+function populateCcPulseAgentSelect() {
+  const select = document.getElementById("ccPulseAgentSelect");
+  if (!select || select.dataset.populated === "true") return;
+  const names = ccPulseAgentsCache.map(a => a.name).sort();
+  select.innerHTML = `<option value="__all__">All agents</option>` +
+    names.map(n => `<option value="${n}">${n}</option>`).join("");
+  select.dataset.populated = "true";
+}
+
+function setCcPulseMode(mode) {
+  ccPulseMode = mode;
+  ["day", "range", "month"].forEach(m => {
+    const btn = document.getElementById("ccpMode_" + m);
+    const box = document.getElementById("ccpModeBox_" + m);
+    if (btn) btn.classList.toggle("active", m === mode);
+    if (box) box.style.display = (m === mode) ? "flex" : "none";
+  });
+}
+
+async function loadCcPulseReport() {
+  const resultBox = document.getElementById("ccPulseReportResult");
+  const select = document.getElementById("ccPulseAgentSelect");
+  if (!resultBox || !select) return;
+
+  const agentName = select.value;
+  const params = new URLSearchParams();
+  params.set("mode", ccPulseMode);
+
+  if (ccPulseMode === "day") {
+    params.set("date", document.getElementById("ccpDayInput").value);
+  } else if (ccPulseMode === "range") {
+    params.set("start", document.getElementById("ccpRangeStartInput").value);
+    params.set("end", document.getElementById("ccpRangeEndInput").value);
+  } else if (ccPulseMode === "month") {
+    params.set("month", document.getElementById("ccpMonthInput").value);
+  }
+
+  resultBox.innerHTML = `<div class="ccp-loading">Loading report...</div>`;
+
+  try {
+    if (agentName === "__all__") {
+      params.set("action", "allAgentsLoginTotals");
+      const res = await fetch(`${GOOGLE_SHEET_API_URL}?${params.toString()}`);
+      const data = await res.json();
+      renderCcPulseAllAgentsReport(data);
+    } else {
+      params.set("action", "agentStatusReport");
+      params.set("name", agentName);
+      const res = await fetch(`${GOOGLE_SHEET_API_URL}?${params.toString()}`);
+      const data = await res.json();
+      renderCcPulseSingleAgentReport(data);
+    }
+  } catch (e) {
+    resultBox.innerHTML = `<div class="ccp-error">⚠️ Could not load report</div>`;
+  }
+}
+
+function formatCcPulseMinutes(mins) {
+  mins = Math.round(mins || 0);
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+function ccPulseTimeOnly(ts) {
+  if (!ts) return "--";
+  const parts = ts.split(" ");
+  return parts[1] ? parts[1].slice(0, 5) : ts;
+}
+
+function renderCcPulseAllAgentsReport(data) {
+  const resultBox = document.getElementById("ccPulseReportResult");
+  if (!data || data.status !== "success") {
+    resultBox.innerHTML = `<div class="ccp-error">⚠️ ${data && data.message ? data.message : "No data"}</div>`;
+    return;
+  }
+  const rows = data.agents.map(a => `
+    <div class="ccp-total-row">
+      <span class="ccp-total-name">${a.name}</span>
+      <span class="ccp-total-ext">Ext ${a.number}</span>
+      <span class="ccp-total-value">${formatCcPulseMinutes(a.totalLoginMinutes)}</span>
+    </div>`).join("");
+  resultBox.innerHTML = `<div class="ccp-total-list">${rows || '<div class="ccp-empty">No data for this period</div>'}</div>`;
+}
+
+function renderCcPulseSingleAgentReport(data) {
+  const resultBox = document.getElementById("ccPulseReportResult");
+  if (!data || data.status !== "success") {
+    resultBox.innerHTML = `<div class="ccp-error">⚠️ ${data && data.message ? data.message : "No data"}</div>`;
+    return;
+  }
+
+  const statusColors = { "Available": "#107c41", "Break": "#d97706", "Emails": "#1a252f" };
+
+  const totalsHtml = Object.keys(data.totals || {}).map(st => `
+    <div class="ccp-metric-card">
+      <div class="ccp-metric-label">${st}</div>
+      <div class="ccp-metric-value">${formatCcPulseMinutes(data.totals[st])}</div>
+    </div>`).join("");
+
+  let daysHtml = "";
+  if (data.mode === "day" && data.days.length === 1) {
+    const day = data.days[0];
+    daysHtml = `
+      <div class="ccp-day-highlight">
+        <div class="ccp-metric-card ccp-accent">
+          <div class="ccp-metric-label">First login</div>
+          <div class="ccp-metric-value">${ccPulseTimeOnly(day.firstLogin)}</div>
+        </div>
+        <div class="ccp-metric-card">
+          <div class="ccp-metric-label">End shift</div>
+          <div class="ccp-metric-value">${ccPulseTimeOnly(day.endShift)}</div>
+        </div>
+      </div>
+      <div class="ccp-session-list">
+        ${day.sessions.map(s => `
+          <div class="ccp-session-row">
+            <span class="ccp-dot" style="background:${statusColors[s.status] || '#888'}"></span>
+            <span class="ccp-session-status">${s.status}</span>
+            <span class="ccp-session-time">${ccPulseTimeOnly(s.start)} → ${ccPulseTimeOnly(s.end)}</span>
+            <span class="ccp-session-dur">${formatCcPulseMinutes(s.durationMinutes)}</span>
+          </div>`).join("") || '<div class="ccp-empty">No sessions this day</div>'}
+      </div>`;
+  } else {
+    daysHtml = `
+      <div class="ccp-days-table">
+        ${data.days.map(day => `
+          <div class="ccp-day-row">
+            <span class="ccp-day-date">${day.date}</span>
+            <span>${ccPulseTimeOnly(day.firstLogin)} → ${ccPulseTimeOnly(day.endShift)}</span>
+            <span class="ccp-day-total">${formatCcPulseMinutes(day.totalLoginMinutes)}</span>
+          </div>`).join("")}
+      </div>`;
+  }
+
+  resultBox.innerHTML = `
+    <div class="ccp-metric-card ccp-total-highlight">
+      <div class="ccp-metric-label">Total login time</div>
+      <div class="ccp-metric-value">${formatCcPulseMinutes(data.totalLoginMinutes)}</div>
+    </div>
+    <div class="ccp-metrics-grid">${totalsHtml}</div>
+    ${daysHtml}
+  `;
 }
