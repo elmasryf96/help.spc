@@ -2037,6 +2037,7 @@ async function loadCcPulseReport() {
       renderCcPulseSingleAgentReport(data);
     }
   } catch (e) {
+    console.error("CC Pulse report error:", e);
     resultBox.innerHTML = `<div class="ccp-error">⚠️ Could not load report</div>`;
   }
 }
@@ -2095,7 +2096,8 @@ function renderCcPulseTimelineHtml(sessions, statusColors) {
     const left = ((startMin - dayStart) / span) * 100;
     const width = Math.max(((endMin - startMin) / span) * 100, 0.3);
     const color = statusColors[s.status] || "#888787";
-    return `<div class="ccp-tl-segment" style="left:${left}%;width:${width}%;background:${color};" title="${s.status}: ${ccPulseTimeOnly(s.start)} - ${ccPulseTimeOnly(s.end)}"></div>`;
+    const tooltipText = `${s.status}: ${ccPulseTimeOnly(s.start)} \u2192 ${ccPulseTimeOnly(s.end)} (${formatCcPulseDuration(s.durationSeconds)})`;
+    return `<div class="ccp-tl-segment" style="left:${left}%;width:${width}%;background:${color};" data-tooltip="${tooltipText}"></div>`;
   }).join("");
 
   const hourCount = 6;
@@ -2114,7 +2116,32 @@ function renderCcPulseTimelineHtml(sessions, statusColors) {
     <div class="ccp-timeline-wrap">
       <div class="ccp-timeline-bar">${segmentsHtml}</div>
       <div class="ccp-timeline-axis">${axisHtml}</div>
+      <div class="ccp-tl-tooltip" id="ccpTlTooltip"></div>
     </div>`;
+}
+
+function attachCcPulseTimelineHover() {
+  document.querySelectorAll(".ccp-timeline-bar").forEach(bar => {
+    const tooltip = bar.parentElement.querySelector(".ccp-tl-tooltip");
+    if (!tooltip || bar.dataset.hoverBound === "true") return;
+    bar.dataset.hoverBound = "true";
+
+    bar.addEventListener("mouseover", (e) => {
+      const seg = e.target.closest(".ccp-tl-segment");
+      if (!seg) return;
+      tooltip.textContent = seg.getAttribute("data-tooltip");
+      tooltip.style.display = "block";
+      const barRect = bar.getBoundingClientRect();
+      const segRect = seg.getBoundingClientRect();
+      let left = segRect.left - barRect.left + (segRect.width / 2);
+      tooltip.style.left = left + "px";
+    });
+
+    bar.addEventListener("mouseout", (e) => {
+      if (!e.target.closest(".ccp-tl-segment")) return;
+      tooltip.style.display = "none";
+    });
+  });
 }
 
 function renderCcPulseSingleAgentReport(data) {
