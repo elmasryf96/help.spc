@@ -2163,7 +2163,7 @@ function renderCcPulseSingleAgentReport(data) {
           <div class="ccp-day-row">
             <span class="ccp-day-date">${day.date}</span>
             <span>${ccPulseTimeOnly(day.firstLogin)} → ${ccPulseTimeOnly(day.endShift)}</span>
-            <span class="ccp-day-total">${formatCcPulseDuration(day.totalLoginMinutes)}</span>
+            <span class="ccp-day-total">${formatCcPulseDuration(day.totalLoginSeconds)}</span>
           </div>`).join("")}
       </div>`;
   }
