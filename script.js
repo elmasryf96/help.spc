@@ -2041,12 +2041,14 @@ async function loadCcPulseReport() {
   }
 }
 
-function formatCcPulseMinutes(mins) {
-  mins = Math.round(mins || 0);
-  if (mins < 60) return `${mins}m`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m ? `${h}h ${m}m` : `${h}h`;
+function formatCcPulseDuration(totalSeconds) {
+  totalSeconds = Math.max(0, Math.round(totalSeconds || 0));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  if (h > 0) return s > 0 ? `${h}h ${m}m ${s}s` : (m > 0 ? `${h}h ${m}m` : `${h}h`);
+  if (m > 0) return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  return `${s}s`;
 }
 
 function ccPulseTimeOnly(ts) {
@@ -2065,7 +2067,7 @@ function renderCcPulseAllAgentsReport(data) {
     <div class="ccp-total-row">
       <span class="ccp-total-name">${a.name}</span>
       <span class="ccp-total-ext">Ext ${a.number}</span>
-      <span class="ccp-total-value">${formatCcPulseMinutes(a.totalLoginMinutes)}</span>
+      <span class="ccp-total-value">${formatCcPulseDuration(a.totalLoginSeconds)}</span>
     </div>`).join("");
   resultBox.innerHTML = `<div class="ccp-total-list">${rows || '<div class="ccp-empty">No data for this period</div>'}</div>`;
 }
@@ -2127,7 +2129,7 @@ function renderCcPulseSingleAgentReport(data) {
   const totalsHtml = Object.keys(data.totals || {}).map(st => `
     <div class="ccp-metric-card">
       <div class="ccp-metric-label">${st}</div>
-      <div class="ccp-metric-value">${formatCcPulseMinutes(data.totals[st])}</div>
+      <div class="ccp-metric-value">${formatCcPulseDuration(data.totals[st])}</div>
     </div>`).join("");
 
   let daysHtml = "";
@@ -2151,7 +2153,7 @@ function renderCcPulseSingleAgentReport(data) {
             <span class="ccp-dot" style="background:${statusColors[s.status] || '#888'}"></span>
             <span class="ccp-session-status">${s.status}</span>
             <span class="ccp-session-time">${ccPulseTimeOnly(s.start)} → ${ccPulseTimeOnly(s.end)}</span>
-            <span class="ccp-session-dur">${formatCcPulseMinutes(s.durationMinutes)}</span>
+            <span class="ccp-session-dur">${formatCcPulseDuration(s.durationSeconds)}</span>
           </div>`).join("") || '<div class="ccp-empty">No sessions this day</div>'}
       </div>`;
   } else {
@@ -2161,7 +2163,7 @@ function renderCcPulseSingleAgentReport(data) {
           <div class="ccp-day-row">
             <span class="ccp-day-date">${day.date}</span>
             <span>${ccPulseTimeOnly(day.firstLogin)} → ${ccPulseTimeOnly(day.endShift)}</span>
-            <span class="ccp-day-total">${formatCcPulseMinutes(day.totalLoginMinutes)}</span>
+            <span class="ccp-day-total">${formatCcPulseDuration(day.totalLoginMinutes)}</span>
           </div>`).join("")}
       </div>`;
   }
@@ -2169,9 +2171,11 @@ function renderCcPulseSingleAgentReport(data) {
   resultBox.innerHTML = `
     <div class="ccp-metric-card ccp-total-highlight">
       <div class="ccp-metric-label">Total login time</div>
-      <div class="ccp-metric-value">${formatCcPulseMinutes(data.totalLoginMinutes)}</div>
+      <div class="ccp-metric-value">${formatCcPulseDuration(data.totalLoginSeconds)}</div>
     </div>
     <div class="ccp-metrics-grid">${totalsHtml}</div>
     ${daysHtml}
   `;
+
+  attachCcPulseTimelineHover();
 }
