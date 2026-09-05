@@ -156,6 +156,12 @@
                     <h3>Monthly Duty Roster</h3>
                     <div class="btn-primary">Open Roster <i class="fa-solid fa-clock"></i></div>
                 </div>
+
+                <div class="menu-card" id="ccPulseMenuCard" onclick="navigateTo('cc-pulse-page')" style="display: none;">
+                    <div class="menu-icon"><i class="fa-solid fa-tower-broadcast"></i></div>
+                    <h3>CC Pulse</h3>
+                    <div class="btn-primary">Open CC Pulse <i class="fa-solid fa-satellite-dish"></i></div>
+                </div>
             </div>
 
             <div id="home-banner-container"></div>
@@ -165,6 +171,75 @@
                     <i class="fa-solid fa-user-shield"></i> Admin Panel
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- 📡 CC PULSE - LIVE AGENT STATUS (ADMIN ONLY) -->
+    <div id="cc-pulse-page" class="page hidden-page">
+        <div class="container">
+            <div class="brand-header relative-header">
+                <button class="back-btn" onclick="navigateTo('home-page')">
+                    <i class="fa-solid fa-arrow-left"></i> Dashboard
+                </button>
+
+                <div class="logo-container">
+                    <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+                        <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+                        <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+                        <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+                    </svg>
+                    <div class="logo-text">Smart <span>Collection</span></div>
+                </div>
+
+                <button class="logout-btn" onclick="handleLogout()" title="Log out">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+
+            <div class="system-title">📡 CC Pulse - Live Agent Status</div>
+
+            <div id="ccPulseLiveGrid" class="ccp-live-grid">
+                <!-- Populated by JS -->
+            </div>
+
+            <div class="ccp-report-box">
+                <div class="ccp-report-controls">
+                    <select id="ccPulseAgentSelect" class="combo-input">
+                        <option value="__all__">All agents</option>
+                    </select>
+
+                    <div class="ccp-mode-bar">
+                        <button id="ccpMode_day" class="ccp-mode-btn active" onclick="setCcPulseMode('day')">Day</button>
+                        <button id="ccpMode_range" class="ccp-mode-btn" onclick="setCcPulseMode('range')">Date range</button>
+                        <button id="ccpMode_month" class="ccp-mode-btn" onclick="setCcPulseMode('month')">Whole month</button>
+                    </div>
+                </div>
+
+                <div class="ccp-mode-inputs">
+                    <div id="ccpModeBox_day" class="ccp-mode-box">
+                        <input type="date" id="ccpDayInput">
+                    </div>
+                    <div id="ccpModeBox_range" class="ccp-mode-box" style="display: none;">
+                        <input type="date" id="ccpRangeStartInput">
+                        <span>to</span>
+                        <input type="date" id="ccpRangeEndInput">
+                    </div>
+                    <div id="ccpModeBox_month" class="ccp-mode-box" style="display: none;">
+                        <input type="month" id="ccpMonthInput">
+                    </div>
+                </div>
+
+                <button class="btn-primary" onclick="loadCcPulseReport()">
+                    <i class="fa-solid fa-chart-line"></i> View report
+                </button>
+
+                <div id="ccPulseReportResult" class="ccp-report-result"></div>
+            </div>
+
+            <div id="cc-pulse-banner-container"></div>
         </div>
     </div>
 
