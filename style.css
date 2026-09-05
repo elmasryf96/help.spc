@@ -1538,3 +1538,213 @@ input:checked + .slider:before { transform: translateX(20px); }
     .dashboard-grid3 { grid-template-columns: 1fr; }
     .hl-agents-container { grid-template-columns: 1fr; }
 }
+/* ============================================================
+   📡 CC PULSE - LIVE AGENT STATUS (ADMIN ONLY)
+   ============================================================ */
+.ccp-live-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+    margin: 15px;
+}
+.ccp-agent-card {
+    background: #ffffff;
+    border: 1px solid var(--primary-yellow);
+    border-radius: 12px;
+    padding: 10px;
+    text-align: center;
+}
+.ccp-agent-name {
+    font-weight: 800;
+    font-size: 13px;
+    color: var(--dark-navy);
+    margin-bottom: 6px;
+}
+.ccp-status-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 20px;
+}
+.ccp-status-active {
+    background: #f0fdf4;
+    color: #166534;
+}
+.ccp-status-away {
+    background: #fef2f2;
+    color: #991b1b;
+}
+.ccp-counter {
+    margin-top: 6px;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--dark-navy);
+    font-variant-numeric: tabular-nums;
+}
+.ccp-report-box {
+    background: #ffffff;
+    border-radius: 16px;
+    margin: 15px;
+    padding: 16px;
+}
+.ccp-report-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.ccp-mode-bar {
+    display: flex;
+    gap: 6px;
+}
+.ccp-mode-btn {
+    background: var(--badge-bg);
+    border: 1px solid var(--badge-border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--dark-navy);
+    cursor: pointer;
+}
+.ccp-mode-btn.active {
+    background: var(--dark-navy);
+    color: var(--primary-yellow);
+}
+.ccp-mode-inputs {
+    margin-bottom: 12px;
+}
+.ccp-mode-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.ccp-mode-box input {
+    border: 1px solid var(--badge-border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 13px;
+}
+.ccp-report-result {
+    margin-top: 14px;
+}
+.ccp-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 10px;
+    margin: 10px 0;
+}
+.ccp-metric-card {
+    background: var(--badge-bg);
+    border: 1px solid var(--badge-border);
+    border-radius: 10px;
+    padding: 10px;
+}
+.ccp-metric-card.ccp-accent {
+    background: #fffbe6;
+}
+.ccp-metric-card.ccp-total-highlight {
+    background: var(--dark-navy);
+    margin-bottom: 6px;
+}
+.ccp-metric-card.ccp-total-highlight .ccp-metric-label {
+    color: var(--primary-yellow);
+    opacity: 0.85;
+}
+.ccp-metric-card.ccp-total-highlight .ccp-metric-value {
+    color: #ffffff;
+}
+.ccp-metric-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+.ccp-metric-value {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--dark-navy);
+}
+.ccp-day-highlight {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.ccp-session-list,
+.ccp-days-table {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.ccp-session-row,
+.ccp-day-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #fafafa;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 12.5px;
+    color: var(--dark-navy);
+}
+.ccp-session-status {
+    font-weight: 700;
+    min-width: 70px;
+}
+.ccp-session-time,
+.ccp-day-date {
+    flex: 1;
+    color: var(--text-muted);
+}
+.ccp-session-dur,
+.ccp-day-total {
+    font-weight: 700;
+}
+.ccp-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.ccp-total-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.ccp-total-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #fafafa;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+}
+.ccp-total-name {
+    font-weight: 800;
+    color: var(--dark-navy);
+    min-width: 90px;
+}
+.ccp-total-ext {
+    color: var(--text-muted);
+    flex: 1;
+}
+.ccp-total-value {
+    font-weight: 800;
+    color: var(--dark-navy);
+}
+.ccp-empty,
+.ccp-loading,
+.ccp-error {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 700;
+}
+.ccp-error {
+    color: var(--coral-red);
+}
