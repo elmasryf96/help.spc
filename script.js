@@ -2070,6 +2070,51 @@ function renderCcPulseAllAgentsReport(data) {
   resultBox.innerHTML = `<div class="ccp-total-list">${rows || '<div class="ccp-empty">No data for this period</div>'}</div>`;
 }
 
+function ccPulseTimeToMinutes(ts) {
+  const timePart = ts.split(" ")[1] || "00:00:00";
+  const p = timePart.split(":").map(Number);
+  return p[0] * 60 + p[1] + (p[2] || 0) / 60;
+}
+
+function renderCcPulseTimelineHtml(sessions, statusColors) {
+  if (!sessions.length) return "";
+
+  let dayStart = 9 * 60;
+  let dayEnd = 21 * 60;
+  sessions.forEach(s => {
+    dayStart = Math.min(dayStart, ccPulseTimeToMinutes(s.start));
+    dayEnd = Math.max(dayEnd, ccPulseTimeToMinutes(s.end));
+  });
+  const span = dayEnd - dayStart || 1;
+
+  const segmentsHtml = sessions.map(s => {
+    const startMin = ccPulseTimeToMinutes(s.start);
+    const endMin = ccPulseTimeToMinutes(s.end);
+    const left = ((startMin - dayStart) / span) * 100;
+    const width = Math.max(((endMin - startMin) / span) * 100, 0.3);
+    const color = statusColors[s.status] || "#888787";
+    return `<div class="ccp-tl-segment" style="left:${left}%;width:${width}%;background:${color};" title="${s.status}: ${ccPulseTimeOnly(s.start)} - ${ccPulseTimeOnly(s.end)}"></div>`;
+  }).join("");
+
+  const hourCount = 6;
+  let axisHtml = "";
+  for (let i = 0; i <= hourCount; i++) {
+    const minuteMark = dayStart + (span * i / hourCount);
+    const hour24 = Math.floor(minuteMark / 60) % 24;
+    const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+    const suffix = hour24 >= 12 ? "PM" : "AM";
+    const pos = (i / hourCount) * 100;
+    const translate = i === 0 ? "0" : (i === hourCount ? "-100%" : "-50%");
+    axisHtml += `<span class="ccp-tl-mark" style="left:${pos}%;transform:translateX(${translate});">${hour12} ${suffix}</span>`;
+  }
+
+  return `
+    <div class="ccp-timeline-wrap">
+      <div class="ccp-timeline-bar">${segmentsHtml}</div>
+      <div class="ccp-timeline-axis">${axisHtml}</div>
+    </div>`;
+}
+
 function renderCcPulseSingleAgentReport(data) {
   const resultBox = document.getElementById("ccPulseReportResult");
   if (!data || data.status !== "success") {
@@ -2099,6 +2144,7 @@ function renderCcPulseSingleAgentReport(data) {
           <div class="ccp-metric-value">${ccPulseTimeOnly(day.endShift)}</div>
         </div>
       </div>
+      ${renderCcPulseTimelineHtml(day.sessions, statusColors)}
       <div class="ccp-session-list">
         ${day.sessions.map(s => `
           <div class="ccp-session-row">
