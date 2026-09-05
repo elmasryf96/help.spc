@@ -239,7 +239,7 @@ async def get_3cx_agent_status():
 
         query_url = (
             f"https://{THREECX_FQDN}/xapi/v1/Users"
-            "?$select=Number,DisplayName,CurrentProfileName,QueueStatus"
+            "?$select=Number,DisplayName,CurrentProfileName,QueueStatus,IsRegistered"
             "&$expand=ForwardingProfiles($select=Name,CustomName)"
         )
 
@@ -270,6 +270,11 @@ async def get_3cx_agent_status():
                 if custom_name:
                     display_status = custom_name
                 break
+
+        # لو مسجلش دخول فعلياً في 3CX (مفيش جهاز/سوفت فون شغال)، نعتبره Away
+        # حتى لو البروفايل بتاعه شكله Available/Break/Emails... إلخ
+        if not u.get("IsRegistered", False):
+            display_status = "Away"
 
         result.append({
             "name": AGENT_MAP[number],
