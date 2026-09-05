@@ -208,9 +208,6 @@ AGENT_MAP = {
     "127": "Zain",
     "128": "Fatemeh",
     "129": "Hajra",
-    "123": "Gulsher",
-    "122": "Sana",
-    "121": "Minhaj",
 }
 
 
@@ -280,6 +277,7 @@ async def get_3cx_agent_status():
             "status": display_status,
             "rawStatus": current_profile,
             "queueStatus": u.get("QueueStatus"),
+            "sessionStartedAt": _session_start.get(number),
         })
     return result
 
@@ -298,6 +296,10 @@ async def agent_status():
 
 # آخر حالة معروفة لكل إيجنت (في الذاكرة، بتتصفر لو السيرفر عمل Restart)
 _last_known_status = {}
+
+# وقت بداية الجلسة الحالية لكل إيجنت (آخر مرة اتغيرت فيها الحالة من Away لأي حالة تانية)
+# بيتصفر برضو لو السيرفر عمل Restart، وقتها العداد هيبدأ من جديد مع أول تغيير بعد الريستارت
+_session_start = {}
 
 AGENT_STATUS_POLL_SECONDS = 10
 
@@ -331,6 +333,12 @@ async def agent_status_watcher():
                         await log_status_change_to_sheet(
                             client, agent["name"], key, old_status, new_status
                         )
+
+                    # تتبع بداية الجلسة الحالية عشان عداد "بدأ الشيفت دلوقتي" في الفرونت إند
+                    if new_status == "Away":
+                        _session_start.pop(key, None)
+                    elif old_status is None or old_status == "Away":
+                        _session_start[key] = time.time()
 
                     _last_known_status[key] = new_status
             except Exception as e:
