@@ -434,7 +434,7 @@ body {
     transition: all 0.25s ease-in-out;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
     gap: 12px;
     user-select: none;
