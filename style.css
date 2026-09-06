@@ -1875,3 +1875,56 @@ input:checked + .slider:before { transform: translateX(20px); }
 .ccp-adh-good .ccp-metric-value { color: #107c41; }
 .ccp-adh-warn .ccp-metric-value { color: #d97706; }
 .ccp-adh-bad .ccp-metric-value { color: #dc2626; }
+
+/* ============================================================
+   📊 CC PULSE - ALL AGENTS REPORT CARDS (Day/Range/Month breakdown)
+   ============================================================ */
+.ccp-all-agents-report {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+}
+.ccp-agent-report-card {
+    background: #fafafa;
+    border: 1px solid var(--badge-border);
+    border-radius: 12px;
+    padding: 12px;
+}
+.ccp-agent-report-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.ccp-agent-report-header .ccp-total-name {
+    min-width: 0;
+}
+.ccp-agent-report-card .ccp-metric-card.ccp-total-highlight {
+    margin-bottom: 8px;
+}
+.ccp-agent-report-card .ccp-metrics-grid {
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    margin: 0 0 8px 0;
+}
+.ccp-agent-report-card .ccp-timeline-wrap {
+    margin-bottom: 0;
+}
+
+.ccp-attendance-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 8px;
+}
+.ccp-attendance-off {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1.5px solid #cbd5e1;
+}
+.ccp-attendance-noshow {
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1.5px solid #fca5a5;
+}
