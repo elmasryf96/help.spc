@@ -233,6 +233,24 @@ async def get_3cx_token(client: httpx.AsyncClient) -> str:
     return _token_cache["token"]
 
 
+async def get_3cx_active_calls(client: httpx.AsyncClient, token: str):
+    """بيجيب المكالمات الشغالة دلوقتي من 3CX (بيرجع [] لو حصل أي مشكلة، عشان ما يوقفش باقي الصفحة)"""
+    try:
+        resp = await client.get(
+            f"https://{THREECX_FQDN}/xapi/v1/ActiveCalls",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        resp.raise_for_status()
+        return resp.json().get("value", [])
+    except Exception as e:
+        print(f"⚠️ فشل جلب المكالمات الحية (Active Calls): {e}")
+        return []
+
+
+# وقت بداية كل مكالمة شغالة دلوقتي (في الذاكرة) - عشان نعرف قايمة إيه من غير ما نحتاج 3CX يديها لنا
+_call_start = {}
+
+
 async def get_3cx_agent_status():
     async with httpx.AsyncClient(timeout=15) as client:
         token = await get_3cx_token(client)
@@ -253,6 +271,37 @@ async def get_3cx_agent_status():
 
         users_resp.raise_for_status()
         users = users_resp.json()["value"]
+
+        active_calls = await get_3cx_active_calls(client, token)
+
+    # بنحول قايمة المكالمات لـ dict على أساس رقم الإيجستنشن، عشان نلاقي مكالمة كل إيجنت بسرعة
+    # (بنجرب كذا اسم حقل مختلف لأن 3CX ممكن يرجّع Dn أو DnNumber حسب النسخة)
+    calls_by_ext = {}
+    seen_call_ids = set()
+    for c in active_calls:
+        ext = str(c.get("Dn") or c.get("DnNumber") or c.get("Number") or "").strip()
+        if not ext:
+            continue
+        status = str(c.get("Status") or "")
+        # بنعرض بس المكالمة اللي فعلاً شغالة (متكلم فيها)، مش الرنة أو وهي بتتعمل
+        if status.lower() not in ("connected", "talking"):
+            continue
+
+        call_id = str(c.get("Id") or f"{ext}-{c.get('Callee') or c.get('Caller')}")
+        seen_call_ids.add(call_id)
+        if call_id not in _call_start:
+            _call_start[call_id] = time.time()
+
+        other_party = c.get("Callee") or c.get("Caller") or c.get("CalleeId") or c.get("CallerId") or "-"
+        calls_by_ext[ext] = {
+            "with": str(other_party),
+            "startedAt": _call_start[call_id],
+        }
+
+    # بننظف أي مكالمة خلصت من الذاكرة عشان الـ dict مايكبرش على طول
+    for call_id in list(_call_start.keys()):
+        if call_id not in seen_call_ids:
+            _call_start.pop(call_id, None)
 
     result = []
     for u in users:
@@ -283,6 +332,7 @@ async def get_3cx_agent_status():
             "rawStatus": current_profile,
             "queueStatus": u.get("QueueStatus"),
             "sessionStartedAt": _session_start.get(number),
+            "currentCall": calls_by_ext.get(number),
         })
     return result
 
