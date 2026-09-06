@@ -4,6 +4,7 @@
 شغّله كده: python3 build_index.py
 """
 import re
+from datetime import datetime
 
 PAGE_ORDER = [
     "login-page.html",
@@ -23,6 +24,10 @@ HEAD_FILE = "head.html"   # <!DOCTYPE...> لحد أول <div id="login-page"...>
 TAIL_FILE = "tail.html"   # من بعد قفل آخر صفحة (الموديول) لحد نهاية الملف (السكريبتات + </html>)
 
 INCLUDE_MARKER = '<div data-include="partials/sub-page-header.html"></div>'
+
+# بيتغير رقم زي دا "?v=..." في كل ملفات JS/CSS تلقائيًا كل مرة تشغّل السكريبت،
+# عشان أي زائر (خصوصًا على GitHub Pages) ياخد آخر نسخة دايمًا من غير Cache قديم عالق
+CACHE_BUST_PATTERN = re.compile(r'\?v=[\w.\-]+')
 
 
 def strip_banner(content: str) -> str:
@@ -52,10 +57,14 @@ def main():
 
     final = head + middle + tail
 
+    new_version = datetime.now().strftime("%Y%m%d.%H%M%S")
+    final, replacements = CACHE_BUST_PATTERN.subn(f"?v={new_version}", final)
+
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(final)
 
     print(f"✅ index.html اتبنى تاني ({len(final.splitlines())} سطر)")
+    print(f"🔄 اتحدث رقم الإصدار (?v=...) في {replacements} مكان لـ: {new_version}")
 
 
 if __name__ == "__main__":
