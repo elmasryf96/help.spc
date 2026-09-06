@@ -292,7 +292,8 @@ async def get_3cx_agent_status():
         if call_id not in _call_start:
             _call_start[call_id] = time.time()
 
-        other_party = c.get("Callee") or c.get("Caller") or c.get("CalleeId") or c.get("CallerId") or "-"
+        other_party_raw = str(c.get("Callee") or c.get("Caller") or c.get("CalleeId") or c.get("CallerId") or "-").strip()
+        other_party = AGENT_MAP.get(other_party_raw, other_party_raw)
         calls_by_ext[ext] = {
             "with": str(other_party),
             "startedAt": _call_start[call_id],
