@@ -12,6 +12,8 @@ let ccPulseReportPollTimer = null;
 let ccPulseAgentsCache = [];
 let ccPulseMode = "day";
 let ccPulseReportLiveBase = null; // بيتخزن فيه أرقام آخر تقرير عشان نعد عليها بالثانية زي العداد اللي فوق
+let ccPulseLastExportAgentsList = null; // بيتخزن فيه آخر بيانات تقرير اتحمّلت عشان زرار الـ Export يقدر يستخدمها
+let ccPulseLastExportTrackingStartDate = null; // بيتخزن فيه trackingStartDate بتاع آخر تقرير، عشان الـ CSV يستبعد نفس الأيام
 
 function initCcPulsePage() {
   const uae = getUAECurrentDate();
@@ -139,8 +141,12 @@ function tickCcPulseReportNumbers() {
       if (liveAgent.status === "Away") return; // ثابت زي ما هو
       const base = ccPulseReportLiveBase.perAgentSeconds[liveAgent.name];
       if (base === undefined) return;
-      const el = document.querySelector(`[data-agent-total="${liveAgent.name}"]`);
-      if (el) el.textContent = formatCcPulseDuration(base + elapsed);
+      const totalEl = document.querySelector(`[data-agent-total="${liveAgent.name}"]`);
+      if (totalEl) totalEl.textContent = formatCcPulseDuration(base + elapsed);
+
+      const statusBase = (ccPulseReportLiveBase.perAgentStatusSeconds[liveAgent.name] || {})[liveAgent.status] || 0;
+      const statusEl = document.querySelector(`[data-agent-status="${liveAgent.name}::${liveAgent.status}"]`);
+      if (statusEl) statusEl.textContent = formatCcPulseDuration(statusBase + elapsed);
     });
     return;
   }
@@ -225,11 +231,16 @@ async function loadCcPulseReport(isAutoRefresh = false) {
 
       if (isTodayView && data && data.status === "success") {
         const perAgentSeconds = {};
-        data.agents.forEach(a => { perAgentSeconds[a.name] = a.totalLoginSeconds || 0; });
+        const perAgentStatusSeconds = {};
+        data.agents.forEach(a => {
+          perAgentSeconds[a.name] = a.totalLoginSeconds || 0;
+          perAgentStatusSeconds[a.name] = Object.assign({}, a.totals || {});
+        });
         ccPulseReportLiveBase = {
           type: "all",
           fetchedAtMs: Date.now(),
-          perAgentSeconds: perAgentSeconds
+          perAgentSeconds: perAgentSeconds,
+          perAgentStatusSeconds: perAgentStatusSeconds
         };
       } else {
         ccPulseReportLiveBase = null;
@@ -293,13 +304,91 @@ function renderCcPulseAllAgentsReport(data) {
     resultBox.innerHTML = `<div class="ccp-error">⚠️ ${data && data.message ? data.message : "No data"}</div>`;
     return;
   }
-  const rows = data.agents.map(a => `
-    <div class="ccp-total-row">
-      <span class="ccp-total-name">${a.name}</span>
-      <span class="ccp-total-ext">Ext ${a.number}</span>
-      <span class="ccp-total-value" data-agent-total="${a.name}">${formatCcPulseDuration(a.totalLoginSeconds)}</span>
-    </div>`).join("");
-  resultBox.innerHTML = `<div class="ccp-total-list">${rows || '<div class="ccp-empty">No data for this period</div>'}</div>`;
+
+  const statusColors = { "Available": "#107c41", "Break": "#d97706", "Emails": "#1a252f", "Custom 1": "#6d28d9", "Custom 2": "#0369a1" };
+
+  const cardsHtml = data.agents.map(a => {
+    const totalsHtml = Object.keys(a.totals || {}).map(st => `
+      <div class="ccp-metric-card">
+        <div class="ccp-metric-label">${st}</div>
+        <div class="ccp-metric-value" data-agent-status="${a.name}::${st}">${formatCcPulseDuration(a.totals[st])}</div>
+      </div>`).join("");
+
+    let adherenceHtml = "";
+    let timelineHtml = "";
+    let attendanceBadgeHtml = "";
+
+    if (a.date) {
+      const shiftWindow = getShiftWindowForAgentDate(a.name, a.date);
+      const attendanceStatus = getAttendanceStatus(shiftWindow, a.totalLoginSeconds, a.date);
+      if (attendanceStatus === "off") {
+        attendanceBadgeHtml = `<div class="ccp-attendance-badge ccp-attendance-off">🏖️ Day Off</div>`;
+      } else if (attendanceStatus === "no-show") {
+        attendanceBadgeHtml = `<div class="ccp-attendance-badge ccp-attendance-noshow">🚫 No Show</div>`;
+      }
+
+      const adherencePct = calculateShiftAdherence(a.sessions || [], shiftWindow, getEffectiveShiftEndMin(a.date));
+      if (adherencePct !== null) {
+        const adherenceClass = adherencePct >= 90 ? "ccp-adh-good" : (adherencePct >= 70 ? "ccp-adh-warn" : "ccp-adh-bad");
+        adherenceHtml = `
+          <div class="ccp-metric-card ${adherenceClass}">
+            <div class="ccp-metric-label">Adherence</div>
+            <div class="ccp-metric-value">${adherencePct.toFixed(0)}%</div>
+          </div>`;
+      }
+      timelineHtml = renderCcPulseTimelineHtml(a.sessions || [], statusColors, shiftWindow);
+    } else {
+      const periodAdherencePct = calculateAdherenceFromDays(a.name, a.days || [], data.trackingStartDate);
+      if (periodAdherencePct !== null) {
+        const adherenceClass = periodAdherencePct >= 90 ? "ccp-adh-good" : (periodAdherencePct >= 70 ? "ccp-adh-warn" : "ccp-adh-bad");
+        adherenceHtml = `
+          <div class="ccp-metric-card ${adherenceClass}">
+            <div class="ccp-metric-label">Adherence</div>
+            <div class="ccp-metric-value">${periodAdherencePct.toFixed(0)}%</div>
+          </div>`;
+      }
+    }
+
+    const tardyResult = calculateTardyFromDays(a.name, a.days || [], data.trackingStartDate);
+    const isSingleDayView = Boolean(a.date);
+    const tardyCountLabel = isSingleDayView ? "Tardy" : "Tardy Count";
+    const tardyCountValue = isSingleDayView ? (tardyResult.count > 0 ? "Yes" : "No") : tardyResult.count;
+    const tardyHtml = `
+      <div class="ccp-metric-card">
+        <div class="ccp-metric-label">${tardyCountLabel}</div>
+        <div class="ccp-metric-value">${tardyCountValue}</div>
+      </div>
+      <div class="ccp-metric-card">
+        <div class="ccp-metric-label">Tardy Minutes</div>
+        <div class="ccp-metric-value">${formatCcPulseDuration(tardyResult.minutes * 60)}</div>
+      </div>`;
+
+    return `
+      <div class="ccp-agent-report-card">
+        <div class="ccp-agent-report-header">
+          <span class="ccp-total-name">${a.name}</span>
+          <span class="ccp-total-ext">Ext ${a.number}</span>
+        </div>
+        ${attendanceBadgeHtml}
+        <div class="ccp-metric-card ccp-total-highlight">
+          <div class="ccp-metric-label">Total login time</div>
+          <div class="ccp-metric-value" data-agent-total="${a.name}">${formatCcPulseDuration(a.totalLoginSeconds)}</div>
+        </div>
+        <div class="ccp-metrics-grid">${totalsHtml}${adherenceHtml}${tardyHtml}</div>
+        ${timelineHtml}
+      </div>`;
+  }).join("");
+
+  resultBox.innerHTML = `
+    <div class="ccp-export-bar">
+      <button type="button" class="ccp-export-btn" onclick="exportCcPulseReportToCsv()">📥 Export to CSV</button>
+    </div>
+    <div class="ccp-all-agents-report">${cardsHtml || '<div class="ccp-empty">No data for this period</div>'}</div>`;
+
+  ccPulseLastExportAgentsList = data.agents.map(a => ({ name: a.name, number: a.number, days: a.days || [] }));
+  ccPulseLastExportTrackingStartDate = data.trackingStartDate || null;
+
+  attachCcPulseTimelineHover();
 }
 
 function ccPulseTimeToMinutes(ts) {
@@ -333,6 +422,62 @@ function getShiftWindowForAgentDate(agentName, dateStr) {
   return { startMin: range.startMin, endMin: range.endMin, label: `${shiftCode} (${range.label})` };
 }
 
+// بيحدد هل اليوم دا "يستاهل نحكم عليه" ولا لأ: أيام مستقبلية (بعد النهاردة) أو شيفت النهاردة نفسه لسه ماوصلش معاده لسه بدري نحكم عليهم
+function isDayJudgeable(dateStr, shiftWindow) {
+  const uae = getUAECurrentDate();
+  const todayStr = `${uae.year}-${uae.month}-${uae.day}`;
+  if (dateStr > todayStr) return false; // يوم لسه ماجاش أصلاً
+  if (dateStr === todayStr && shiftWindow) {
+    const nowMin = uae.hour24 * 60 + uae.minute;
+    if (nowMin < shiftWindow.startMin) return false; // شيفت النهاردة لسه ماوصلش معاده
+  }
+  return true;
+}
+
+// بيحدد حالة الحضور: "off" (مفيش شيفت في الروستر = إجازة)، "no-show" (شيفت موجود بس اشتغل أقل من نصه)، أو null (عادي أو لسه بدري نحكم)
+function getAttendanceStatus(shiftWindow, totalLoginSeconds, dateStr) {
+  if (!shiftWindow) return "off"; // مفيش شيفت متجدول في الروستر أصلاً
+  if (dateStr && !isDayJudgeable(dateStr, shiftWindow)) return null; // لسه بدري (يوم مستقبلي أو الشيفت لسه ماوصلش معاده)
+  const shiftDurationSec = (shiftWindow.endMin - shiftWindow.startMin) * 60;
+  if ((totalLoginSeconds || 0) < shiftDurationSec / 2) return "no-show";
+  return null;
+}
+
+// ============================================================
+// ⏰ TARDY - عدد مرات ودقايق التأخير في بداية الشيفت (بدون Grace Period)
+// ============================================================
+// بياخد قايمة أيام (كل يوم فيه date + firstLogin، واختياريًا totalLoginSeconds لو متوفر)
+// وبيرجع { count, minutes }. بيتجاهل تلقائيًا أيام الـ Day Off (مفيش شيفت في الروستر)
+// وأيام الـ No Show (مجاش خالص، أو - لو totalLoginSeconds متوفرة - اشتغل أقل من نص الشيفت)
+// وأي يوم قبل trackingStartDate (يعني قبل ما نبدأ نسجل بيانات في AgentStatusLog أصلاً)
+function calculateTardyFromDays(agentName, days, trackingStartDate) {
+  let tardyCount = 0;
+  let tardyMinutes = 0;
+
+  (days || []).forEach(day => {
+    if (trackingStartDate && day.date < trackingStartDate) return; // قبل بداية التتبع، متجاهلش
+
+    const shiftWindow = getShiftWindowForAgentDate(agentName, day.date);
+    if (!shiftWindow) return; // Day Off
+    if (!isDayJudgeable(day.date, shiftWindow)) return; // لسه بدري (يوم مستقبلي أو شيفت النهاردة لسه ماوصلش معاده)
+
+    if (day.totalLoginSeconds !== undefined) {
+      if (getAttendanceStatus(shiftWindow, day.totalLoginSeconds, day.date) === "no-show") return;
+    }
+
+    if (!day.firstLogin) return; // مجاش خالص
+
+    const firstLoginMin = ccPulseTimeToMinutes(day.firstLogin);
+    const lateMin = firstLoginMin - shiftWindow.startMin;
+    if (lateMin > 1) { // فترة سماح دقيقة واحدة - أي تأخير دقيقة أو أقل مايتحسبش
+      tardyCount++;
+      tardyMinutes += lateMin;
+    }
+  });
+
+  return { count: tardyCount, minutes: tardyMinutes };
+}
+
 // بيحسب نسبة الالتزام بالشيفت: من إجمالي وقت الشيفت المجدول، قد إيه اشتغل فعليًا (مش Away) جواه
 // لو اليوم اللي بنقيّمه هو النهاردة، بيرجع "دلوقتي" بالدقايق؛ لو يوم فات، بيرجع null (يعني قيس على الشيفت كامل)
 function getEffectiveShiftEndMin(dateStr) {
@@ -362,6 +507,139 @@ function calculateShiftAdherence(sessions, shiftWindow, effectiveEndMin) {
 
   const pct = (workedMinInShift / shiftDurationMin) * 100;
   return Math.max(0, Math.min(100, pct));
+}
+
+// بيحسب أدهيرنس فترة كاملة (Range/Month): بيجمع الوقت المشتغل جوه الشيفت على كل الأيام،
+// ويقسمه على إجمالي مدة الشيفتات المجدولة في نفس الأيام. بيتجاهل تلقائيًا أيام الـ Day Off
+// وأي يوم قبل trackingStartDate (يعني قبل ما نبدأ نسجل بيانات في AgentStatusLog أصلاً)
+function calculateAdherenceFromDays(agentName, days, trackingStartDate) {
+  let workedTotalMin = 0;
+  let shiftTotalMin = 0;
+
+  (days || []).forEach(day => {
+    if (trackingStartDate && day.date < trackingStartDate) return; // قبل بداية التتبع، متجاهلش
+
+    const shiftWindow = getShiftWindowForAgentDate(agentName, day.date);
+    if (!shiftWindow) return; // Day Off
+    if (!isDayJudgeable(day.date, shiftWindow)) return; // لسه بدري (يوم مستقبلي أو شيفت النهاردة لسه ماوصلش معاده)
+
+    const effectiveEndMin = getEffectiveShiftEndMin(day.date);
+    const clampedEnd = (effectiveEndMin != null) ? Math.min(shiftWindow.endMin, effectiveEndMin) : shiftWindow.endMin;
+    const shiftDurationMin = clampedEnd - shiftWindow.startMin;
+    if (shiftDurationMin <= 0) return; // الشيفت لسه ماوصلش معاده
+
+    let workedMinInShift = 0;
+    (day.sessions || []).forEach(s => {
+      const startMin = ccPulseTimeToMinutes(s.start);
+      const endMin = ccPulseTimeToMinutes(s.end);
+      const overlapStart = Math.max(startMin, shiftWindow.startMin);
+      const overlapEnd = Math.min(endMin, clampedEnd);
+      if (overlapEnd > overlapStart) workedMinInShift += (overlapEnd - overlapStart);
+    });
+
+    workedTotalMin += workedMinInShift;
+    shiftTotalMin += shiftDurationMin;
+  });
+
+  if (shiftTotalMin <= 0) return null;
+  const pct = (workedTotalMin / shiftTotalMin) * 100;
+  return Math.max(0, Math.min(100, pct));
+}
+
+// ============================================================
+// 📥 CSV EXPORT - صف لكل يوم لكل إيجنت، بكل التفاصيل
+// ============================================================
+// بياخد قايمة إيجنتس [{ name, number, days }] وبيبني صفوف CSV (هيدر + صف لكل يوم لكل إيجنت)
+// بيتجاهل تلقائيًا أي يوم قبل trackingStartDate (لو اتبعتت) عشان الأرقام تفضل متسقة مع باقي التقرير
+function buildCcPulseExportRows(agentsList, trackingStartDate) {
+  // نجمع كل أسماء الـ status الموجودة في كل الأيام لكل الإيجنتس، عشان الأعمدة تبقى موحدة لكل الصفوف
+  const statusSet = new Set();
+  agentsList.forEach(agent => {
+    (agent.days || []).forEach(day => {
+      if (trackingStartDate && day.date < trackingStartDate) return;
+      Object.keys(day.totals || {}).forEach(st => statusSet.add(st));
+    });
+  });
+  const statusColumns = Array.from(statusSet);
+
+  const headers = ["Date", "Agent", "Ext", "Scheduled Shift", "First Login", "End Shift", "Tardy", "Tardy Minutes", "Total Login Time", "Breaks"].concat(statusColumns);
+  const rows = [headers];
+
+  agentsList.forEach(agent => {
+    (agent.days || []).forEach(day => {
+      if (trackingStartDate && day.date < trackingStartDate) return; // قبل بداية التتبع، متجاهلش
+
+      const shiftWindow = getShiftWindowForAgentDate(agent.name, day.date);
+      const shiftLabel = shiftWindow ? shiftWindow.label : "Day Off";
+
+      const firstLoginMin = day.firstLogin ? ccPulseTimeToMinutes(day.firstLogin) : null;
+      let isTardy = "No";
+      let tardyMin = 0;
+      if (shiftWindow && firstLoginMin !== null) {
+        const lateMin = firstLoginMin - shiftWindow.startMin;
+        if (lateMin > 1) { // نفس فترة السماح دقيقة واحدة المستخدمة في التقرير
+          isTardy = "Yes";
+          tardyMin = Math.round(lateMin);
+        }
+      }
+
+      const breaksList = (day.sessions || [])
+        .filter(s => s.status === "Break")
+        .map(s => `${ccPulseTimeOnly(s.start)}\u2192${ccPulseTimeOnly(s.end)}`)
+        .join("; ");
+
+      const row = [
+        day.date,
+        agent.name,
+        agent.number || "-",
+        shiftLabel,
+        ccPulseTimeOnly(day.firstLogin),
+        ccPulseTimeOnly(day.endShift),
+        isTardy,
+        tardyMin,
+        formatCcPulseDuration(day.totalLoginSeconds),
+        breaksList
+      ];
+
+      statusColumns.forEach(st => {
+        row.push(day.totals && day.totals[st] ? formatCcPulseDuration(day.totals[st]) : "");
+      });
+
+      rows.push(row);
+    });
+  });
+
+  return rows;
+}
+
+// بيحوّل صفوف الداتا لملف CSV فعلي وبيبدأ تحميله في المتصفح
+function downloadCcPulseCsv(rows, filename) {
+  const escapeCell = (val) => {
+    const str = String(val === undefined || val === null ? "" : val);
+    if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+  const csvContent = rows.map(row => row.map(escapeCell).join(",")).join("\r\n");
+  const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// زرار "Export to CSV" بيستخدم آخر بيانات تقرير اتحمّلت (اتخزنت في ccPulseLastExportAgentsList وقت الـ render)
+function exportCcPulseReportToCsv() {
+  if (!ccPulseLastExportAgentsList || !ccPulseLastExportAgentsList.length) return;
+  const rows = buildCcPulseExportRows(ccPulseLastExportAgentsList, ccPulseLastExportTrackingStartDate);
+  const uae = getUAECurrentDate();
+  const filename = `cc-pulse-report_${uae.year}-${uae.month}-${uae.day}.csv`;
+  downloadCcPulseCsv(rows, filename);
 }
 
 function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null) {
@@ -460,17 +738,44 @@ function renderCcPulseSingleAgentReport(data) {
       <div class="ccp-metric-value" data-status-metric="${st}">${formatCcPulseDuration(data.totals[st])}</div>
     </div>`).join("");
 
+  const tardyResult = calculateTardyFromDays(data.agent, data.days || [], data.trackingStartDate);
+  const isSingleDayView = data.mode === "day" && data.days.length === 1;
+  const tardyCountLabel = isSingleDayView ? "Tardy" : "Tardy Count";
+  const tardyCountValue = isSingleDayView ? (tardyResult.count > 0 ? "Yes" : "No") : tardyResult.count;
+  const tardyHtml = `
+    <div class="ccp-metric-card">
+      <div class="ccp-metric-label">${tardyCountLabel}</div>
+      <div class="ccp-metric-value">${tardyCountValue}</div>
+    </div>
+    <div class="ccp-metric-card">
+      <div class="ccp-metric-label">Tardy Minutes</div>
+      <div class="ccp-metric-value">${formatCcPulseDuration(tardyResult.minutes * 60)}</div>
+    </div>`;
+
+  let periodAdherenceHtml = "";
+  if (!isSingleDayView) {
+    const periodAdherencePct = calculateAdherenceFromDays(data.agent, data.days || [], data.trackingStartDate);
+    if (periodAdherencePct !== null) {
+      const adherenceClass = periodAdherencePct >= 90 ? "ccp-adh-good" : (periodAdherencePct >= 70 ? "ccp-adh-warn" : "ccp-adh-bad");
+      periodAdherenceHtml = `
+    <div class="ccp-metric-card ${adherenceClass}">
+      <div class="ccp-metric-label">Adherence</div>
+      <div class="ccp-metric-value">${periodAdherencePct.toFixed(0)}%</div>
+    </div>`;
+    }
+  }
+
   let daysHtml = "";
   if (data.mode === "day" && data.days.length === 1) {
     const day = data.days[0];
     const shiftWindow = getShiftWindowForAgentDate(data.agent, day.date);
-    const hasSessions = day.sessions.length > 0;
+    const attendanceStatus = getAttendanceStatus(shiftWindow, day.totalLoginSeconds, day.date);
 
     let dayStatusBannerHtml = "";
-    if (!hasSessions) {
-      dayStatusBannerHtml = shiftWindow
-        ? `<div class="ccp-daystatus-banner ccp-noshow">🚫 <strong>No Show</strong> — scheduled for ${shiftWindow.label} but no login recorded this day</div>`
-        : `<div class="ccp-daystatus-banner ccp-dayoff">🏖️ <strong>Day Off</strong> — no shift scheduled for this agent on this date</div>`;
+    if (attendanceStatus === "no-show") {
+      dayStatusBannerHtml = `<div class="ccp-daystatus-banner ccp-noshow">🚫 <strong>No Show</strong> — scheduled for ${shiftWindow.label} but worked less than half the shift (${formatCcPulseDuration(day.totalLoginSeconds)})</div>`;
+    } else if (attendanceStatus === "off") {
+      dayStatusBannerHtml = `<div class="ccp-daystatus-banner ccp-dayoff">🏖️ <strong>Day Off</strong> — no shift scheduled for this agent on this date</div>`;
     }
 
     const adherencePct = calculateShiftAdherence(day.sessions, shiftWindow, getEffectiveShiftEndMin(day.date));
@@ -517,13 +822,20 @@ function renderCcPulseSingleAgentReport(data) {
   }
 
   resultBox.innerHTML = `
+    <div class="ccp-export-bar">
+      <button type="button" class="ccp-export-btn" onclick="exportCcPulseReportToCsv()">📥 Export to CSV</button>
+    </div>
     <div class="ccp-metric-card ccp-total-highlight">
       <div class="ccp-metric-label">Total login time</div>
       <div class="ccp-metric-value" id="ccpTotalLoginValue">${formatCcPulseDuration(data.totalLoginSeconds)}</div>
     </div>
-    <div class="ccp-metrics-grid">${totalsHtml}</div>
+    <div class="ccp-metrics-grid">${totalsHtml}${tardyHtml}${periodAdherenceHtml}</div>
     ${daysHtml}
   `;
+
+  const liveAgentMatch = ccPulseAgentsCache.find(x => x.name === data.agent);
+  ccPulseLastExportAgentsList = [{ name: data.agent, number: liveAgentMatch ? liveAgentMatch.number : "-", days: data.days || [] }];
+  ccPulseLastExportTrackingStartDate = data.trackingStartDate || null;
 
   attachCcPulseTimelineHover();
 }
