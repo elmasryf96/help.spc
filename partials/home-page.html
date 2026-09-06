@@ -1,0 +1,111 @@
+<!-- Partial: home-page.html - split from index.html on 2026-09-06 -->
+    <div id="home-page" class="page hidden-page">
+        <div class="container text-center">
+            <div class="brand-header relative-header">
+                <div class="logo-container">
+                    <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+                        <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+                        <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+                        <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+                        <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+                    </svg>
+                    <div class="logo-text">Smart <span>Collection</span></div>
+                </div>
+
+                <!-- 👤 USER PROFILE DROPDOWN WRAPPER -->
+                <div class="user-menu-wrapper">
+                    <div class="user-badge-card" onclick="toggleProfileDropdown(event)">
+                        <div class="user-avatar-circle user-avatar-text">ST</div>
+                        <span class="display-user-fullname" style="font-weight: 800; font-size: 13px; color: var(--dark-navy);">SPC Team</span>
+                        <i class="fa-solid fa-chevron-down" style="font-size: 11px; color: #64748b;"></i>
+                    </div>
+
+                    <!-- 🔽 Dropdown List -->
+                    <div class="profile-dropdown-menu" onclick="event.stopPropagation()">
+                        <div class="dropdown-user-info">
+                            <div class="dropdown-user-fullname" style="font-weight: 800; font-size: 13.5px; color: var(--dark-navy);">-</div>
+                            <div class="dropdown-user-email" style="font-size: 11px; font-weight: 700; color: #d97706;">-</div>
+                        </div>
+                        <button class="dropdown-item" onclick="openChangePasswordModal(); hideProfileDropdown();">
+                            <i class="fa-solid fa-key" style="color: #d97706;"></i> Change Password
+                        </button>
+                        <div class="dropdown-divider"></div>
+                        <button class="dropdown-item danger-item" onclick="handleLogout()">
+                            <i class="fa-solid fa-right-from-bracket"></i> Logout
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="system-title">🏠 SPC Family Home</div>
+
+            <!-- 🟢 LIVE ACTIVE SHIFT STATUS WIDGET -->
+            <div class="home-live-widget-card">
+                <div class="hl-header-bar">
+                    <div class="hl-title">
+                        <span class="live-dot-pulse"></span>
+                        <i class="fa-solid fa-user-clock"></i>
+                        <h3>Active On Shift Right Now (UAE Time)</h3>
+                    </div>
+                    <div class="hl-clock" id="homeClockText">--:--:-- -- (GST)</div>
+                </div>
+                <div id="homeActiveAgentsGrid" class="hl-agents-container">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </div>
+
+            <div class="dashboard-grid3">
+                <div class="menu-card" onclick="navigateTo('towers-page')">
+                    <div class="menu-icon"><i class="fa-solid fa-database"></i></div>
+                    <h3>Master Data & Tower Info</h3>
+                    <div class="btn-primary">Open Lookup <i class="fa-solid fa-arrow-right"></i></div>
+                </div>
+
+                <div class="menu-card" onclick="navigateTo('unit-mapping-page')">
+                    <div class="menu-icon"><i class="fa-solid fa-arrow-right-arrow-left"></i></div>
+                    <h3>Unit Mapping Tool</h3>
+                    <div class="btn-primary">Search Units <i class="fa-solid fa-magnifying-glass"></i></div>
+                </div>
+
+                <div class="menu-card" onclick="navigateTo('calculator-page')">
+                    <div class="menu-icon"><i class="fa-solid fa-calculator"></i></div>
+                    <h3>Final Bill Calculator</h3>
+                    <div class="btn-primary">Calculate Bill <i class="fa-solid fa-calculator"></i></div>
+                </div>
+
+                <div class="menu-card" onclick="navigateTo('noc-page')">
+                    <div class="menu-icon"><i class="fa-solid fa-file-pdf"></i></div>
+                    <h3>NOC Generator</h3>
+                    <div class="btn-primary">Generate NOC <i class="fa-solid fa-file-contract"></i></div>
+                </div>
+
+                <div class="menu-card" onclick="navigateTo('tech-page')">
+                    <div class="menu-icon"><i class="fa-solid fa-screwdriver-wrench"></i></div>
+                    <h3>Technical Schedule & Tracker</h3>
+                    <div class="btn-primary">Open Schedule <i class="fa-solid fa-calendar-days"></i></div>
+                </div>
+
+                <div class="menu-card" onclick="navigateTo('roster-page')">
+                    <div class="menu-icon"><i class="fa-solid fa-users-gear"></i></div>
+                    <h3>Monthly Duty Roster</h3>
+                    <div class="btn-primary">Open Roster <i class="fa-solid fa-clock"></i></div>
+                </div>
+
+                <div class="menu-card" id="ccPulseMenuCard" onclick="navigateTo('cc-pulse-page')" style="display: none;">
+                    <div class="menu-icon"><i class="fa-solid fa-tower-broadcast"></i></div>
+                    <h3>CC Pulse</h3>
+                    <div class="btn-primary">Open Pulse <i class="fa-solid fa-satellite-dish"></i></div>
+                </div>
+            </div>
+
+            <div id="home-banner-container"></div>
+
+            <div class="admin-bottom-wrapper">
+                <button id="adminMiniBtn" class="admin-mini-btn" onclick="navigateTo('admin-page')" style="display: none;">
+                    <i class="fa-solid fa-user-shield"></i> Admin Panel
+                </button>
+            </div>
+        </div>
+    </div>

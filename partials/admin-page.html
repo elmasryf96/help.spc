@@ -1,0 +1,51 @@
+<!-- Partial: admin-page.html - split from index.html on 2026-09-06 -->
+    <div id="admin-page" class="page hidden-page">
+        <div class="container">
+            <div data-include="partials/sub-page-header.html"></div>
+
+            <div class="system-title">👑 Admin Panel - Manage Towers & Agents</div>
+
+            <div class="admin-tabs-bar">
+                <button class="admin-tab-btn active" onclick="switchAdminTab('towers')">
+                    <i class="fa-solid fa-building"></i> Manage Towers
+                </button>
+                <button class="admin-tab-btn" onclick="switchAdminTab('agents')">
+                    <i class="fa-solid fa-users"></i> Manage Agents
+                </button>
+            </div>
+
+            <div id="admin-tab-towers" class="admin-tab-content">
+                <div class="search-box" style="margin: 10px 15px;">
+                    <input type="text" id="adminSearchInput" class="combo-input" placeholder="🔍 Search tower..." oninput="renderAdminTable(this.value)">
+                </div>
+
+                <button class="btn-add-tower" onclick="showAddTowerForm()">
+                    <i class="fa-solid fa-plus"></i> Add New Tower
+                </button>
+
+                <div class="admin-table-wrapper">
+                    <table id="adminTowersTable" class="admin-table">
+                        <!-- Populated by JS -->
+                    </table>
+                </div>
+            </div>
+
+            <div id="admin-tab-agents" class="admin-tab-content hidden-tab">
+                <div class="search-box" style="margin: 10px 15px;">
+                    <input type="text" id="adminAgentSearchInput" class="combo-input" placeholder="🔍 Search agent..." oninput="renderAdminAgentsTable(this.value)">
+                </div>
+
+                <button class="btn-add-tower" onclick="showAddAgentForm()">
+                    <i class="fa-solid fa-user-plus"></i> Add New Agent
+                </button>
+
+                <div class="admin-table-wrapper">
+                    <table id="adminAgentsTable" class="admin-table">
+                        <!-- Populated by JS -->
+                    </table>
+                </div>
+            </div>
+
+            <div id="admin-banner-container"></div>
+        </div>
+    </div>

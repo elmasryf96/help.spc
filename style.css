@@ -1583,6 +1583,24 @@ input:checked + .slider:before { transform: translateX(20px); }
     color: var(--dark-navy);
     font-variant-numeric: tabular-nums;
 }
+.ccp-call-badge {
+    margin-top: 6px;
+    background: #ecfdf5;
+    border: 1.5px solid #10b981;
+    color: #047857;
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 11.5px;
+    font-weight: 800;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+.ccp-call-duration {
+    font-variant-numeric: tabular-nums;
+    font-size: 12.5px;
+}
 .ccp-report-box {
     background: #ffffff;
     border-radius: 16px;
@@ -1803,3 +1821,57 @@ input:checked + .slider:before { transform: translateX(20px); }
     color: var(--dark-navy);
     font-weight: 700;
 }
+.ccp-tl-shift-band {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        45deg,
+        rgba(37, 99, 235, 0.16),
+        rgba(37, 99, 235, 0.16) 6px,
+        rgba(37, 99, 235, 0.28) 6px,
+        rgba(37, 99, 235, 0.28) 12px
+    );
+    border-left: 2px dashed #2563eb;
+    border-right: 2px dashed #2563eb;
+    z-index: 1;
+    pointer-events: none;
+}
+.ccp-tl-shift-legend {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #2563eb;
+    margin-bottom: 6px;
+}
+.ccp-tl-shift-swatch {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    background: rgba(37, 99, 235, 0.28);
+    border: 2px dashed #2563eb;
+}
+.ccp-daystatus-banner {
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    text-align: center;
+}
+.ccp-daystatus-banner.ccp-dayoff {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1.5px solid #cbd5e1;
+}
+.ccp-daystatus-banner.ccp-noshow {
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1.5px solid #fca5a5;
+}
+.ccp-adh-good .ccp-metric-value { color: #107c41; }
+.ccp-adh-warn .ccp-metric-value { color: #d97706; }
+.ccp-adh-bad .ccp-metric-value { color: #dc2626; }

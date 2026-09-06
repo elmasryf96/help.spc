@@ -1,0 +1,43 @@
+<!-- Partial: login-page.html - split from index.html on 2026-09-06 -->
+    <div id="login-page" class="page active-page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; box-sizing: border-box;">
+        
+        <!-- Login Card -->
+        <div class="login-container" style="margin: 0; max-width: 420px; width: 100%; box-sizing: border-box;">
+            <div class="logo-container justify-center margin-bottom-20">
+                <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+                    <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+                    <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+                    <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+                    <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+                    <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+                </svg>
+                <div class="logo-text">Smart <span>Collection</span></div>
+            </div>
+
+            <h2 class="login-title">🏠 Step into the Family</h2>
+            
+            <form onsubmit="event.preventDefault(); handleLogin(event);">
+                <div class="form-group">
+                    <label for="username"><i class="fa-solid fa-user"></i> Username</label>
+                    <input type="text" id="username" class="login-input" placeholder="Enter username" required autocomplete="off">
+                </div>
+
+                <div class="form-group">
+                    <label for="password"><i class="fa-solid fa-lock"></i> Password</label>
+                    <div class="pass-input-wrapper">
+                        <input type="password" id="password" class="login-input" placeholder="Enter password" required autocomplete="off">
+                        <button type="button" class="toggle-eye-btn" onclick="togglePassVisibility('password', this)"><i class="fa-solid fa-eye"></i></button>
+                    </div>
+                </div>
+
+                <div id="login-error" class="login-error-msg">❌ Invalid Username or Password!</div>
+
+                <button type="submit" class="btn-login">Sign In</button>
+            </form>
+        </div>
+
+        <!-- 💖 Developer Note & Feedback Banner -->
+        <div id="login-banner-container" style="margin-top: 15px; max-width: 420px; width: 100%; text-align: center; box-sizing: border-box;"></div>
+
+    </div>

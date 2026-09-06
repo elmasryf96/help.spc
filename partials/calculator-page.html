@@ -1,0 +1,131 @@
+<!-- Partial: calculator-page.html - split from index.html on 2026-09-06 -->
+    <div id="calculator-page" class="page hidden-page">
+        <div class="container">
+            <div data-include="partials/sub-page-header.html"></div>
+
+            <div class="system-title">🧮 Final Bill & Account Closure Consumption Calculator</div>
+
+            <div class="towers-rules-banner">
+                <div class="rule-box rule-danger">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <div>
+                        <strong>Amaya Towers (1 & 2) & Yasmina Towers (1 & 2):</strong> 
+                        Do not process final bills, new accounts, or NOCs for these towers. Please direct all requests to 
+                        <span class="person-highlight"><i class="fa-solid fa-user-tie"></i> Charles Vincent</span>.
+                    </div>
+                </div>
+                <div class="rule-box rule-warning">
+                    <i class="fa-solid fa-ban"></i>
+                    <div>
+                        <strong>No Estimation Allowed:</strong> 
+                        Estimation is not allowed for 
+                        <span class="tower-tag">Silverene Tower</span>, 
+                        <span class="tower-tag">Sobha Waves</span>, 
+                        <span class="tower-tag">Sobha Waves Grande</span>, 
+                        <span class="tower-tag">Sway Residence</span>, 
+                        <span class="tower-tag">Corniche Tower</span>, and 
+                        <span class="tower-tag">Al Nuaimiya Tower C</span>. 
+                        Please request actual meter readings directly from the <strong>Technical Team</strong>.
+                    </div>
+                </div>
+            </div>
+
+            <div class="calc-wrapper">
+                <div class="calc-card">
+                    <h3><i class="fa-solid fa-file-invoice-dollar"></i> Last Issued Bill Details</h3>
+                    
+                    <div class="calc-form-grid">
+                        <div class="form-group">
+                            <label for="prevReading"><i class="fa-solid fa-arrow-left"></i> Previous Reading (1st of Last Month):</label>
+                            <input type="number" id="prevReading" class="combo-input" placeholder="e.g. 100" oninput="calculateFinalBill()">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="currReading"><i class="fa-solid fa-arrow-right"></i> Current Reading (End of Last Month):</label>
+                            <input type="number" id="currReading" class="combo-input" placeholder="e.g. 250" oninput="calculateFinalBill()">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="moveOutDate"><i class="fa-solid fa-calendar-day"></i> Move-out / Account Closure Date:</label>
+                            <input type="date" id="moveOutDate" class="date-input" onchange="onMoveOutDateChange()">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="exitDays"><i class="fa-solid fa-clock"></i> Days Counted in Current Month:</label>
+                            <input type="number" id="exitDays" class="combo-input" min="1" max="31" placeholder="e.g. 16" oninput="calculateFinalBill()">
+                        </div>
+                    </div>
+
+                    <div class="calc-divider"></div>
+
+                    <h3><i class="fa-solid fa-sun"></i> Summer Seasonal Adjustment</h3>
+                    <div class="calc-toggle-row">
+                        <label class="switch-container">
+                            <input type="checkbox" id="summerToggle" onchange="toggleSummerAdjustment()">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label" id="summerToggleText">Apply Summer Increase</span>
+                        <div class="percentage-input-wrapper" id="customPercWrapper">
+                            <input type="number" id="summerPerc" class="combo-input perc-input" value="12" min="0" max="100" oninput="calculateFinalBill()">
+                            <span class="perc-symbol">%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="calc-card calc-results-card">
+                    <h3><i class="fa-solid fa-chart-line"></i> Estimated Final Reading & Consumption</h3>
+
+                    <div class="res-row">
+                        <span>Last Month Total Usage (30 Days):</span>
+                        <strong id="resLastMonthUsage">0 Units</strong>
+                    </div>
+
+                    <div class="res-row">
+                        <span>Daily Average Usage:</span>
+                        <strong id="resDailyAvg">0 Units/day</strong>
+                    </div>
+
+                    <div class="res-row">
+                        <span>Current Month Base Estimated Usage (<span id="resDaysLabel">0</span> Days):</span>
+                        <strong id="resBaseEstimated">0 Units</strong>
+                    </div>
+
+                    <div class="res-row highlight-summer-row" id="resSummerRow">
+                        <span>Summer Adjustment (+<span id="resPercLabel">12</span>%):</span>
+                        <strong id="resSummerAddition">+0 Units</strong>
+                    </div>
+
+                    <div class="res-row total-usage-row">
+                        <span>Final Current Month Estimated Usage:</span>
+                        <strong id="resFinalCurrentUsage">0 Units</strong>
+                    </div>
+
+                    <div class="readings-summary-container">
+                        <div class="rs-header">
+                            <i class="fa-solid fa-copy"></i>
+                            <span>Readings Summary for System Entry</span>
+                        </div>
+                        <div class="rs-body">
+                            <div class="rs-row">
+                                <span class="rs-label">Previous :</span>
+                                <span class="rs-value" id="rsPreviousVal">0</span>
+                                <button class="copy-btn" onclick="copyReading('rsPreviousVal', this)" title="Copy Previous Reading">
+                                    <i class="fa-regular fa-copy"></i>
+                                </button>
+                            </div>
+                            <div class="rs-row">
+                                <span class="rs-label">Current  :</span>
+                                <span class="rs-value" id="rsCurrentVal">0</span>
+                                <button class="copy-btn" onclick="copyReading('rsCurrentVal', this)" title="Copy Current Reading">
+                                    <i class="fa-regular fa-copy"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div id="calculator-banner-container"></div>
+        </div>
+    </div>

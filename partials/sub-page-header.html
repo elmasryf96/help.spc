@@ -1,0 +1,45 @@
+<!-- Partial: sub-page-header.html - shared header for every page EXCEPT login/home -->
+<!-- بيتحط أعلى أي صفحة فرعية عشان يدي زرار رجوع للداشبورد + منيو البروفايل/تسجيل الخروج -->
+<div class="brand-header relative-header">
+    <div class="logo-container" onclick="navigateTo('home-page')" style="cursor: pointer;">
+        <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+            <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+            <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+            <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+            <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+            <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+        </svg>
+        <div class="logo-text">Smart <span>Collection</span></div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <button type="button" class="admin-mini-btn" onclick="navigateTo('home-page')" style="white-space: nowrap;">
+            <i class="fa-solid fa-house"></i> Dashboard
+        </button>
+
+        <!-- 👤 USER PROFILE DROPDOWN WRAPPER -->
+        <div class="user-menu-wrapper">
+            <div class="user-badge-card" onclick="toggleProfileDropdown(event)">
+                <div class="user-avatar-circle user-avatar-text">ST</div>
+                <span class="display-user-fullname" style="font-weight: 800; font-size: 13px; color: var(--dark-navy);">SPC Team</span>
+                <i class="fa-solid fa-chevron-down" style="font-size: 11px; color: #64748b;"></i>
+            </div>
+
+            <!-- 🔽 Dropdown List -->
+            <div class="profile-dropdown-menu" onclick="event.stopPropagation()">
+                <div class="dropdown-user-info">
+                    <div class="dropdown-user-fullname" style="font-weight: 800; font-size: 13.5px; color: var(--dark-navy);">-</div>
+                    <div class="dropdown-user-email" style="font-size: 11px; font-weight: 700; color: #d97706;">-</div>
+                </div>
+                <button class="dropdown-item" onclick="openChangePasswordModal(); hideProfileDropdown();">
+                    <i class="fa-solid fa-key" style="color: #d97706;"></i> Change Password
+                </button>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item danger-item" onclick="handleLogout()">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

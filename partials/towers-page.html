@@ -1,0 +1,88 @@
+<!-- Partial: towers-page.html - split from index.html on 2026-09-06 -->
+    <div id="towers-page" class="page hidden-page">
+        <div class="container">
+            <div data-include="partials/sub-page-header.html"></div>
+
+            <div class="system-title">🏢 Towers Master Data & Service Fees Search Portal</div>
+
+            <div style="text-align: center; margin-top: 10px;">
+                <button id="directAddTowerBtn" class="btn-add-tower" onclick="showAddTowerForm()" style="display: none;">
+                    <i class="fa-solid fa-plus-circle"></i> Add New Tower
+                </button>
+            </div>
+
+            <div class="search-box">
+                <label for="towerInput">🔍 Search & Select Tower Name:</label>
+                <div class="input-wrapper">
+                    <input type="text" id="towerInput" list="towersList" class="combo-input" placeholder="Type tower name (e.g. Al Dana, Danube, Lamar)..." oninput="handleSelection()">
+                    <button type="button" id="clearBtn" class="clear-btn" onclick="clearSearch()"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <datalist id="towersList"></datalist>
+            </div>
+
+            <div id="directAdminControls" style="display: none; justify-content: center; gap: 12px; margin: 0 15px 15px 15px; background: #fffbe6; padding: 10px; border-radius: 10px; border: 2px dashed var(--primary-yellow);">
+                <button onclick="saveDirectTowerChanges()" style="background: #22c55e; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer;">
+                    💾 Save Tower Changes
+                </button>
+                <button onclick="deleteDirectTower()" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer;">
+                    🗑️ Delete Selected Tower
+                </button>
+            </div>
+
+            <div class="cards-wrapper">
+                <div class="card card-fees-top">
+                    <h3>💳 ONLINE PAYMENT AVAILABILITY</h3>
+                    <div class="row">
+                        <span class="title">Status:</span>
+                        <span class="val" id="online">-</span>
+                    </div>
+                </div>
+
+                <div class="card card-fees-top">
+                    <h3>🏷️ APPLICABLE SERVICE FEES</h3>
+                    <div class="fees-grid">
+                        <div class="fee-item"><span class="title">Billing Fee:</span><span class="val" id="billing">-</span></div>
+                        <div class="fee-item"><span class="title">Late Fee:</span><span class="val" id="late">-</span></div>
+                        <div class="fee-item"><span class="title">Activation Fee:</span><span class="val" id="activation">-</span></div>
+                        <div class="fee-item"><span class="title">Disconnection Fee:</span><span class="val" id="disconnection">-</span></div>
+                        <div class="fee-item"><span class="title">NOC Fee:</span><span class="val" id="noc">-</span></div>
+                        <div class="fee-item"><span class="title">Final Bill Fee:</span><span class="val" id="final">-</span></div>
+                    </div>
+
+                    <div id="maintenance_row" class="maintenance-single-row hidden-page">
+                        <span class="title"><i class="fa-solid fa-wrench"></i> Maintenance Fee:</span>
+                        <span class="val" id="maintenance">-</span>
+                    </div>
+
+                    <div id="tower_warning_row" class="hidden-page" style="margin-top: 15px;">
+                      <div style="background-color: #fef2f2; border: 1.5px solid #ef4444; color: #991b1b; padding: 12px 16px; border-radius: 8px; font-weight: 600; font-size: 13.5px; display: flex; align-items: center; gap: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                        <i class="fa-solid fa-triangle-exclamation" style="color: #dc2626; font-size: 18px;"></i>
+                        <span>
+                          <strong>Amaya Towers (1 & 2) & Yasmina Towers (1 & 2):</strong> Do not process final bills, new accounts, or NOCs for these towers. Please direct all requests to 
+                          <span style="background-color: #fef9c3; border: 1px solid #fde047; padding: 2px 8px; border-radius: 12px; color: #854d0e; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+                            <i class="fa-solid fa-user-tie"></i> Charles Vincent
+                          </span>.
+                        </span>
+                      </div>
+                    </div>
+                </div>
+
+                <div class="bottom-cards-row">
+                    <div class="card">
+                        <h3>🏛️ BUILDING & MANAGEMENT DETAILS</h3>
+                        <div class="row"><span class="title">Client Details:</span><span class="val" id="client">-</span></div>
+                        <div class="row"><span class="title">Location:</span><span class="val" id="location">-</span></div>
+                        <div class="row"><span class="title">Bank Account:</span><span class="val" id="bank">-</span></div>
+                    </div>
+
+                    <div class="card card-deposit">
+                        <h3>🛡️ SECURITY DEPOSIT</h3>
+                        <div class="row"><span class="title">Security Deposit Refund:</span><span class="val" id="deposit">-</span></div>
+                        <div class="row top-align"><span class="title">Security Deposit Amount:</span><div class="val-container" id="deposit_amount"><span class="val">-</span></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="towers-banner-container"></div>
+        </div>
+    </div>

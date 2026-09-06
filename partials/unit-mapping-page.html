@@ -1,0 +1,38 @@
+<!-- Partial: unit-mapping-page.html - split from index.html on 2026-09-06 -->
+    <div id="unit-mapping-page" class="page hidden-page">
+        <div class="container">
+            <div data-include="partials/sub-page-header.html"></div>
+
+            <div class="system-title">🏢 Unit Mapping & Reference Cross-Lookup</div>
+
+            <div class="search-box" style="margin-bottom: 10px;">
+                <label for="mappingTowerSelect">🏢 Select Tower:</label>
+                <select id="mappingTowerSelect" class="combo-input" onchange="onTowerMappingChange()" style="font-weight: 800; border-color: var(--primary-yellow);">
+                    <option value="" selected disabled>-- Select a tower --</option>
+                    <option value="fairmont">Fairmont Marina Residences</option>
+                    <option value="condor">Condor Marina Star</option>
+                </select>
+            </div>
+
+            <div class="search-box">
+                <label for="mappingSearchInput">🔍 Search Unit / SPA Ref / Physical No / Meter No:</label>
+                <div class="input-wrapper">
+                    <input type="text" id="mappingSearchInput" class="combo-input" placeholder="Type unit or meter number (e.g. V103, 102, 82827361)..." oninput="filterMappingTable()">
+                    <button type="button" id="clearMappingBtn" class="clear-btn" onclick="clearMappingSearch()"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+
+            <div class="mapping-tower-banner">
+                <i class="fa-solid fa-building"></i>
+                <span>Selected Tower: <strong id="selectedMappingTowerName">-- None selected --</strong></span>
+            </div>
+
+            <div class="admin-table-wrapper" style="margin: 10px 15px 20px 15px; max-height: 550px; overflow-y: auto;">
+                <table id="unitMappingTable" class="admin-table">
+                    <!-- Populated dynamically via JS -->
+                </table>
+            </div>
+
+            <div id="unit-mapping-banner-container"></div>
+        </div>
+    </div>

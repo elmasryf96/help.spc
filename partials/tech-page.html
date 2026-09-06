@@ -1,0 +1,57 @@
+<!-- Partial: tech-page.html - split from index.html on 2026-09-06 -->
+    <div id="tech-page" class="page hidden-page">
+        <div class="container">
+            <div data-include="partials/sub-page-header.html"></div>
+
+            <div class="system-title">📋 Technical Department - Inspection Schedule</div>
+
+            <div class="sheet-tracker-card">
+                <div class="sheet-tracker-content">
+                    <div class="sheet-icon-wrapper">
+                        <i class="fa-solid fa-file-excel"></i>
+                    </div>
+                    <div class="sheet-text-info">
+                        <h3>Submit Technical Requests</h3>
+                        <p>To submit a request for <strong>Inspection</strong>, <strong>Disconnection</strong>, or <strong>Reconnection</strong>, please log your entry directly in the online SharePoint tracker sheet:</p>
+                    </div>
+                </div>
+                <div class="sheet-btn-wrapper">
+                    <a href="https://smartcollectionco021-my.sharepoint.com/:x:/g/personal/technical_smartcollection_co/IQBoi6BqcB49QLHKDVIEd8ekAbpwHfUm2TIeh-Iy-U1WsI8?e=kgwsC4&wdExp=TEAMS-TREATMENT&web=1" target="_blank" rel="noopener noreferrer" class="btn-sheet-link">
+                        <i class="fa-solid fa-up-right-from-square"></i> Open Technical Tracker Sheet
+                    </a>
+                </div>
+            </div>
+
+            <div class="abudhabi-notice-box">
+                <div class="ad-header">
+                    <i class="fa-solid fa-building-user"></i>
+                    <h3>Abu Dhabi Towers Inspection Protocol</h3>
+                </div>
+                <p>
+                    For any inspection requests in <strong>Abu Dhabi</strong>, please contact 
+                    <span class="person-highlight"><i class="fa-solid fa-user-tie"></i> Charles Vincent</span> 
+                    directly to schedule and confirm the appropriate inspection time.
+                </p>
+            </div>
+
+            <div class="section-divider">
+                <span><i class="fa-solid fa-city"></i> Dubai & Ajman Inspection Schedule</span>
+            </div>
+
+            <div class="search-box margin-bottom-25">
+                <label for="schedSearchInput">🔍 Quick Search Building or Day (Dubai & Ajman):</label>
+                <div class="input-wrapper">
+                    <input type="text" id="schedSearchInput" class="combo-input" placeholder="Type building name or day (e.g. Monday, Damac, Skyview)..." oninput="filterScheduleCards()">
+                    <button type="button" id="clearSchedBtn" class="clear-btn" onclick="clearSchedSearch()"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+
+            <div class="cards-wrapper">
+                <div id="schedGridContainer" class="days-schedule-grid">
+                    <!-- Cards rendered dynamically via JS -->
+                </div>
+            </div>
+
+            <div id="tech-banner-container"></div>
+        </div>
+    </div>

@@ -1,0 +1,95 @@
+<!-- Partial: noc-page.html - split from index.html on 2026-09-06 -->
+    <div id="noc-page" class="page hidden-page">
+        <div class="container">
+            <div data-include="partials/sub-page-header.html"></div>
+
+            <div class="system-title">📄 NOC Certificate Generator</div>
+
+            <div class="calc-wrapper" style="grid-template-columns: 1fr; max-width: 750px; margin: 0 auto;">
+                <div class="calc-card">
+                    <h3><i class="fa-solid fa-file-contract"></i> Issue NOC Certificate</h3>
+                    
+                    <form id="nocForm" onsubmit="event.preventDefault(); handleNocSubmission();">
+                        <div class="calc-form-grid">
+                            
+                            <!-- 🔘 NOC TYPE SELECTOR -->
+                            <div class="form-group" style="grid-column: 1 / -1; margin-bottom: 10px;">
+                                <label for="nocTypeSelect"><i class="fa-solid fa-layer-group"></i> NOC Type:</label>
+                                <select id="nocTypeSelect" onchange="toggleNocFormType()" class="combo-input" style="font-weight: 800; border-color: var(--primary-yellow); padding: 10px;">
+                                    <option value="tenant">Tenant NOC</option>
+                                    <option value="owner">Owner NOC</option>
+                                    <option value="rent">Owner Clearance For Rent</option>
+                                    <option value="movein">Move-in Clearance Letter</option>
+                                </select>
+                            </div>
+
+                            <div class="section-title" id="section1Title" style="font-weight: 800; color: var(--dark-navy); margin-top: 5px; grid-column: 1 / -1;">
+                                <i class="fa-solid fa-user-check" style="color: #d97706;"></i> 1. Tenant & Property Details
+                            </div>
+
+                            <div class="form-group" id="groupTenantName">
+                                <label id="labelTenantName"><i class="fa-solid fa-user"></i> Tenant Consumer Name:</label>
+                                <input type="text" id="nocTenantName" class="combo-input" placeholder="e.g. Timur Yeginzhanov">
+                            </div>
+
+                            <div class="form-group">
+                                <label><i class="fa-solid fa-building"></i> Building / Tower Name:</label>
+                                <input type="text" id="nocTowerName" class="combo-input" placeholder="e.g. TORINO BY ORO24" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label><i class="fa-solid fa-door-closed"></i> Unit / Apartment No.:</label>
+                                <input type="text" id="nocUnitNo" class="combo-input" placeholder="e.g. Unit B1-519" required>
+                            </div>
+
+                            <div class="form-group" id="groupTenantContract">
+                                <label id="labelTenantContract"><i class="fa-solid fa-file-signature"></i> Tenant Contract Number:</label>
+                                <input type="text" id="nocTenantContract" class="combo-input" placeholder="e.g. TBO-B1-519-O2">
+                            </div>
+
+                            <!-- 🟢 MOVE-IN SPECIFIC FIELDS -->
+                            <div class="form-group" id="groupMoveInAccountType" style="display: none;">
+                                <label id="labelMoveInAccountType"><i class="fa-solid fa-users-gear"></i> Account Type:</label>
+                                <select id="moveInAccountType" class="combo-input" style="font-weight: 800; padding: 10px;">
+                                    <option value="TENANT">TENANT</option>
+                                    <option value="OWNER">OWNER</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="groupMoveInSpcAccount" style="display: none;">
+                                <label id="labelMoveInSpcAccount"><i class="fa-solid fa-hashtag"></i> SPC Account Number:</label>
+                                <input type="text" id="moveInSpcAccount" class="combo-input" placeholder="e.g. CST21106T5">
+                            </div>
+
+                            <div class="form-group">
+                                <label><i class="fa-solid fa-calendar-day"></i> NOC Issue Date:</label>
+                                <input type="date" id="nocDate" class="date-input" required>
+                            </div>
+
+                            <div class="calc-divider" style="grid-column: 1 / -1;"></div>
+
+                            <div class="section-title" id="section2Title" style="font-weight: 800; color: var(--dark-navy); grid-column: 1 / -1;">
+                                <i class="fa-solid fa-user-tie" style="color: #d97706;"></i> 2. Owner Details (Optional)
+                            </div>
+
+                            <div class="form-group" id="groupOwnerName">
+                                <label id="labelOwnerName"><i class="fa-solid fa-user"></i> Owner Consumer Name:</label>
+                                <input type="text" id="nocOwnerName" class="combo-input" placeholder="e.g. N/A or Owner Full Name">
+                            </div>
+
+                            <div class="form-group" id="groupOwnerContract">
+                                <label id="labelOwnerContract"><i class="fa-solid fa-file-invoice"></i> Owner Contract Number:</label>
+                                <input type="text" id="nocOwnerContract" class="combo-input" placeholder="e.g. N/A or Owner Contract No.">
+                            </div>
+
+                            <button type="submit" id="btnNocSubmit" class="btn-primary" style="margin-top: 15px; padding: 12px; font-size: 15px; grid-column: 1 / -1;">
+                                🚀 Generate & Download NOC PDF
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div id="noc-banner-container"></div>
+        </div>
+    </div>

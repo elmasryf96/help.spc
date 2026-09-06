@@ -61,8 +61,6 @@
         <div id="login-banner-container" style="margin-top: 15px; max-width: 420px; width: 100%; text-align: center; box-sizing: border-box;"></div>
 
     </div>
-
-    <!-- 🏠 Main Dashboard -->
     <div id="home-page" class="page hidden-page">
         <div class="container text-center">
             <div class="brand-header relative-header">
@@ -81,16 +79,16 @@
                 <!-- 👤 USER PROFILE DROPDOWN WRAPPER -->
                 <div class="user-menu-wrapper">
                     <div class="user-badge-card" onclick="toggleProfileDropdown(event)">
-                        <div class="user-avatar-circle" id="userAvatarText">ST</div>
-                        <span id="displayUserFullName" style="font-weight: 800; font-size: 13px; color: var(--dark-navy);">SPC Team</span>
+                        <div class="user-avatar-circle user-avatar-text">ST</div>
+                        <span class="display-user-fullname" style="font-weight: 800; font-size: 13px; color: var(--dark-navy);">SPC Team</span>
                         <i class="fa-solid fa-chevron-down" style="font-size: 11px; color: #64748b;"></i>
                     </div>
 
                     <!-- 🔽 Dropdown List -->
-                    <div id="profileDropdown" class="profile-dropdown-menu" onclick="event.stopPropagation()">
+                    <div class="profile-dropdown-menu" onclick="event.stopPropagation()">
                         <div class="dropdown-user-info">
-                            <div id="dropdownFullName" style="font-weight: 800; font-size: 13.5px; color: var(--dark-navy);">-</div>
-                            <div id="dropdownEmail" style="font-size: 11px; font-weight: 700; color: #d97706;">-</div>
+                            <div class="dropdown-user-fullname" style="font-weight: 800; font-size: 13.5px; color: var(--dark-navy);">-</div>
+                            <div class="dropdown-user-email" style="font-size: 11px; font-weight: 700; color: #d97706;">-</div>
                         </div>
                         <button class="dropdown-item" onclick="openChangePasswordModal(); hideProfileDropdown();">
                             <i class="fa-solid fa-key" style="color: #d97706;"></i> Change Password
@@ -173,11 +171,53 @@
             </div>
         </div>
     </div>
-
-    <!-- 📡 CC PULSE - LIVE AGENT STATUS (ADMIN ONLY) -->
     <div id="cc-pulse-page" class="page hidden-page">
         <div class="container">
-            <div data-include="partials/sub-page-header.html"></div>
+            <!-- بيتحط أعلى أي صفحة فرعية عشان يدي زرار رجوع للداشبورد + منيو البروفايل/تسجيل الخروج -->
+<div class="brand-header relative-header">
+    <div class="logo-container" onclick="navigateTo('home-page')" style="cursor: pointer;">
+        <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+            <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+            <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+            <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+            <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+            <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+        </svg>
+        <div class="logo-text">Smart <span>Collection</span></div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <button type="button" class="admin-mini-btn" onclick="navigateTo('home-page')" style="white-space: nowrap;">
+            <i class="fa-solid fa-house"></i> Dashboard
+        </button>
+
+        <!-- 👤 USER PROFILE DROPDOWN WRAPPER -->
+        <div class="user-menu-wrapper">
+            <div class="user-badge-card" onclick="toggleProfileDropdown(event)">
+                <div class="user-avatar-circle user-avatar-text">ST</div>
+                <span class="display-user-fullname" style="font-weight: 800; font-size: 13px; color: var(--dark-navy);">SPC Team</span>
+                <i class="fa-solid fa-chevron-down" style="font-size: 11px; color: #64748b;"></i>
+            </div>
+
+            <!-- 🔽 Dropdown List -->
+            <div class="profile-dropdown-menu" onclick="event.stopPropagation()">
+                <div class="dropdown-user-info">
+                    <div class="dropdown-user-fullname" style="font-weight: 800; font-size: 13.5px; color: var(--dark-navy);">-</div>
+                    <div class="dropdown-user-email" style="font-size: 11px; font-weight: 700; color: #d97706;">-</div>
+                </div>
+                <button class="dropdown-item" onclick="openChangePasswordModal(); hideProfileDropdown();">
+                    <i class="fa-solid fa-key" style="color: #d97706;"></i> Change Password
+                </button>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item danger-item" onclick="handleLogout()">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
             <div class="system-title">📡 CC Pulse - Live Agent Status</div>
 
@@ -222,11 +262,53 @@
             <div id="cc-pulse-banner-container"></div>
         </div>
     </div>
-
-    <!-- 📄 NOC GENERATOR PAGE -->
     <div id="noc-page" class="page hidden-page">
         <div class="container">
-            <div data-include="partials/sub-page-header.html"></div>
+            <!-- بيتحط أعلى أي صفحة فرعية عشان يدي زرار رجوع للداشبورد + منيو البروفايل/تسجيل الخروج -->
+<div class="brand-header relative-header">
+    <div class="logo-container" onclick="navigateTo('home-page')" style="cursor: pointer;">
+        <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+            <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+            <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+            <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+            <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+            <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+        </svg>
+        <div class="logo-text">Smart <span>Collection</span></div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <button type="button" class="admin-mini-btn" onclick="navigateTo('home-page')" style="white-space: nowrap;">
+            <i class="fa-solid fa-house"></i> Dashboard
+        </button>
+
+        <!-- 👤 USER PROFILE DROPDOWN WRAPPER -->
+        <div class="user-menu-wrapper">
+            <div class="user-badge-card" onclick="toggleProfileDropdown(event)">
+                <div class="user-avatar-circle user-avatar-text">ST</div>
+                <span class="display-user-fullname" style="font-weight: 800; font-size: 13px; color: var(--dark-navy);">SPC Team</span>
+                <i class="fa-solid fa-chevron-down" style="font-size: 11px; color: #64748b;"></i>
+            </div>
+
+            <!-- 🔽 Dropdown List -->
+            <div class="profile-dropdown-menu" onclick="event.stopPropagation()">
+                <div class="dropdown-user-info">
+                    <div class="dropdown-user-fullname" style="font-weight: 800; font-size: 13.5px; color: var(--dark-navy);">-</div>
+                    <div class="dropdown-user-email" style="font-size: 11px; font-weight: 700; color: #d97706;">-</div>
+                </div>
+                <button class="dropdown-item" onclick="openChangePasswordModal(); hideProfileDropdown();">
+                    <i class="fa-solid fa-key" style="color: #d97706;"></i> Change Password
+                </button>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item danger-item" onclick="handleLogout()">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
             <div class="system-title">📄 NOC Certificate Generator</div>
 
@@ -318,17 +400,60 @@
             <div id="noc-banner-container"></div>
         </div>
     </div>
-
-    <!-- 🔗 UNIT MAPPING TOOL PAGE -->
     <div id="unit-mapping-page" class="page hidden-page">
         <div class="container">
-            <div data-include="partials/sub-page-header.html"></div>
+            <!-- بيتحط أعلى أي صفحة فرعية عشان يدي زرار رجوع للداشبورد + منيو البروفايل/تسجيل الخروج -->
+<div class="brand-header relative-header">
+    <div class="logo-container" onclick="navigateTo('home-page')" style="cursor: pointer;">
+        <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+            <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+            <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+            <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+            <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+            <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+        </svg>
+        <div class="logo-text">Smart <span>Collection</span></div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <button type="button" class="admin-mini-btn" onclick="navigateTo('home-page')" style="white-space: nowrap;">
+            <i class="fa-solid fa-house"></i> Dashboard
+        </button>
+
+        <!-- 👤 USER PROFILE DROPDOWN WRAPPER -->
+        <div class="user-menu-wrapper">
+            <div class="user-badge-card" onclick="toggleProfileDropdown(event)">
+                <div class="user-avatar-circle user-avatar-text">ST</div>
+                <span class="display-user-fullname" style="font-weight: 800; font-size: 13px; color: var(--dark-navy);">SPC Team</span>
+                <i class="fa-solid fa-chevron-down" style="font-size: 11px; color: #64748b;"></i>
+            </div>
+
+            <!-- 🔽 Dropdown List -->
+            <div class="profile-dropdown-menu" onclick="event.stopPropagation()">
+                <div class="dropdown-user-info">
+                    <div class="dropdown-user-fullname" style="font-weight: 800; font-size: 13.5px; color: var(--dark-navy);">-</div>
+                    <div class="dropdown-user-email" style="font-size: 11px; font-weight: 700; color: #d97706;">-</div>
+                </div>
+                <button class="dropdown-item" onclick="openChangePasswordModal(); hideProfileDropdown();">
+                    <i class="fa-solid fa-key" style="color: #d97706;"></i> Change Password
+                </button>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item danger-item" onclick="handleLogout()">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
             <div class="system-title">🏢 Unit Mapping & Reference Cross-Lookup</div>
 
             <div class="search-box" style="margin-bottom: 10px;">
                 <label for="mappingTowerSelect">🏢 Select Tower:</label>
                 <select id="mappingTowerSelect" class="combo-input" onchange="onTowerMappingChange()" style="font-weight: 800; border-color: var(--primary-yellow);">
+                    <option value="" selected disabled>-- Select a tower --</option>
                     <option value="fairmont">Fairmont Marina Residences</option>
                     <option value="condor">Condor Marina Star</option>
                 </select>
@@ -344,7 +469,7 @@
 
             <div class="mapping-tower-banner">
                 <i class="fa-solid fa-building"></i>
-                <span>Selected Tower: <strong id="selectedMappingTowerName">Fairmont Marina Residences</strong></span>
+                <span>Selected Tower: <strong id="selectedMappingTowerName">-- None selected --</strong></span>
             </div>
 
             <div class="admin-table-wrapper" style="margin: 10px 15px 20px 15px; max-height: 550px; overflow-y: auto;">
@@ -356,11 +481,53 @@
             <div id="unit-mapping-banner-container"></div>
         </div>
     </div>
-
-    <!-- 🧮 Final Bill Calculator Page -->
     <div id="calculator-page" class="page hidden-page">
         <div class="container">
-            <div data-include="partials/sub-page-header.html"></div>
+            <!-- بيتحط أعلى أي صفحة فرعية عشان يدي زرار رجوع للداشبورد + منيو البروفايل/تسجيل الخروج -->
+<div class="brand-header relative-header">
+    <div class="logo-container" onclick="navigateTo('home-page')" style="cursor: pointer;">
+        <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+            <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+            <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+            <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+            <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+            <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+        </svg>
+        <div class="logo-text">Smart <span>Collection</span></div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <button type="button" class="admin-mini-btn" onclick="navigateTo('home-page')" style="white-space: nowrap;">
+            <i class="fa-solid fa-house"></i> Dashboard
+        </button>
+
+        <!-- 👤 USER PROFILE DROPDOWN WRAPPER -->
+        <div class="user-menu-wrapper">
+            <div class="user-badge-card" onclick="toggleProfileDropdown(event)">
+                <div class="user-avatar-circle user-avatar-text">ST</div>
+                <span class="display-user-fullname" style="font-weight: 800; font-size: 13px; color: var(--dark-navy);">SPC Team</span>
+                <i class="fa-solid fa-chevron-down" style="font-size: 11px; color: #64748b;"></i>
+            </div>
+
+            <!-- 🔽 Dropdown List -->
+            <div class="profile-dropdown-menu" onclick="event.stopPropagation()">
+                <div class="dropdown-user-info">
+                    <div class="dropdown-user-fullname" style="font-weight: 800; font-size: 13.5px; color: var(--dark-navy);">-</div>
+                    <div class="dropdown-user-email" style="font-size: 11px; font-weight: 700; color: #d97706;">-</div>
+                </div>
+                <button class="dropdown-item" onclick="openChangePasswordModal(); hideProfileDropdown();">
+                    <i class="fa-solid fa-key" style="color: #d97706;"></i> Change Password
+                </button>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item danger-item" onclick="handleLogout()">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
             <div class="system-title">🧮 Final Bill & Account Closure Consumption Calculator</div>
 
@@ -488,11 +655,53 @@
             <div id="calculator-banner-container"></div>
         </div>
     </div>
-
-    <!-- 🏢 Towers Master Data Page -->
     <div id="towers-page" class="page hidden-page">
         <div class="container">
-            <div data-include="partials/sub-page-header.html"></div>
+            <!-- بيتحط أعلى أي صفحة فرعية عشان يدي زرار رجوع للداشبورد + منيو البروفايل/تسجيل الخروج -->
+<div class="brand-header relative-header">
+    <div class="logo-container" onclick="navigateTo('home-page')" style="cursor: pointer;">
+        <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+            <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+            <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+            <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+            <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+            <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+        </svg>
+        <div class="logo-text">Smart <span>Collection</span></div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <button type="button" class="admin-mini-btn" onclick="navigateTo('home-page')" style="white-space: nowrap;">
+            <i class="fa-solid fa-house"></i> Dashboard
+        </button>
+
+        <!-- 👤 USER PROFILE DROPDOWN WRAPPER -->
+        <div class="user-menu-wrapper">
+            <div class="user-badge-card" onclick="toggleProfileDropdown(event)">
+                <div class="user-avatar-circle user-avatar-text">ST</div>
+                <span class="display-user-fullname" style="font-weight: 800; font-size: 13px; color: var(--dark-navy);">SPC Team</span>
+                <i class="fa-solid fa-chevron-down" style="font-size: 11px; color: #64748b;"></i>
+            </div>
+
+            <!-- 🔽 Dropdown List -->
+            <div class="profile-dropdown-menu" onclick="event.stopPropagation()">
+                <div class="dropdown-user-info">
+                    <div class="dropdown-user-fullname" style="font-weight: 800; font-size: 13.5px; color: var(--dark-navy);">-</div>
+                    <div class="dropdown-user-email" style="font-size: 11px; font-weight: 700; color: #d97706;">-</div>
+                </div>
+                <button class="dropdown-item" onclick="openChangePasswordModal(); hideProfileDropdown();">
+                    <i class="fa-solid fa-key" style="color: #d97706;"></i> Change Password
+                </button>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item danger-item" onclick="handleLogout()">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
             <div class="system-title">🏢 Towers Master Data & Service Fees Search Portal</div>
 
@@ -577,11 +786,53 @@
             <div id="towers-banner-container"></div>
         </div>
     </div>
-
-    <!-- 🛠️ Technical Department Page -->
     <div id="tech-page" class="page hidden-page">
         <div class="container">
-            <div data-include="partials/sub-page-header.html"></div>
+            <!-- بيتحط أعلى أي صفحة فرعية عشان يدي زرار رجوع للداشبورد + منيو البروفايل/تسجيل الخروج -->
+<div class="brand-header relative-header">
+    <div class="logo-container" onclick="navigateTo('home-page')" style="cursor: pointer;">
+        <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+            <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+            <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+            <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+            <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+            <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+        </svg>
+        <div class="logo-text">Smart <span>Collection</span></div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <button type="button" class="admin-mini-btn" onclick="navigateTo('home-page')" style="white-space: nowrap;">
+            <i class="fa-solid fa-house"></i> Dashboard
+        </button>
+
+        <!-- 👤 USER PROFILE DROPDOWN WRAPPER -->
+        <div class="user-menu-wrapper">
+            <div class="user-badge-card" onclick="toggleProfileDropdown(event)">
+                <div class="user-avatar-circle user-avatar-text">ST</div>
+                <span class="display-user-fullname" style="font-weight: 800; font-size: 13px; color: var(--dark-navy);">SPC Team</span>
+                <i class="fa-solid fa-chevron-down" style="font-size: 11px; color: #64748b;"></i>
+            </div>
+
+            <!-- 🔽 Dropdown List -->
+            <div class="profile-dropdown-menu" onclick="event.stopPropagation()">
+                <div class="dropdown-user-info">
+                    <div class="dropdown-user-fullname" style="font-weight: 800; font-size: 13.5px; color: var(--dark-navy);">-</div>
+                    <div class="dropdown-user-email" style="font-size: 11px; font-weight: 700; color: #d97706;">-</div>
+                </div>
+                <button class="dropdown-item" onclick="openChangePasswordModal(); hideProfileDropdown();">
+                    <i class="fa-solid fa-key" style="color: #d97706;"></i> Change Password
+                </button>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item danger-item" onclick="handleLogout()">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
             <div class="system-title">📋 Technical Department - Inspection Schedule</div>
 
@@ -635,11 +886,53 @@
             <div id="tech-banner-container"></div>
         </div>
     </div>
-
-    <!-- 📅 Team Duty Roster Page -->
     <div id="roster-page" class="page hidden-page">
         <div class="container">
-            <div data-include="partials/sub-page-header.html"></div>
+            <!-- بيتحط أعلى أي صفحة فرعية عشان يدي زرار رجوع للداشبورد + منيو البروفايل/تسجيل الخروج -->
+<div class="brand-header relative-header">
+    <div class="logo-container" onclick="navigateTo('home-page')" style="cursor: pointer;">
+        <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+            <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+            <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+            <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+            <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+            <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+        </svg>
+        <div class="logo-text">Smart <span>Collection</span></div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <button type="button" class="admin-mini-btn" onclick="navigateTo('home-page')" style="white-space: nowrap;">
+            <i class="fa-solid fa-house"></i> Dashboard
+        </button>
+
+        <!-- 👤 USER PROFILE DROPDOWN WRAPPER -->
+        <div class="user-menu-wrapper">
+            <div class="user-badge-card" onclick="toggleProfileDropdown(event)">
+                <div class="user-avatar-circle user-avatar-text">ST</div>
+                <span class="display-user-fullname" style="font-weight: 800; font-size: 13px; color: var(--dark-navy);">SPC Team</span>
+                <i class="fa-solid fa-chevron-down" style="font-size: 11px; color: #64748b;"></i>
+            </div>
+
+            <!-- 🔽 Dropdown List -->
+            <div class="profile-dropdown-menu" onclick="event.stopPropagation()">
+                <div class="dropdown-user-info">
+                    <div class="dropdown-user-fullname" style="font-weight: 800; font-size: 13.5px; color: var(--dark-navy);">-</div>
+                    <div class="dropdown-user-email" style="font-size: 11px; font-weight: 700; color: #d97706;">-</div>
+                </div>
+                <button class="dropdown-item" onclick="openChangePasswordModal(); hideProfileDropdown();">
+                    <i class="fa-solid fa-key" style="color: #d97706;"></i> Change Password
+                </button>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item danger-item" onclick="handleLogout()">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
             <div class="system-title">📅 Monthly Duty Roster</div>
 
@@ -793,11 +1086,53 @@
             <div id="roster-banner-container"></div>
         </div>
     </div>
-
-    <!-- 👑 ADMIN PANEL PAGE -->
     <div id="admin-page" class="page hidden-page">
         <div class="container">
-            <div data-include="partials/sub-page-header.html"></div>
+            <!-- بيتحط أعلى أي صفحة فرعية عشان يدي زرار رجوع للداشبورد + منيو البروفايل/تسجيل الخروج -->
+<div class="brand-header relative-header">
+    <div class="logo-container" onclick="navigateTo('home-page')" style="cursor: pointer;">
+        <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+            <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+            <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+            <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+            <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+            <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+        </svg>
+        <div class="logo-text">Smart <span>Collection</span></div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <button type="button" class="admin-mini-btn" onclick="navigateTo('home-page')" style="white-space: nowrap;">
+            <i class="fa-solid fa-house"></i> Dashboard
+        </button>
+
+        <!-- 👤 USER PROFILE DROPDOWN WRAPPER -->
+        <div class="user-menu-wrapper">
+            <div class="user-badge-card" onclick="toggleProfileDropdown(event)">
+                <div class="user-avatar-circle user-avatar-text">ST</div>
+                <span class="display-user-fullname" style="font-weight: 800; font-size: 13px; color: var(--dark-navy);">SPC Team</span>
+                <i class="fa-solid fa-chevron-down" style="font-size: 11px; color: #64748b;"></i>
+            </div>
+
+            <!-- 🔽 Dropdown List -->
+            <div class="profile-dropdown-menu" onclick="event.stopPropagation()">
+                <div class="dropdown-user-info">
+                    <div class="dropdown-user-fullname" style="font-weight: 800; font-size: 13.5px; color: var(--dark-navy);">-</div>
+                    <div class="dropdown-user-email" style="font-size: 11px; font-weight: 700; color: #d97706;">-</div>
+                </div>
+                <button class="dropdown-item" onclick="openChangePasswordModal(); hideProfileDropdown();">
+                    <i class="fa-solid fa-key" style="color: #d97706;"></i> Change Password
+                </button>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item danger-item" onclick="handleLogout()">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
             <div class="system-title">👑 Admin Panel - Manage Towers & Agents</div>
 
@@ -845,7 +1180,6 @@
             <div id="admin-banner-container"></div>
         </div>
     </div>
-
     <!-- 🔑 USER PROFILE & CHANGE PASSWORD MODAL -->
     <div id="changePasswordModal" class="modal-overlay" style="display: none;">
         <div class="modal-content" style="max-width: 420px; border-radius: 16px;">
@@ -901,8 +1235,18 @@
             </div>
         </div>
     </div>
-
     <!-- 📜 Main Application Script -->
-    <script src="script.js?v=2026.144"></script>
+    <script src="js/core.js?v=2026.144"></script>
+    <script src="js/auth.js?v=2026.144"></script>
+    <script src="js/noc.js?v=2026.144"></script>
+    <script src="js/navigation.js?v=2026.144"></script>
+    <script src="js/unit-mapping.js?v=2026.144"></script>
+    <script src="js/calculator.js?v=2026.144"></script>
+    <script src="js/towers.js?v=2026.144"></script>
+    <script src="js/tech-schedule.js?v=2026.144"></script>
+    <script src="js/roster.js?v=2026.144"></script>
+    <script src="js/admin.js?v=2026.144"></script>
+    <script src="js/cc-pulse.js?v=2026.144"></script>
+    <script src="js/init.js?v=2026.144"></script>
 </body>
 </html>
