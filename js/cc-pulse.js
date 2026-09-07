@@ -434,16 +434,23 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
         attendanceBadgeHtml = `<div class="ccp-attendance-badge ccp-attendance-noshow">🚫 No Show</div>`;
       }
 
-      const adherencePct = calculateShiftAdherence(a.sessions || [], shiftWindow, getEffectiveShiftEndMin(a.date));
+      const effectiveEndMin = getEffectiveShiftEndMin(a.date);
+      const adherencePct = calculateShiftAdherence(a.sessions || [], shiftWindow, effectiveEndMin);
       if (adherencePct !== null) {
         const adherenceClass = adherencePct >= 90 ? "ccp-adh-good" : (adherencePct >= 70 ? "ccp-adh-warn" : "ccp-adh-bad");
+        const outOfAdherenceMin = computeOutOfAdherenceSegments(a.sessions || [], shiftWindow, effectiveEndMin)
+          .reduce((sum, [s, e]) => sum + (e - s), 0);
         adherenceHtml = `
           <div class="ccp-metric-card ${adherenceClass}">
             <div class="ccp-metric-label">Adherence</div>
             <div class="ccp-metric-value">${adherencePct.toFixed(0)}%</div>
+          </div>
+          <div class="ccp-metric-card ${adherenceClass}">
+            <div class="ccp-metric-label">Out Of Adherence</div>
+            <div class="ccp-metric-value">${formatCcPulseDuration(outOfAdherenceMin * 60)}</div>
           </div>`;
       }
-      timelineHtml = renderCcPulseTimelineHtml(a.sessions || [], statusColors, shiftWindow);
+      timelineHtml = renderCcPulseTimelineHtml(a.sessions || [], statusColors, shiftWindow, effectiveEndMin);
     } else {
       const periodAdherencePct = calculateAdherenceFromDays(a.name, a.days || [], data.trackingStartDate);
       if (periodAdherencePct !== null) {
@@ -502,6 +509,15 @@ function ccPulseTimeToMinutes(ts) {
   const timePart = ts.split(" ")[1] || "00:00:00";
   const p = timePart.split(":").map(Number);
   return p[0] * 60 + p[1] + (p[2] || 0) / 60;
+}
+
+// بيحول رقم دقايق من نص الليل (زي 570) لنص وقت مقروء (زي "9:30 AM")
+function ccPulseMinutesToTimeLabel(totalMinutes) {
+  const hour24 = Math.floor(totalMinutes / 60) % 24;
+  const minute = Math.round(totalMinutes % 60);
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  const suffix = hour24 >= 12 ? "PM" : "AM";
+  return `${hour12}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
 
 // ============================================================
@@ -611,6 +627,29 @@ function getEffectiveShiftEndMin(dateStr) {
 }
 
 // بيحسب نسبة الالتزام بالشيفت: من الوقت اللي "المفروض يكون خلص لحد دلوقتي" (لو الشيفت لسه شغال)، قد إيه اشتغل فعليًا (مش Away) جواه
+// بيحسب الفترات (جوه وقت الشيفت بس) اللي الإيجنت كان فيها Away - يعني "خارج الالتزام بالشيفت"
+// بيرجع array من [startMin, endMin] بترتيب الوقت
+function computeOutOfAdherenceSegments(sessions, shiftWindow, effectiveEndMin) {
+  if (!shiftWindow) return [];
+  const clampedEnd = (effectiveEndMin != null) ? Math.min(shiftWindow.endMin, effectiveEndMin) : shiftWindow.endMin;
+  if (clampedEnd <= shiftWindow.startMin) return [];
+
+  const covered = (sessions || [])
+    .map(s => [Math.max(ccPulseTimeToMinutes(s.start), shiftWindow.startMin), Math.min(ccPulseTimeToMinutes(s.end), clampedEnd)])
+    .filter(([start, end]) => end > start)
+    .sort((a, b) => a[0] - b[0]);
+
+  const gaps = [];
+  let cursor = shiftWindow.startMin;
+  covered.forEach(([start, end]) => {
+    if (start > cursor) gaps.push([cursor, start]);
+    cursor = Math.max(cursor, end);
+  });
+  if (cursor < clampedEnd) gaps.push([cursor, clampedEnd]);
+
+  return gaps;
+}
+
 function calculateShiftAdherence(sessions, shiftWindow, effectiveEndMin) {
   if (!shiftWindow) return null; // مفيش شيفت متجدول أصلاً نقيس عليه
 
@@ -765,7 +804,7 @@ function exportCcPulseReportToCsv() {
   downloadCcPulseCsv(rows, filename);
 }
 
-function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null) {
+function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null, effectiveEndMin = null) {
   if (!sessions.length && !shiftWindow) return ""; // مفيش جلسات ولا شيفت متجدول، مفيش حاجة نرسمها
 
   let dayStart = 9 * 60;
@@ -797,6 +836,14 @@ function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null) {
     return `<div class="ccp-tl-segment" style="left:${left}%;width:${width}%;background:${color};" data-tooltip="${tooltipText}"></div>`;
   }).join("");
 
+  const outOfAdherenceSegments = computeOutOfAdherenceSegments(sessions, shiftWindow, effectiveEndMin);
+  const outOfAdherenceHtml = outOfAdherenceSegments.map(([startMin, endMin]) => {
+    const left = ((startMin - dayStart) / span) * 100;
+    const width = Math.max(((endMin - startMin) / span) * 100, 0.3);
+    const tooltipText = `Out Of Adherence: ${ccPulseMinutesToTimeLabel(startMin)} \u2192 ${ccPulseMinutesToTimeLabel(endMin)} (${formatCcPulseDuration((endMin - startMin) * 60)})`;
+    return `<div class="ccp-tl-segment ccp-tl-outofadherence" style="left:${left}%;width:${width}%;" data-tooltip="${tooltipText}"></div>`;
+  }).join("");
+
   const hourCount = 6;
   let axisHtml = "";
   for (let i = 0; i <= hourCount; i++) {
@@ -810,13 +857,13 @@ function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null) {
   }
 
   const legendHtml = shiftWindow
-    ? `<div class="ccp-tl-shift-legend"><span class="ccp-tl-shift-swatch"></span> Scheduled shift: ${shiftWindow.label}</div>`
+    ? `<div class="ccp-tl-shift-legend"><span class="ccp-tl-shift-swatch"></span> Scheduled shift: ${shiftWindow.label}${outOfAdherenceSegments.length ? ` &nbsp;·&nbsp; <span class="ccp-tl-outofadherence-swatch"></span> Out Of Adherence` : ""}</div>`
     : "";
 
   return `
     <div class="ccp-timeline-wrap">
       ${legendHtml}
-      <div class="ccp-timeline-bar">${shiftBandHtml}${segmentsHtml}</div>
+      <div class="ccp-timeline-bar">${shiftBandHtml}${segmentsHtml}${outOfAdherenceHtml}</div>
       <div class="ccp-timeline-axis">${axisHtml}</div>
       <div class="ccp-tl-tooltip" id="ccpTlTooltip"></div>
     </div>`;
@@ -920,12 +967,19 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
       dayStatusBannerHtml = `<div class="ccp-daystatus-banner ccp-dayoff">🏖️ <strong>Day Off</strong> — no shift scheduled for this agent on this date</div>`;
     }
 
-    const adherencePct = calculateShiftAdherence(day.sessions, shiftWindow, getEffectiveShiftEndMin(day.date));
+    const dayEffectiveEndMin = getEffectiveShiftEndMin(day.date);
+    const adherencePct = calculateShiftAdherence(day.sessions, shiftWindow, dayEffectiveEndMin);
     const adherenceClass = adherencePct === null ? "" : (adherencePct >= 90 ? "ccp-adh-good" : (adherencePct >= 70 ? "ccp-adh-warn" : "ccp-adh-bad"));
+    const dayOutOfAdherenceMin = computeOutOfAdherenceSegments(day.sessions, shiftWindow, dayEffectiveEndMin)
+      .reduce((sum, [s, e]) => sum + (e - s), 0);
     const adherenceCardHtml = adherencePct !== null ? `
         <div class="ccp-metric-card ${adherenceClass}">
           <div class="ccp-metric-label">Adherence</div>
           <div class="ccp-metric-value">${adherencePct.toFixed(0)}%</div>
+        </div>
+        <div class="ccp-metric-card ${adherenceClass}">
+          <div class="ccp-metric-label">Out Of Adherence</div>
+          <div class="ccp-metric-value">${formatCcPulseDuration(dayOutOfAdherenceMin * 60)}</div>
         </div>` : "";
 
     daysHtml = `
@@ -941,7 +995,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
         </div>
         ${adherenceCardHtml}
       </div>
-      ${renderCcPulseTimelineHtml(day.sessions, statusColors, shiftWindow)}
+      ${renderCcPulseTimelineHtml(day.sessions, statusColors, shiftWindow, dayEffectiveEndMin)}
       <div class="ccp-session-list">
         ${day.sessions.map(s => `
           <div class="ccp-session-row">
