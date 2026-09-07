@@ -120,6 +120,11 @@ function ccPulseBuildAgentCardHtml(a, nowSec) {
       <span class="ccp-break-value" style="${breakInfo.over ? "color:#ef4444;font-weight:800;" : ""}">${breakInfo.text}</span>
     </div>`;
 
+  const callsAnsweredHtml = `
+    <div class="ccp-calls-badge">
+      <i class="fa-solid fa-phone-volume"></i> Calls: ${a.todaysCallsAnswered || 0}
+    </div>`;
+
   let callHtml = "";
   if (a.currentCall && a.currentCall.startedAt) {
     const callElapsed = nowSec - a.currentCall.startedAt;
@@ -137,6 +142,7 @@ function ccPulseBuildAgentCardHtml(a, nowSec) {
       ${shiftHtml}
       ${todayHtml}
       ${breakHtml}
+      ${callsAnsweredHtml}
       ${callHtml}
     </div>`;
 }
