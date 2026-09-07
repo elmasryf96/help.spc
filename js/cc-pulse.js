@@ -647,7 +647,8 @@ function computeOutOfAdherenceSegments(sessions, shiftWindow, effectiveEndMin) {
   });
   if (cursor < clampedEnd) gaps.push([cursor, clampedEnd]);
 
-  return gaps;
+  // فترة سماح دقيقة واحدة - زي الـ Tardy بالظبط: أي فجوة دقيقة أو أقل مش هتتحسب Out Of Adherence
+  return gaps.filter(([start, end]) => (end - start) > 1);
 }
 
 function calculateShiftAdherence(sessions, shiftWindow, effectiveEndMin) {
@@ -1034,4 +1035,93 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
   ccPulseLastExportTrackingStartDate = data.trackingStartDate || null;
 
   attachCcPulseTimelineHover();
+}
+
+// ============================================================
+// 👋 MY DAY - كارت شخصي في الصفحة الرئيسية بيوري بيانات اليوزر المسجل دخول
+// بس (لو اسمه الكامل مطابق لاسم إيجنت معروف في الروستر أو بيانات 3CX الحية)
+// ============================================================
+
+function getMyAgentName() {
+  const fullName = (localStorage.getItem("userFullName") || "").trim();
+  if (!fullName) return null;
+  const knownNames = new Set([
+    ...(Array.isArray(rosterData) ? rosterData.map(a => a.name) : []),
+    ...(Array.isArray(ccPulseAgentsCache) ? ccPulseAgentsCache.map(a => a.name) : [])
+  ]);
+  return knownNames.has(fullName) ? fullName : null;
+}
+
+async function loadMyDayCard() {
+  const container = document.getElementById("myDayCardContainer");
+  if (!container) return;
+
+  const agentName = getMyAgentName();
+  if (!agentName) {
+    container.innerHTML = "";
+    return;
+  }
+
+  const uae = getUAECurrentDate();
+  const todayStr = `${uae.year}-${uae.month}-${uae.day}`;
+
+  try {
+    const statusParams = new URLSearchParams({ action: "agentStatusReport", mode: "day", date: todayStr, name: agentName });
+    const callsParams = new URLSearchParams({ action: "callLogReport", mode: "day", date: todayStr, name: agentName });
+
+    const [statusRes, callsRes] = await Promise.all([
+      fetch(`${GOOGLE_SHEET_API_URL}?${statusParams.toString()}`),
+      fetch(`${GOOGLE_SHEET_API_URL}?${callsParams.toString()}`)
+    ]);
+    const data = await statusRes.json();
+    const callLogData = await callsRes.json().catch(() => null);
+
+    if (!data || data.status !== "success" || !data.days || !data.days[0]) {
+      container.innerHTML = "";
+      return;
+    }
+
+    const day = data.days[0];
+    const shiftWindow = getShiftWindowForAgentDate(agentName, todayStr);
+    const effectiveEndMin = getEffectiveShiftEndMin(day.date);
+    const statusColors = { "Available": "#107c41", "Break": "#d97706", "Emails": "#1a252f", "Custom 1": "#6d28d9", "Custom 2": "#0369a1" };
+    const timelineHtml = renderCcPulseTimelineHtml(day.sessions || [], statusColors, shiftWindow, effectiveEndMin);
+
+    const tardyResult = calculateTardyFromDays(agentName, data.days, data.trackingStartDate);
+    const callStats = (callLogData && callLogData.status === "success") ? callLogData.data : null;
+
+    const shiftBadgeHtml = shiftWindow
+      ? `<span class="ccp-total-ext"><i class="fa-solid fa-calendar-day"></i> ${shiftWindow.label}</span>`
+      : "";
+
+    container.innerHTML = `
+      <div class="ccp-agent-report-card" style="margin-bottom: 16px; text-align: left;">
+        <div class="ccp-agent-report-header">
+          <span class="ccp-total-name">👋 My Day — ${agentName}</span>
+          ${shiftBadgeHtml}
+        </div>
+        ${timelineHtml}
+        <div class="ccp-metrics-grid">
+          <div class="ccp-metric-card ccp-total-highlight">
+            <div class="ccp-metric-label">Total login time</div>
+            <div class="ccp-metric-value">${formatCcPulseDuration(day.totalLoginSeconds)}</div>
+          </div>
+          <div class="ccp-metric-card">
+            <div class="ccp-metric-label">Calls Answered</div>
+            <div class="ccp-metric-value">${callStats ? callStats.callsAnswered : 0}</div>
+          </div>
+          <div class="ccp-metric-card">
+            <div class="ccp-metric-label">Tardy Minutes</div>
+            <div class="ccp-metric-value">${formatCcPulseDuration(tardyResult.minutes * 60)}</div>
+          </div>
+          <div class="ccp-metric-card">
+            <div class="ccp-metric-label">Outbound Calls</div>
+            <div class="ccp-metric-value">${callStats ? callStats.outboundCallsCount : 0}</div>
+          </div>
+        </div>
+      </div>`;
+  } catch (e) {
+    console.error("My Day card error:", e);
+    container.innerHTML = "";
+  }
 }
