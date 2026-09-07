@@ -344,6 +344,7 @@ async def get_3cx_agent_status():
             "todaysTotalSeconds": daily.get("totalSeconds", 0),
             "todaysBreakSeconds": daily.get("breakSeconds", 0),
             "todaysCallsAnswered": daily.get("callsAnswered", 0),
+            "todaysOutboundCalls": daily.get("outboundCalls", 0),
         })
     return result
 
@@ -777,6 +778,7 @@ async def refresh_daily_totals_cache(client: httpx.AsyncClient):
                 "totalSeconds": agent.get("totalLoginSeconds", 0),
                 "breakSeconds": totals.get("Break", 0),
                 "callsAnswered": 0,
+                "outboundCalls": 0,
             }
 
         try:
@@ -791,8 +793,14 @@ async def refresh_daily_totals_cache(client: httpx.AsyncClient):
                     name = agent.get("agent")
                     if name in per_agent:
                         per_agent[name]["callsAnswered"] = agent.get("callsAnswered", 0)
+                        per_agent[name]["outboundCalls"] = agent.get("outboundCallsCount", 0)
                     else:
-                        per_agent[name] = {"totalSeconds": 0, "breakSeconds": 0, "callsAnswered": agent.get("callsAnswered", 0)}
+                        per_agent[name] = {
+                            "totalSeconds": 0,
+                            "breakSeconds": 0,
+                            "callsAnswered": agent.get("callsAnswered", 0),
+                            "outboundCalls": agent.get("outboundCallsCount", 0),
+                        }
         except Exception as e:
             print(f"❌ فشل تحديث عدد المكالمات في كاش اليوم: {e}")
 
