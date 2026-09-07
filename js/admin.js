@@ -8,16 +8,16 @@
 // ============================================================
 function forceLogoutAllUsersBtn() {
   const confirmed = confirm(
-    "هيتم تسجيل خروج فوري لكل المستخدمين (بما فيهم إنت) على كل الأجهزة خلال ثواني، وهيرجعوا لصفحة تسجيل الدخول.\n\nمتأكد إنك عايز تكمل؟"
+    "This will immediately log out every user (including you) on every device within seconds, and send them back to the login page.\n\nAre you sure you want to continue?"
   );
   if (!confirmed) return;
 
   triggerForceLogoutForEveryone()
     .then(() => {
-      alert("✅ تم إرسال الإشارة. هتتسجل خروج تلقائيًا خلال ثواني زي باقي المستخدمين.");
+      alert("✅ Signal sent. You will be logged out automatically within seconds, along with everyone else.");
     })
     .catch(() => {
-      alert("❌ حصل خطأ أثناء إرسال الإشارة. حاول تاني.");
+      alert("❌ Something went wrong while sending the signal. Please try again.");
     });
 }
 
