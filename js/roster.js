@@ -28,6 +28,8 @@ function getUAECurrentDate() {
   };
 }
 
+let ccPulseHomeWidgetPollTimer = null;
+
 function startGlobalLiveClock() {
   if (liveClockInterval) clearInterval(liveClockInterval);
   const updateClock = () => {
@@ -45,6 +47,12 @@ function startGlobalLiveClock() {
   };
   updateClock();
   liveClockInterval = setInterval(updateClock, 1000);
+
+  // بيانات الحالة الحية لازم تتحدّث لكل المستخدمين (مش بس الأدمن في صفحة CC Pulse)
+  // عشان ويدجت "Active On Shift Right Now" في الصفحة الرئيسية يفضل شغال
+  if (ccPulseHomeWidgetPollTimer) clearInterval(ccPulseHomeWidgetPollTimer);
+  fetchCcPulseLiveStatus();
+  ccPulseHomeWidgetPollTimer = setInterval(fetchCcPulseLiveStatus, 10000);
 }
 
 function isShiftActiveNow(shiftCode) {
@@ -59,34 +67,55 @@ function isShiftActiveNow(shiftCode) {
 function updateDashboardLiveWidget() {
   const container = document.getElementById("homeActiveAgentsGrid");
   if (!container) return;
+
   const uae = getUAECurrentDate();
-  const dayNum = parseInt(uae.day, 10);
   const monthNum = parseInt(uae.month, 10);
   const yearNum = parseInt(uae.year, 10);
-  let activeByTeam = { "Calls": [], "Call Outs": [], "Emails": [] };
-  
+
+  // اسم الإيجنت -> الفريق بتاعه من الروستر (لنفس الشهر الحالي)، لو موجود
+  const rosterDeptByName = {};
   if (Array.isArray(rosterData)) {
     rosterData.forEach(agent => {
-      const aMonth = parseInt(agent.month || monthNum, 10);
-      const aYear = parseInt(agent.year || yearNum, 10);
-      
-      if (aMonth === monthNum && aYear === yearNum && agent && agent.schedule) {
-        const shift = agent.schedule[dayNum];
-        if (shift && shift !== "" && shift !== "OFF+" && shift !== "null" && isShiftActiveNow(shift)) {
-          if (activeByTeam[agent.dept]) {
-            activeByTeam[agent.dept].push({ name: agent.name, shift: shift, lang: agent.lang });
-          }
-        }
+      const aMonth = parseInt(agent.month, 10);
+      const aYear = parseInt(agent.year, 10);
+      if (aMonth === monthNum && aYear === yearNum && agent && agent.name) {
+        rosterDeptByName[agent.name] = agent.dept;
       }
     });
   }
+
+  const nowSec = Date.now() / 1000;
+  const elapsedSinceFetch = ccPulseAgentsCacheFetchedAtMs
+    ? Math.max(0, (Date.now() - ccPulseAgentsCacheFetchedAtMs) / 1000)
+    : 0;
+
+  const activeByTeam = { "Calls": [], "Call Outs": [], "Emails": [] };
+
+  (Array.isArray(ccPulseAgentsCache) ? ccPulseAgentsCache : []).forEach(a => {
+    if (!a || a.status === "Away") return; // أي حالة غير Away تعتبر "شغال دلوقتي"
+
+    const roster_dept = rosterDeptByName[a.name];
+    const team = (roster_dept && activeByTeam[roster_dept]) ? roster_dept : "Calls"; // مفيش روستر = يظهر في Calls
+
+    // بنضيف على الأرقام الأساسية الوقت اللي عدى من آخر تحديث، عشان العداد يفضل يعد لايف
+    // من غير ما نحتاج نعمل تحديث DOM منفصل (الويدجت كله بيتبني من جديد كل ثانية أصلاً)
+    const adjusted = Object.assign({}, a, {
+      todaysTotalSeconds: (a.todaysTotalSeconds || 0) + elapsedSinceFetch,
+      todaysBreakSeconds: (a.status === "Break") ? (a.todaysBreakSeconds || 0) + elapsedSinceFetch : (a.todaysBreakSeconds || 0)
+    });
+
+    activeByTeam[team].push(adjusted);
+  });
 
   let html = "";
   const teams = ["Calls", "Call Outs", "Emails"];
   teams.forEach(teamName => {
     const agents = activeByTeam[teamName] || [];
-    let agentsPillsHTML = agents.length === 0 ? `<span class="hl-none-text"><i class="fa-solid fa-moon"></i> No active agents</span>` : agents.map(a => `<div class="hl-agent-chip"><span class="hl-chip-name">${a.name}</span><span class="hl-chip-shift">${a.shift}</span></div>`).join('');
-    html += `<div class="hl-team-box"><div class="hl-team-title"><div class="hl-tt-left"><i class="fa-solid ${teamName === 'Calls' ? 'fa-headset' : teamName === 'Call Outs' ? 'fa-phone-volume' : 'fa-envelope-open-text'}"></i><span>${teamName} Team</span></div><span class="hl-team-badge">${agents.length} Active</span></div><div class="hl-team-list">${agentsPillsHTML}</div></div>`;
+    const agentsHtml = agents.length === 0
+      ? `<span class="hl-none-text"><i class="fa-solid fa-moon"></i> No active agents</span>`
+      : agents.map(a => ccPulseBuildAgentCardHtml(a, nowSec)).join('');
+
+    html += `<div class="hl-team-box"><div class="hl-team-title"><div class="hl-tt-left"><i class="fa-solid ${teamName === 'Calls' ? 'fa-headset' : teamName === 'Call Outs' ? 'fa-phone-volume' : 'fa-envelope-open-text'}"></i><span>${teamName} Team</span></div><span class="hl-team-badge">${agents.length} Active</span></div><div class="hl-team-list">${agentsHtml}</div></div>`;
   });
   container.innerHTML = html;
 }
@@ -411,4 +440,3 @@ function renderFullMonthlyTable() {
   bodyHTML += `</tbody>`;
   table.innerHTML = headerHTML + bodyHTML;
 }
-
