@@ -43,7 +43,7 @@ function startGlobalLiveClock() {
     const homeClockEl = document.getElementById("homeClockText");
     if (homeClockEl) homeClockEl.innerText = clockText;
     updateActiveSummary();
-    updateDashboardLiveWidget();
+    if (typeof tickCcPulseCounters === "function") tickCcPulseCounters();
   };
   updateClock();
   liveClockInterval = setInterval(updateClock, 1000);
