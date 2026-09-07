@@ -1601,6 +1601,24 @@ input:checked + .slider:before { transform: translateX(20px); }
     font-variant-numeric: tabular-nums;
     font-size: 12.5px;
 }
+.ccp-break-badge {
+    margin-top: 6px;
+    background: #fffbeb;
+    border: 1.5px solid #d97706;
+    color: #92400e;
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 11.5px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+.ccp-break-value {
+    font-variant-numeric: tabular-nums;
+    font-size: 12.5px;
+}
 .ccp-report-box {
     background: #ffffff;
     border-radius: 16px;
