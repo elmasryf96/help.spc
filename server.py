@@ -204,7 +204,7 @@ AGENT_MAP = {
     "117": "Priya",
     "118": "Omar",
     "119": "Salma",
-    "121": "Minjaj",
+    "121": "Minhaj",
     "122": "Sana",
     "123": "Gulsher",
     "125": "Mostafa",
@@ -585,7 +585,7 @@ async def debug_3cx_agent_calls(secret: str = "", days: int = 1):
     report = []
     distinct_days = sorted(set(day for day, _ in per_agent_day.keys()))
 
-    login_totals_by_day = {}
+    available_totals_by_day = {}
     async with httpx.AsyncClient(timeout=30, follow_redirects=True) as sheet_client:
         sheet_url = os.environ["GOOGLE_SHEET_API_URL"]
         for day in distinct_days:
@@ -596,20 +596,23 @@ async def debug_3cx_agent_calls(secret: str = "", days: int = 1):
                 )
                 data = resp.json()
                 if data.get("status") == "success":
-                    login_totals_by_day[day] = {
-                        a["name"]: a.get("totalLoginSeconds", 0) for a in data.get("agents", [])
+                    available_totals_by_day[day] = {
+                        a["name"]: (a.get("totals", {}) or {}).get("Available", 0)
+                        for a in data.get("agents", [])
                     }
                 else:
-                    login_totals_by_day[day] = {}
+                    available_totals_by_day[day] = {}
             except Exception:
-                login_totals_by_day[day] = {}
+                available_totals_by_day[day] = {}
 
     for (day, ext), stats in sorted(per_agent_day.items()):
         calls = stats["calls"]
         talk = stats["talkSeconds"]
         plain_name = AGENT_MAP.get(ext, stats["name"])
-        login_seconds = login_totals_by_day.get(day, {}).get(plain_name)
-        occupancy_pct = round((talk / login_seconds) * 100, 1) if login_seconds else None
+        available_seconds = available_totals_by_day.get(day, {}).get(plain_name)
+        idle_seconds = max(available_seconds - talk, 0) if available_seconds else None
+        # Occupancy % = وقت الكلام ÷ (وقت الكلام + وقت الانتظار الفاضي) = وقت الكلام ÷ إجمالي وقت "Available"
+        occupancy_pct = round((talk / available_seconds) * 100, 1) if available_seconds else None
 
         report.append({
             "date": day,
@@ -618,7 +621,8 @@ async def debug_3cx_agent_calls(secret: str = "", days: int = 1):
             "callsAnswered": calls,
             "totalTalkSeconds": round(talk, 1),
             "ahtSeconds": round(talk / calls, 1) if calls else 0,
-            "loginSeconds": login_seconds,
+            "availableSeconds": available_seconds,
+            "idleSeconds": round(idle_seconds, 1) if idle_seconds is not None else None,
             "occupancyPct": occupancy_pct,
         })
 
