@@ -834,6 +834,9 @@ QUEUE_LOG_WINDOW_MINUTES = 20
 
 _HANDOFF_NAME_EXT_RE = re.compile(r"was replaced by (.+?)\s*\((\d+)\)")
 _REDIRECT_NAME_EXT_RE = re.compile(r"forwarded to (.+?)\s*\((\d+)\)")
+# لما العميل نفسه يقفل السماعة وهو لسه مستني في الكيو، 3CX بيحط في الـ Reason
+# حاجة زي "Ended by 0501234567 (0501234567)" - يعني رقم العميل نفسه مش إيجستنشن إيجنت
+_ENDED_BY_RE = re.compile(r"[Ee]nded by \S+\s*\((\d+)\)")
 
 
 def build_call_log_url(period_from: datetime, period_to: datetime, skip: int, top: int = 500) -> str:
@@ -921,6 +924,14 @@ def classify_queue_group(rows: list):
     if handoff:
         target_name, target_ext = handoff.group(1).strip(), handoff.group(2)
         base.update({"result": "Redirected", "agent": f"{target_name} ({target_ext})", "talkSeconds": 0})
+        return base
+
+    # العميل نفسه قفل السماعة وهو لسه مستني في الكيو (Reason: "Ended by <رقم العميل>")
+    # - ده تقفيل حقيقي من العميل قبل ما حد يرد عليه، بغض النظر عن قيمة "Answered"
+    # اللي 3CX أحياناً بترجعها true غلط في الحالة دي
+    ended_by = _ENDED_BY_RE.search(reason)
+    if ended_by and ended_by.group(1) not in AGENT_MAP:
+        base.update({"result": "Abandoned", "agent": "-", "talkSeconds": 0})
         return base
 
     if not queue_row.get("Answered", False):
