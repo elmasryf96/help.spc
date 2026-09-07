@@ -563,6 +563,8 @@ async def debug_3cx_agent_calls(secret: str = "", days: int = 1):
             if not m:
                 continue
             agent_ext = m.group(1)
+            if agent_ext not in AGENT_MAP:
+                continue
             agent_row = next(
                 (r for r in rows if r.get("DestinationDn") == agent_ext and r.get("CallType") != "Queue"),
                 None
@@ -872,7 +874,7 @@ def classify_queue_group(rows: list):
     }
 
     handoff = _HANDOFF_NAME_EXT_RE.search(reason)
-    if handoff:
+    if handoff and handoff.group(2) in AGENT_MAP:
         agent_name, agent_ext = handoff.group(1).strip(), handoff.group(2)
         agent_row = next(
             (r for r in rows if r.get("DestinationDn") == agent_ext and r.get("CallType") != "Queue"),
@@ -885,6 +887,12 @@ def classify_queue_group(rows: list):
     redirect = _REDIRECT_NAME_EXT_RE.search(reason)
     if redirect and not queue_row.get("Answered", False):
         target_name, target_ext = redirect.group(1).strip(), redirect.group(2)
+        base.update({"result": "Redirected", "agent": f"{target_name} ({target_ext})", "talkSeconds": 0})
+        return base
+
+    # "was replaced by" لرقم مش إيجنت حقيقي (زي IVR أو Voicemail) - اتحولت، مش رد عليها حد فعليًا
+    if handoff:
+        target_name, target_ext = handoff.group(1).strip(), handoff.group(2)
         base.update({"result": "Redirected", "agent": f"{target_name} ({target_ext})", "talkSeconds": 0})
         return base
 
