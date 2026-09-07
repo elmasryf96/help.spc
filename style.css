@@ -1795,6 +1795,30 @@ input:checked + .slider:before { transform: translateX(20px); }
 .ccp-metric-card.ccp-total-highlight .ccp-metric-value {
     color: #ffffff;
 }
+.ccp-metric-card.ccp-metric-blue {
+    background: #eff6ff;
+    border-color: #3b82f6;
+}
+.ccp-metric-card.ccp-metric-blue .ccp-metric-label,
+.ccp-metric-card.ccp-metric-blue .ccp-metric-value {
+    color: #1d4ed8;
+}
+.ccp-metric-card.ccp-metric-amber {
+    background: #fffbeb;
+    border-color: #d97706;
+}
+.ccp-metric-card.ccp-metric-amber .ccp-metric-label,
+.ccp-metric-card.ccp-metric-amber .ccp-metric-value {
+    color: #92400e;
+}
+.ccp-metric-card.ccp-metric-purple {
+    background: #f5f3ff;
+    border-color: #7c3aed;
+}
+.ccp-metric-card.ccp-metric-purple .ccp-metric-label,
+.ccp-metric-card.ccp-metric-purple .ccp-metric-value {
+    color: #6d28d9;
+}
 .ccp-metric-label {
     font-size: 11px;
     color: var(--text-muted);
