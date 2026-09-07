@@ -4,7 +4,6 @@
 // ============================================================
 
 document.addEventListener("DOMContentLoaded", () => {
-  fetchAllDataFromGoogleSheet();
   startGlobalLiveClock();
   updateDashboardLiveWidget();
 
@@ -12,8 +11,13 @@ document.addEventListener("DOMContentLoaded", () => {
   setInterval(checkForceLogoutSignal, FORCE_LOGOUT_CHECK_SECONDS * 1000);
 
   const loggedUser = localStorage.getItem("loggedInUser");
-  if (loggedUser) {
-    resetInactivityTimer(); // تفعيل المؤقت فور تحميل الصفحة لو كان مسجل دخول
-    navigateTo('home-page');
-  }
+
+  // بنستنى بيانات الشيت (الروستر وغيرها) توصل الأول قبل ما نروح للصفحة الرئيسية،
+  // عشان كروت زي "My Day" تلاقي البيانات جاهزة من أول مرة، مش تفتح فاضية
+  fetchAllDataFromGoogleSheet().finally(() => {
+    if (loggedUser) {
+      resetInactivityTimer(); // تفعيل المؤقت فور تحميل الصفحة لو كان مسجل دخول
+      navigateTo('home-page');
+    }
+  });
 });
