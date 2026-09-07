@@ -48,6 +48,7 @@ function navigateTo(pageId) {
     if (pageId === 'home-page') {
       updateDashboardLiveWidget();
       updateUIForRole();
+      loadMyDayCard();
     } else if (pageId === 'towers-page') {
       updateUIForRole();
       handleSelection();
@@ -71,4 +72,3 @@ function navigateTo(pageId) {
     }
   }
 }
-
