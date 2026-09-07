@@ -121,10 +121,11 @@ function ccPulseBuildAgentCardHtml(a, nowSec) {
       <span class="ccp-break-value" style="${breakInfo.over ? "color:#ef4444;font-weight:800;" : ""}">${breakInfo.text}</span>
     </div>`;
 
-  const callsAnsweredHtml = `
-    <div class="ccp-calls-badge">
-      <i class="fa-solid fa-phone-volume"></i> Calls: ${a.todaysCallsAnswered || 0}
-    </div>`;
+  const agentDept = getAgentDeptToday(a.name);
+  const callsAnsweredHtml = (agentDept === "Calls")
+    ? `<div class="ccp-calls-badge"><i class="fa-solid fa-phone-volume"></i> Calls: ${a.todaysCallsAnswered || 0}</div>`
+    : "";
+  const outboundHtml = `<div class="ccp-outbound-badge"><i class="fa-solid fa-arrow-up-right-from-square"></i> Outbound: ${a.todaysOutboundCalls || 0}</div>`;
 
   let callHtml = "";
   if (a.currentCall && a.currentCall.startedAt) {
@@ -144,6 +145,7 @@ function ccPulseBuildAgentCardHtml(a, nowSec) {
       ${todayHtml}
       ${breakHtml}
       ${callsAnsweredHtml}
+      ${outboundHtml}
       ${callHtml}
     </div>`;
 }
@@ -401,7 +403,9 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
       </div>`).join("");
 
     const callStats = callLogByAgent[a.name];
-    const callsHtml = `
+    const agentDept = getAgentDeptToday(a.name);
+    const callsHtml = (agentDept === "Calls")
+      ? `
       <div class="ccp-metric-card">
         <div class="ccp-metric-label">Calls Answered</div>
         <div class="ccp-metric-value">${callStats ? callStats.callsAnswered : 0}</div>
@@ -409,6 +413,12 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
       <div class="ccp-metric-card">
         <div class="ccp-metric-label">AHT</div>
         <div class="ccp-metric-value">${callStats ? formatCcPulseDuration(callStats.ahtSeconds) : "0s"}</div>
+      </div>`
+      : "";
+    const outboundReportHtml = `
+      <div class="ccp-metric-card">
+        <div class="ccp-metric-label">Outbound Calls</div>
+        <div class="ccp-metric-value">${callStats ? callStats.outboundCallsCount : 0}</div>
       </div>`;
 
     let adherenceHtml = "";
@@ -471,7 +481,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
           <div class="ccp-metric-label">Total login time</div>
           <div class="ccp-metric-value" data-agent-total="${a.name}">${formatCcPulseDuration(a.totalLoginSeconds)}</div>
         </div>
-        <div class="ccp-metrics-grid">${callsHtml}${totalsHtml}${adherenceHtml}${tardyHtml}</div>
+        <div class="ccp-metrics-grid">${callsHtml}${outboundReportHtml}${totalsHtml}${adherenceHtml}${tardyHtml}</div>
         ${timelineHtml}
       </div>`;
   }).join("");
@@ -504,6 +514,17 @@ const CCP_SHIFT_TIME_RANGES = {
 };
 
 // بيرجع معاد الشيفت المفروض للإيجنت في تاريخ معين (لو موجود ومعروف)، أو null لو إجازة/مش معروف
+// بيرجع فريق الإيجنت (Calls/Call Outs/Emails) من الروستر لنفس اليوم، أو "Calls" افتراضيًا
+// لو مالوش صف روستر خالص - عشان يبقى نفس المنطق المستخدم في ويدجت الصفحة الرئيسية
+function getAgentDeptToday(agentName) {
+  const uae = getUAECurrentDate();
+  const monthNum = parseInt(uae.month, 10);
+  const yearNum = parseInt(uae.year, 10);
+  if (!Array.isArray(rosterData)) return "Calls";
+  const entry = rosterData.find(a => a.name === agentName && a.month === monthNum && a.year === yearNum);
+  return (entry && entry.dept) ? entry.dept : "Calls";
+}
+
 function getShiftWindowForAgentDate(agentName, dateStr) {
   if (!agentName || !dateStr || !Array.isArray(rosterData)) return null;
   const parts = dateStr.split("-").map(Number); // [yyyy, mm, dd]
@@ -835,7 +856,9 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
   const statusColors = { "Available": "#107c41", "Break": "#d97706", "Emails": "#1a252f", "Custom 1": "#6d28d9", "Custom 2": "#0369a1" };
 
   const callStats = (callLogData && callLogData.status === "success") ? callLogData.data : null;
-  const callsHtml = `
+  const singleAgentDept = getAgentDeptToday(data.agent);
+  const callsHtml = (singleAgentDept === "Calls")
+    ? `
     <div class="ccp-metric-card">
       <div class="ccp-metric-label">Calls Answered</div>
       <div class="ccp-metric-value">${callStats ? callStats.callsAnswered : 0}</div>
@@ -843,6 +866,12 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
     <div class="ccp-metric-card">
       <div class="ccp-metric-label">AHT</div>
       <div class="ccp-metric-value">${callStats ? formatCcPulseDuration(callStats.ahtSeconds) : "0s"}</div>
+    </div>`
+    : "";
+  const outboundReportHtml = `
+    <div class="ccp-metric-card">
+      <div class="ccp-metric-label">Outbound Calls</div>
+      <div class="ccp-metric-value">${callStats ? callStats.outboundCallsCount : 0}</div>
     </div>`;
 
   const totalsHtml = Object.keys(data.totals || {}).map(st => `
@@ -942,7 +971,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
       <div class="ccp-metric-label">Total login time</div>
       <div class="ccp-metric-value" id="ccpTotalLoginValue">${formatCcPulseDuration(data.totalLoginSeconds)}</div>
     </div>
-    <div class="ccp-metrics-grid">${callsHtml}${totalsHtml}${tardyHtml}${periodAdherenceHtml}</div>
+    <div class="ccp-metrics-grid">${callsHtml}${outboundReportHtml}${totalsHtml}${tardyHtml}${periodAdherenceHtml}</div>
     ${daysHtml}
   `;
 
