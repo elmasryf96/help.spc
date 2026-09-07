@@ -89,7 +89,14 @@ function updateDashboardLiveWidget() {
     ? Math.max(0, (Date.now() - ccPulseAgentsCacheFetchedAtMs) / 1000)
     : 0;
 
+  const dayNum = parseInt(uae.day, 10);
+  const statusByName = {};
+  (Array.isArray(ccPulseAgentsCache) ? ccPulseAgentsCache : []).forEach(a => {
+    if (a && a.name) statusByName[a.name] = a.status;
+  });
+
   const activeByTeam = { "Calls": [], "Call Outs": [], "Emails": [] };
+  const missingAgents = []; // مجدول عليهم شيفت دلوقتي بس حالتهم الحية Away (أو مش معروفة)
 
   (Array.isArray(ccPulseAgentsCache) ? ccPulseAgentsCache : []).forEach(a => {
     if (!a || a.status === "Away") return; // أي حالة غير Away تعتبر "شغال دلوقتي"
@@ -107,6 +114,23 @@ function updateDashboardLiveWidget() {
     activeByTeam[team].push(adjusted);
   });
 
+  if (Array.isArray(rosterData)) {
+    rosterData.forEach(agent => {
+      const aMonth = parseInt(agent.month, 10);
+      const aYear = parseInt(agent.year, 10);
+      if (aMonth !== monthNum || aYear !== yearNum || !agent || !agent.schedule) return;
+
+      const shift = agent.schedule[dayNum];
+      if (!shift || shift === "" || shift === "OFF+" || shift === "null") return;
+      if (!isShiftActiveNow(shift)) return;
+
+      const liveStatus = statusByName[agent.name];
+      if (liveStatus === "Away" || liveStatus === undefined) {
+        missingAgents.push({ name: agent.name, dept: agent.dept, shift: shift });
+      }
+    });
+  }
+
   let html = "";
   const teams = ["Calls", "Call Outs", "Emails"];
   teams.forEach(teamName => {
@@ -117,6 +141,23 @@ function updateDashboardLiveWidget() {
 
     html += `<div class="hl-team-box"><div class="hl-team-title"><div class="hl-tt-left"><i class="fa-solid ${teamName === 'Calls' ? 'fa-headset' : teamName === 'Call Outs' ? 'fa-phone-volume' : 'fa-envelope-open-text'}"></i><span>${teamName} Team</span></div><span class="hl-team-badge">${agents.length} Active</span></div><div class="hl-team-list">${agentsHtml}</div></div>`;
   });
+
+  const missingHtml = missingAgents.length === 0
+    ? `<span class="hl-none-text"><i class="fa-solid fa-circle-check"></i> No missing agents right now</span>`
+    : missingAgents.map(m => `
+        <div class="hl-agent-chip" style="border-color:#ef4444;">
+          <span class="hl-chip-name">${m.name}</span>
+          <span class="hl-chip-shift" style="color:#991b1b;">${m.shift} · Away</span>
+        </div>`).join('');
+
+  html += `<div class="hl-team-box" style="border-color:#ef4444;">
+      <div class="hl-team-title">
+        <div class="hl-tt-left"><i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;"></i><span>Missing (Scheduled but Away)</span></div>
+        <span class="hl-team-badge" style="background:#fef2f2;color:#991b1b;">${missingAgents.length} Missing</span>
+      </div>
+      <div class="hl-team-list">${missingHtml}</div>
+    </div>`;
+
   container.innerHTML = html;
 }
 
