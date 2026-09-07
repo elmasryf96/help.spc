@@ -10,6 +10,7 @@ let ccPulsePollTimer = null;
 let ccPulseTickTimer = null;
 let ccPulseReportPollTimer = null;
 let ccPulseAgentsCache = [];
+let ccPulseAgentsCacheFetchedAtMs = 0; // وقت آخر تحديث لبيانات الحالة الحية - يستخدمه ويدجت الصفحة الرئيسية كمان
 let ccPulseMode = "day";
 let ccPulseReportLiveBase = null; // بيتخزن فيه أرقام آخر تقرير عشان نعد عليها بالثانية زي العداد اللي فوق
 let ccPulseLastExportAgentsList = null; // بيتخزن فيه آخر بيانات تقرير اتحمّلت عشان زرار الـ Export يقدر يستخدمها
@@ -59,15 +60,15 @@ function stopCcPulsePolling() {
 
 async function fetchCcPulseLiveStatus() {
   const grid = document.getElementById("ccPulseLiveGrid");
-  if (!grid) return;
   try {
     const res = await fetch(PYTHON_BACKEND_AGENT_STATUS_URL);
     const agents = await res.json();
     ccPulseAgentsCache = Array.isArray(agents) ? agents : [];
+    ccPulseAgentsCacheFetchedAtMs = Date.now();
     renderCcPulseLiveGrid();
     populateCcPulseAgentSelect();
   } catch (e) {
-    grid.innerHTML = `<div class="ccp-error">⚠️ Could not load live status</div>`;
+    if (grid) grid.innerHTML = `<div class="ccp-error">⚠️ Could not load live status</div>`;
   }
 }
 
@@ -92,50 +93,51 @@ function formatCcPulseBreakRemaining(usedSeconds) {
   return { text: "-" + formatCcPulseElapsed(-remaining), over: true };
 }
 
+function ccPulseBuildAgentCardHtml(a, nowSec) {
+  const isAway = a.status === "Away";
+  const isOnBreak = a.status === "Break";
+  const statusClass = isAway ? "ccp-status-away" : "ccp-status-active";
+
+  // إجمالي وقت الشغل تراكمي طول اليوم (من غير Away): بيعد لايف وهو شغال،
+  // وبيفضل واقف على آخر رقم لما يبقى Away (مش بيختفي) - وبيترست لوحده كل يوم جديد
+  const todayBase = a.todaysTotalSeconds || 0;
+  const todayHtml = `<div class="ccp-counter" data-today-base="${todayBase}" data-today-fetched="${nowSec}" data-today-active="${isAway ? "0" : "1"}">${formatCcPulseElapsed(todayBase)}</div>`;
+
+  // رصيد البريك: عداد تنازلي من 30 دقيقة وهو في بريك، ولو خلص الوقت بيتحول لسالب بالأحمر
+  const breakBase = a.todaysBreakSeconds || 0;
+  const breakInfo = formatCcPulseBreakRemaining(breakBase);
+  const breakHtml = `
+    <div class="ccp-break-badge" data-break-base="${breakBase}" data-break-fetched="${nowSec}" data-break-active="${isOnBreak ? "1" : "0"}">
+      <i class="fa-solid fa-mug-hot"></i> Break:
+      <span class="ccp-break-value" style="${breakInfo.over ? "color:#ef4444;font-weight:800;" : ""}">${breakInfo.text}</span>
+    </div>`;
+
+  let callHtml = "";
+  if (a.currentCall && a.currentCall.startedAt) {
+    const callElapsed = nowSec - a.currentCall.startedAt;
+    callHtml = `
+      <div class="ccp-call-badge" data-call-start="${a.currentCall.startedAt}">
+        <i class="fa-solid fa-phone-volume"></i> ${a.currentCall.with}
+        <span class="ccp-call-duration">${formatCcPulseElapsed(callElapsed)}</span>
+      </div>`;
+  }
+
+  return `
+    <div class="ccp-agent-card">
+      <div class="ccp-agent-name">${a.name}</div>
+      <div class="ccp-status-badge ${statusClass}">${a.status}</div>
+      ${todayHtml}
+      ${breakHtml}
+      ${callHtml}
+    </div>`;
+}
+
 function renderCcPulseLiveGrid() {
   const grid = document.getElementById("ccPulseLiveGrid");
   if (!grid) return;
 
   const nowSec = Date.now() / 1000;
-
-  grid.innerHTML = ccPulseAgentsCache.map(a => {
-    const isAway = a.status === "Away";
-    const isOnBreak = a.status === "Break";
-    const statusClass = isAway ? "ccp-status-away" : "ccp-status-active";
-
-    // إجمالي وقت الشغل تراكمي طول اليوم (من غير Away): بيعد لايف وهو شغال،
-    // وبيفضل واقف على آخر رقم لما يبقى Away (مش بيختفي) - وبيترست لوحده كل يوم جديد
-    const todayBase = a.todaysTotalSeconds || 0;
-    const todayHtml = `<div class="ccp-counter" data-today-base="${todayBase}" data-today-fetched="${nowSec}" data-today-active="${isAway ? "0" : "1"}">${formatCcPulseElapsed(todayBase)}</div>`;
-
-    // رصيد البريك: عداد تنازلي من 30 دقيقة وهو في بريك، ولو خلص الوقت بيتحول لسالب بالأحمر
-    const breakBase = a.todaysBreakSeconds || 0;
-    const breakInfo = formatCcPulseBreakRemaining(breakBase);
-    const breakHtml = `
-      <div class="ccp-break-badge" data-break-base="${breakBase}" data-break-fetched="${nowSec}" data-break-active="${isOnBreak ? "1" : "0"}">
-        <i class="fa-solid fa-mug-hot"></i> Break:
-        <span class="ccp-break-value" style="${breakInfo.over ? "color:#ef4444;font-weight:800;" : ""}">${breakInfo.text}</span>
-      </div>`;
-
-    let callHtml = "";
-    if (a.currentCall && a.currentCall.startedAt) {
-      const callElapsed = nowSec - a.currentCall.startedAt;
-      callHtml = `
-        <div class="ccp-call-badge" data-call-start="${a.currentCall.startedAt}">
-          <i class="fa-solid fa-phone-volume"></i> ${a.currentCall.with}
-          <span class="ccp-call-duration">${formatCcPulseElapsed(callElapsed)}</span>
-        </div>`;
-    }
-
-    return `
-      <div class="ccp-agent-card">
-        <div class="ccp-agent-name">${a.name}</div>
-        <div class="ccp-status-badge ${statusClass}">${a.status}</div>
-        ${todayHtml}
-        ${breakHtml}
-        ${callHtml}
-      </div>`;
-  }).join("");
+  grid.innerHTML = ccPulseAgentsCache.map(a => ccPulseBuildAgentCardHtml(a, nowSec)).join("");
 }
 
 function tickCcPulseCounters() {
