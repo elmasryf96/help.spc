@@ -400,6 +400,44 @@ function ccPulseTimeOnly(ts) {
   return parts[1] ? parts[1].slice(0, 5) : ts;
 }
 
+// بيبني كارت "Queue Overview" اللي بيوري أداء الكيو ككل (مش لإيجنت بعينه):
+// إجمالي المكالمات، المردود عليها، نسبة الـ Abandonment، ومتوسط سرعة الرد (ASA)
+function ccPulseBuildQueueSummaryHtml(qs) {
+  if (!qs) return "";
+  const abClass = qs.abandonmentRatePct <= 5 ? "ccp-adh-good" : (qs.abandonmentRatePct <= 10 ? "ccp-adh-warn" : "ccp-adh-bad");
+  const asaClass = qs.asaSeconds <= 20 ? "ccp-adh-good" : (qs.asaSeconds <= 40 ? "ccp-adh-warn" : "ccp-adh-bad");
+  return `
+    <div class="ccp-queue-summary-card">
+      <div class="ccp-queue-summary-header"><i class="fa-solid fa-headset"></i> Queue Overview (All Agents)</div>
+      <div class="ccp-metrics-grid">
+        <div class="ccp-metric-card">
+          <div class="ccp-metric-label">Total Queue Calls</div>
+          <div class="ccp-metric-value">${qs.totalCalls}</div>
+        </div>
+        <div class="ccp-metric-card ccp-metric-blue">
+          <div class="ccp-metric-label">Answered</div>
+          <div class="ccp-metric-value">${qs.answered}</div>
+        </div>
+        <div class="ccp-metric-card ${abClass}">
+          <div class="ccp-metric-label">Abandonment Rate</div>
+          <div class="ccp-metric-value">${qs.abandonmentRatePct}%</div>
+        </div>
+        <div class="ccp-metric-card ${asaClass}">
+          <div class="ccp-metric-label">ASA (Avg Speed of Answer)</div>
+          <div class="ccp-metric-value">${formatCcPulseDuration(qs.asaSeconds)}</div>
+        </div>
+        <div class="ccp-metric-card">
+          <div class="ccp-metric-label">Abandoned</div>
+          <div class="ccp-metric-value">${qs.abandoned}</div>
+        </div>
+        <div class="ccp-metric-card">
+          <div class="ccp-metric-label">Redirected</div>
+          <div class="ccp-metric-value">${qs.redirected}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
 function renderCcPulseAllAgentsReport(data, callLogData) {
   const resultBox = document.getElementById("ccPulseReportResult");
   if (!data || data.status !== "success") {
@@ -516,6 +554,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
     <div class="ccp-export-bar">
       <button type="button" class="ccp-export-btn" onclick="exportCcPulseReportToCsv()">📥 Export to CSV</button>
     </div>
+    ${ccPulseBuildQueueSummaryHtml(callLogData && callLogData.queueSummary)}
     <div class="ccp-all-agents-report">${cardsHtml || '<div class="ccp-empty">No data for this period</div>'}</div>`;
 
   ccPulseLastExportAgentsList = data.agents.map(a => ({ name: a.name, number: a.number, days: a.days || [] }));
@@ -1056,6 +1095,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
     <div class="ccp-export-bar">
       <button type="button" class="ccp-export-btn" onclick="exportCcPulseReportToCsv()">📥 Export to CSV</button>
     </div>
+    ${ccPulseBuildQueueSummaryHtml(callLogData && callLogData.queueSummary)}
     <div class="ccp-metric-card ccp-total-highlight">
       <div class="ccp-metric-label">Total login time</div>
       <div class="ccp-metric-value" id="ccpTotalLoginValue">${formatCcPulseDuration(data.totalLoginSeconds)}</div>
