@@ -124,7 +124,7 @@ function parseMonthAndYear(val) {
 function fetchAllDataFromGoogleSheet() {
   const nocacheUrl = GOOGLE_SHEET_API_URL + "?t=" + new Date().getTime();
 
-  fetch(nocacheUrl, { 
+  return fetch(nocacheUrl, { 
     method: 'GET',
     redirect: 'follow',
     headers: {
@@ -292,4 +292,3 @@ function createDevBanner(containerId, showFeedback = true) {
 
     container.insertAdjacentHTML('beforeend', bannerHTML);
 }
-
