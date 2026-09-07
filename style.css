@@ -413,6 +413,44 @@ body {
 .hl-chip-shift { background: #166534; color: #ffffff; padding: 1px 3px; border-radius: 3px; font-size: 9px; }
 .hl-none-text { font-size: 11px; color: #94a3b8; font-weight: 700; }
 
+/* نسخة مصغّرة من كروت CC Pulse لما تتعرض في ويدجت الصفحة الرئيسية، عشان الكارت
+   ياخد مساحة أقل، والقايمة تاخد ارتفاع ثابت وتبقى قابلة للسكرول لو الناس كترت */
+#homeActiveAgentsGrid .hl-team-list {
+    max-height: 210px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    align-content: flex-start;
+    padding-right: 2px;
+}
+#homeActiveAgentsGrid .ccp-agent-card {
+    width: 108px;
+    padding: 5px 6px;
+    border-radius: 8px;
+}
+#homeActiveAgentsGrid .ccp-agent-name {
+    font-size: 11px;
+    margin-bottom: 3px;
+}
+#homeActiveAgentsGrid .ccp-status-badge {
+    font-size: 9px;
+    padding: 1px 6px;
+}
+#homeActiveAgentsGrid .ccp-counter {
+    font-size: 11px;
+    margin-top: 3px;
+}
+#homeActiveAgentsGrid .ccp-break-badge,
+#homeActiveAgentsGrid .ccp-call-badge {
+    margin-top: 3px;
+    padding: 2px 5px;
+    font-size: 9.5px;
+    border-radius: 6px;
+}
+#homeActiveAgentsGrid .ccp-break-value,
+#homeActiveAgentsGrid .ccp-call-duration {
+    font-size: 10px;
+}
+
 /* 🎴 DASHBOARD GRID & BUTTON CARDS */
 .dashboard-grid3 {
     display: grid;
