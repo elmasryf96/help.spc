@@ -890,7 +890,10 @@ function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null, e
   return `
     <div class="ccp-timeline-wrap">
       ${legendHtml}
-      <div class="ccp-timeline-bar">${shiftBandHtml}${segmentsHtml}${outOfAdherenceHtml}${nowMarkerHtml}</div>
+      <div class="ccp-timeline-bar">
+        <div class="ccp-timeline-track">${shiftBandHtml}${segmentsHtml}${outOfAdherenceHtml}</div>
+        ${nowMarkerHtml}
+      </div>
       <div class="ccp-timeline-axis">${axisHtml}</div>
       <div class="ccp-tl-tooltip" id="ccpTlTooltip"></div>
     </div>`;
