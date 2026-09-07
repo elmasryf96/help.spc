@@ -355,6 +355,46 @@ async def agent_status():
 
 
 # ------------------------------------------------------------
+# 🔍 تشخيص مؤقت: بنشوف شكل بيانات المكالمات/الكيو الخام اللي 3CX بيرجعها فعليًا
+# قبل ما نبني عليها ميزة Call Log - هيتشال بعد ما نخلص التصميم
+# استخدام: /debug/3cx-calls?secret=... (نفس SYNC_SECRET)
+# ------------------------------------------------------------
+
+DEBUG_3CX_CALL_PATHS = [
+    "/xapi/v1/ActiveCalls",
+    "/xapi/v1/Queues",
+    "/xapi/v1/ReportCallLog",
+    "/xapi/v1/CallHistoryView",
+]
+
+
+@app.get("/debug/3cx-calls")
+async def debug_3cx_calls(secret: str = ""):
+    if secret != os.environ.get("SYNC_SECRET", ""):
+        return {"status": "error", "message": "Unauthorized"}
+
+    results = {}
+    async with httpx.AsyncClient(timeout=15) as client:
+        token = await get_3cx_token(client)
+        headers = {"Authorization": f"Bearer {token}"}
+
+        for path in DEBUG_3CX_CALL_PATHS:
+            url = f"https://{THREECX_FQDN}{path}"
+            try:
+                resp = await client.get(url, headers=headers)
+                try:
+                    body_json = resp.json()
+                    entry = {"status_code": resp.status_code, "json": body_json}
+                except Exception:
+                    entry = {"status_code": resp.status_code, "raw_snippet": resp.text[:500]}
+                results[path] = entry
+            except Exception as e:
+                results[path] = {"error": str(e)}
+
+    return results
+
+
+# ------------------------------------------------------------
 # 🔴 مراقبة لحظية للتغييرات + تسجيلها فوراً في الشيت
 # ------------------------------------------------------------
 
