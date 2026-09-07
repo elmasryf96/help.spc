@@ -791,3 +791,135 @@ async def daily_totals_watcher():
 @app.on_event("startup")
 async def start_daily_totals_watcher():
     asyncio.create_task(daily_totals_watcher())
+
+
+# ------------------------------------------------------------
+# 📞 CALL LOG: تصنيف مكالمات الكيو (اترد / اتقفلت / اتحولت) وتسجيلها في شيت "Call Log"
+# بيشتغل كل QUEUE_LOG_POLL_SECONDS، وبياخد نافذة زمنية فيها تداخل مع الدورة اللي فاتت
+# (QUEUE_LOG_WINDOW_MINUTES) عشان أي تأخير أو تعارض في التوقيت ميخليش مكالمة تفوت التسجيل.
+# التكرار متضمون من ناحية الشيت نفسه (بيتفادى MainCallHistoryId المتكرر) - مش من هنا.
+# ------------------------------------------------------------
+
+QUEUE_LOG_POLL_SECONDS = 5 * 60
+QUEUE_LOG_WINDOW_MINUTES = 20
+
+_HANDOFF_NAME_EXT_RE = re.compile(r"was replaced by (.+?)\s*\((\d+)\)")
+_REDIRECT_NAME_EXT_RE = re.compile(r"forwarded to (.+?)\s*\((\d+)\)")
+
+
+def build_call_log_url(period_from: datetime, period_to: datetime, skip: int, top: int = 500) -> str:
+    def fmt(dt):
+        return dt.strftime("%Y-%m-%dT%H:%M:%S.000Z").replace(":", "%3A")
+
+    path = (
+        "/xapi/v1/ReportCallLogData/Pbx.GetCallLogData("
+        f"periodFrom={fmt(period_from)},"
+        f"periodTo={fmt(period_to)},"
+        "sourceType=0,sourceFilter='',"
+        "destinationType=0,destinationFilter='',"
+        "callsType=0,callTimeFilterType=0,"
+        "callTimeFilterFrom='0%3A00%3A0',callTimeFilterTo='0%3A00%3A0',"
+        "hidePcalls=true)"
+        f"?%24top={top}&%24skip={skip}"
+    )
+    return f"https://{THREECX_FQDN}{path}"
+
+
+async def fetch_call_log_rows(client: httpx.AsyncClient, minutes_back: int):
+    period_to = datetime.utcnow()
+    period_from = period_to - timedelta(minutes=minutes_back)
+    token = await get_3cx_token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    all_rows = []
+    skip = 0
+    for _ in range(10):
+        resp = await client.get(build_call_log_url(period_from, period_to, skip), headers=headers)
+        data = resp.json()
+        rows = data.get("value", [])
+        if not rows:
+            break
+        all_rows.extend(rows)
+        skip += 500
+    return all_rows
+
+
+def classify_queue_group(rows: list):
+    """بياخد كل صفوف نفس المكالمة (MainCallHistoryId واحد) ويرجع تفاصيل مصنّفة
+    عن صف الكيو بتاعها، أو None لو المجموعة دي مفيهاش أي صف كيو أصلاً"""
+    queue_row = next((r for r in rows if r.get("CallType") == "Queue"), None)
+    if not queue_row:
+        return None
+
+    reason = queue_row.get("Reason", "") or ""
+    customer_number = queue_row.get("SourceCallerId") or queue_row.get("SourceDn", "")
+    queue_name = queue_row.get("DestinationDisplayName") or queue_row.get("DestinationDn", "")
+    wait_seconds = round(parse_iso_duration_seconds(queue_row.get("TalkingDuration", "")), 1)
+    start = queue_row.get("StartTime", "") or ""
+    date_part = start[:10] if start else ""
+    time_part = start[11:19] if len(start) >= 19 else ""
+    main_id = queue_row.get("MainCallHistoryId")
+
+    base = {
+        "mainId": main_id,
+        "date": date_part,
+        "time": time_part,
+        "customerNumber": customer_number,
+        "queue": queue_name,
+        "waitSeconds": wait_seconds,
+        "reason": reason,
+    }
+
+    handoff = _HANDOFF_NAME_EXT_RE.search(reason)
+    if handoff:
+        agent_name, agent_ext = handoff.group(1).strip(), handoff.group(2)
+        agent_row = next(
+            (r for r in rows if r.get("DestinationDn") == agent_ext and r.get("CallType") != "Queue"),
+            None
+        )
+        talk_seconds = round(parse_iso_duration_seconds(agent_row.get("TalkingDuration", "")), 1) if agent_row else wait_seconds
+        base.update({"result": "Answered", "agent": f"{agent_name} ({agent_ext})", "talkSeconds": talk_seconds})
+        return base
+
+    redirect = _REDIRECT_NAME_EXT_RE.search(reason)
+    if redirect and not queue_row.get("Answered", False):
+        target_name, target_ext = redirect.group(1).strip(), redirect.group(2)
+        base.update({"result": "Redirected", "agent": f"{target_name} ({target_ext})", "talkSeconds": 0})
+        return base
+
+    if not queue_row.get("Answered", False):
+        base.update({"result": "Abandoned", "agent": "-", "talkSeconds": 0})
+        return base
+
+    base.update({"result": "Unknown", "agent": "-", "talkSeconds": 0})
+    return base
+
+
+async def queue_call_logger_watcher():
+    async with httpx.AsyncClient(timeout=45) as client:
+        while True:
+            try:
+                rows = await fetch_call_log_rows(client, QUEUE_LOG_WINDOW_MINUTES)
+                groups = {}
+                for row in rows:
+                    groups.setdefault(row.get("MainCallHistoryId"), []).append(row)
+
+                payload = [c for c in (classify_queue_group(g) for g in groups.values()) if c]
+
+                if payload:
+                    sheet_url = os.environ["GOOGLE_SHEET_API_URL"]
+                    resp = await client.post(
+                        sheet_url,
+                        json={"action": "logQueueCalls", "rows": payload},
+                        timeout=60,
+                    )
+                    print(f"📞 Call Log: بعتت {len(payload)} مكالمة كيو - رد الشيت: {resp.text[:200]}")
+            except Exception as e:
+                print(f"❌ خطأ في مراقبة Call Log: {e}")
+
+            await asyncio.sleep(QUEUE_LOG_POLL_SECONDS)
+
+
+@app.on_event("startup")
+async def start_queue_call_logger_watcher():
+    asyncio.create_task(queue_call_logger_watcher())
