@@ -233,6 +233,20 @@ function setCcPulseMode(mode) {
   });
 }
 
+function buildCcPulseDateParams() {
+  const params = new URLSearchParams();
+  params.set("mode", ccPulseMode);
+  if (ccPulseMode === "day") {
+    params.set("date", document.getElementById("ccpDayInput").value);
+  } else if (ccPulseMode === "range") {
+    params.set("start", document.getElementById("ccpRangeStartInput").value);
+    params.set("end", document.getElementById("ccpRangeEndInput").value);
+  } else if (ccPulseMode === "month") {
+    params.set("month", document.getElementById("ccpMonthInput").value);
+  }
+  return params;
+}
+
 async function loadCcPulseReport(isAutoRefresh = false) {
   const resultBox = document.getElementById("ccPulseReportResult");
   const select = document.getElementById("ccPulseAgentSelect");
@@ -245,17 +259,7 @@ async function loadCcPulseReport(isAutoRefresh = false) {
   }
 
   const agentName = select.value;
-  const params = new URLSearchParams();
-  params.set("mode", ccPulseMode);
-
-  if (ccPulseMode === "day") {
-    params.set("date", document.getElementById("ccpDayInput").value);
-  } else if (ccPulseMode === "range") {
-    params.set("start", document.getElementById("ccpRangeStartInput").value);
-    params.set("end", document.getElementById("ccpRangeEndInput").value);
-  } else if (ccPulseMode === "month") {
-    params.set("month", document.getElementById("ccpMonthInput").value);
-  }
+  const params = buildCcPulseDateParams();
 
   // في التحديث التلقائي منعرضش "Loading..." تاني عشان الشاشة متريقش/تقفز، بس أول مرة بس
   if (!isAutoRefresh) {
@@ -265,9 +269,16 @@ async function loadCcPulseReport(isAutoRefresh = false) {
   try {
     if (agentName === "__all__") {
       params.set("action", "allAgentsLoginTotals");
-      const res = await fetch(`${GOOGLE_SHEET_API_URL}?${params.toString()}`);
+      const callLogParams = buildCcPulseDateParams();
+      callLogParams.set("action", "callLogReport");
+
+      const [res, callLogRes] = await Promise.all([
+        fetch(`${GOOGLE_SHEET_API_URL}?${params.toString()}`),
+        fetch(`${GOOGLE_SHEET_API_URL}?${callLogParams.toString()}`)
+      ]);
       const data = await res.json();
-      renderCcPulseAllAgentsReport(data);
+      const callLogData = await callLogRes.json().catch(() => null);
+      renderCcPulseAllAgentsReport(data, callLogData);
 
       const uae = getUAECurrentDate();
       const todayStr = `${uae.year}-${uae.month}-${uae.day}`;
@@ -292,9 +303,17 @@ async function loadCcPulseReport(isAutoRefresh = false) {
     } else {
       params.set("action", "agentStatusReport");
       params.set("name", agentName);
-      const res = await fetch(`${GOOGLE_SHEET_API_URL}?${params.toString()}`);
+      const callLogParams = buildCcPulseDateParams();
+      callLogParams.set("action", "callLogReport");
+      callLogParams.set("name", agentName);
+
+      const [res, callLogRes] = await Promise.all([
+        fetch(`${GOOGLE_SHEET_API_URL}?${params.toString()}`),
+        fetch(`${GOOGLE_SHEET_API_URL}?${callLogParams.toString()}`)
+      ]);
       const data = await res.json();
-      renderCcPulseSingleAgentReport(data);
+      const callLogData = await callLogRes.json().catch(() => null);
+      renderCcPulseSingleAgentReport(data, callLogData);
 
       // بنعد بالثانية بس لو: التقرير عن يوم واحد وده يوم النهاردة، وفيه بيانات صح
       const uae = getUAECurrentDate();
@@ -342,7 +361,7 @@ function ccPulseTimeOnly(ts) {
   return parts[1] ? parts[1].slice(0, 5) : ts;
 }
 
-function renderCcPulseAllAgentsReport(data) {
+function renderCcPulseAllAgentsReport(data, callLogData) {
   const resultBox = document.getElementById("ccPulseReportResult");
   if (!data || data.status !== "success") {
     resultBox.innerHTML = `<div class="ccp-error">⚠️ ${data && data.message ? data.message : "No data"}</div>`;
@@ -351,12 +370,28 @@ function renderCcPulseAllAgentsReport(data) {
 
   const statusColors = { "Available": "#107c41", "Break": "#d97706", "Emails": "#1a252f", "Custom 1": "#6d28d9", "Custom 2": "#0369a1" };
 
+  const callLogByAgent = {};
+  if (callLogData && callLogData.status === "success" && Array.isArray(callLogData.agents)) {
+    callLogData.agents.forEach(c => { callLogByAgent[c.agent] = c; });
+  }
+
   const cardsHtml = data.agents.map(a => {
     const totalsHtml = Object.keys(a.totals || {}).map(st => `
       <div class="ccp-metric-card">
         <div class="ccp-metric-label">${st}</div>
         <div class="ccp-metric-value" data-agent-status="${a.name}::${st}">${formatCcPulseDuration(a.totals[st])}</div>
       </div>`).join("");
+
+    const callStats = callLogByAgent[a.name];
+    const callsHtml = `
+      <div class="ccp-metric-card">
+        <div class="ccp-metric-label">Calls Answered</div>
+        <div class="ccp-metric-value">${callStats ? callStats.callsAnswered : 0}</div>
+      </div>
+      <div class="ccp-metric-card">
+        <div class="ccp-metric-label">AHT</div>
+        <div class="ccp-metric-value">${callStats ? formatCcPulseDuration(callStats.ahtSeconds) : "0s"}</div>
+      </div>`;
 
     let adherenceHtml = "";
     let timelineHtml = "";
@@ -418,7 +453,7 @@ function renderCcPulseAllAgentsReport(data) {
           <div class="ccp-metric-label">Total login time</div>
           <div class="ccp-metric-value" data-agent-total="${a.name}">${formatCcPulseDuration(a.totalLoginSeconds)}</div>
         </div>
-        <div class="ccp-metrics-grid">${totalsHtml}${adherenceHtml}${tardyHtml}</div>
+        <div class="ccp-metrics-grid">${callsHtml}${totalsHtml}${adherenceHtml}${tardyHtml}</div>
         ${timelineHtml}
       </div>`;
   }).join("");
@@ -767,7 +802,7 @@ function attachCcPulseTimelineHover() {
   });
 }
 
-function renderCcPulseSingleAgentReport(data) {
+function renderCcPulseSingleAgentReport(data, callLogData) {
   const resultBox = document.getElementById("ccPulseReportResult");
   if (!data || data.status !== "success") {
     resultBox.innerHTML = `<div class="ccp-error">⚠️ ${data && data.message ? data.message : "No data"}</div>`;
@@ -775,6 +810,17 @@ function renderCcPulseSingleAgentReport(data) {
   }
 
   const statusColors = { "Available": "#107c41", "Break": "#d97706", "Emails": "#1a252f", "Custom 1": "#6d28d9", "Custom 2": "#0369a1" };
+
+  const callStats = (callLogData && callLogData.status === "success") ? callLogData.data : null;
+  const callsHtml = `
+    <div class="ccp-metric-card">
+      <div class="ccp-metric-label">Calls Answered</div>
+      <div class="ccp-metric-value">${callStats ? callStats.callsAnswered : 0}</div>
+    </div>
+    <div class="ccp-metric-card">
+      <div class="ccp-metric-label">AHT</div>
+      <div class="ccp-metric-value">${callStats ? formatCcPulseDuration(callStats.ahtSeconds) : "0s"}</div>
+    </div>`;
 
   const totalsHtml = Object.keys(data.totals || {}).map(st => `
     <div class="ccp-metric-card">
@@ -873,7 +919,7 @@ function renderCcPulseSingleAgentReport(data) {
       <div class="ccp-metric-label">Total login time</div>
       <div class="ccp-metric-value" id="ccpTotalLoginValue">${formatCcPulseDuration(data.totalLoginSeconds)}</div>
     </div>
-    <div class="ccp-metrics-grid">${totalsHtml}${tardyHtml}${periodAdherenceHtml}</div>
+    <div class="ccp-metrics-grid">${callsHtml}${totalsHtml}${tardyHtml}${periodAdherenceHtml}</div>
     ${daysHtml}
   `;
 
