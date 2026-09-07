@@ -866,6 +866,7 @@ def classify_queue_group(rows: list):
         "time": time_part,
         "customerNumber": customer_number,
         "queue": queue_name,
+        "direction": "Inbound",
         "waitSeconds": wait_seconds,
         "reason": reason,
     }
@@ -895,6 +896,33 @@ def classify_queue_group(rows: list):
     return base
 
 
+def classify_outbound_row(row: dict):
+    """أي صف Direction=Outbound لإيجنت معروف - بنسجله كله حتى لو فشل تقنيًا (رقم غلط، مفيش رد)"""
+    ext = row.get("SourceDn")
+    agent_name = AGENT_MAP.get(ext)
+    if not agent_name:
+        return None
+
+    start = row.get("StartTime", "") or ""
+    date_part = start[:10] if start else ""
+    time_part = start[11:19] if len(start) >= 19 else ""
+    talk_seconds = round(parse_iso_duration_seconds(row.get("TalkingDuration", "")), 1)
+
+    return {
+        "mainId": row.get("MainCallHistoryId"),
+        "date": date_part,
+        "time": time_part,
+        "customerNumber": row.get("DestinationCallerId") or row.get("DestinationDn", ""),
+        "queue": "-",
+        "direction": "Outbound",
+        "result": "Answered" if row.get("Answered", False) else "Unanswered",
+        "agent": f"{agent_name} ({ext})",
+        "waitSeconds": 0,
+        "talkSeconds": talk_seconds,
+        "reason": row.get("Reason", "") or "",
+    }
+
+
 async def queue_call_logger_watcher():
     async with httpx.AsyncClient(timeout=45) as client:
         while True:
@@ -906,6 +934,12 @@ async def queue_call_logger_watcher():
 
                 payload = [c for c in (classify_queue_group(g) for g in groups.values()) if c]
 
+                for row in rows:
+                    if row.get("Direction") == "Outbound":
+                        classified = classify_outbound_row(row)
+                        if classified:
+                            payload.append(classified)
+
                 if payload:
                     sheet_url = os.environ["GOOGLE_SHEET_API_URL"]
                     resp = await client.post(
@@ -913,7 +947,7 @@ async def queue_call_logger_watcher():
                         json={"action": "logQueueCalls", "rows": payload},
                         timeout=60,
                     )
-                    print(f"📞 Call Log: بعتت {len(payload)} مكالمة كيو - رد الشيت: {resp.text[:200]}")
+                    print(f"📞 Call Log: بعتت {len(payload)} مكالمة (كيو + صادرة) - رد الشيت: {resp.text[:200]}")
             except Exception as e:
                 print(f"❌ خطأ في مراقبة Call Log: {e}")
 
