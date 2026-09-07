@@ -147,7 +147,7 @@ function updateDashboardLiveWidget() {
     : missingAgents.map(m => `
         <div class="hl-agent-chip" style="border-color:#ef4444;">
           <span class="hl-chip-name">${m.name}</span>
-          <span class="hl-chip-shift" style="color:#991b1b;">${m.shift} · Away</span>
+          <span class="hl-chip-shift" style="color:#991b1b;">${m.shift} · <span class="ccp-blink-red">Away</span></span>
         </div>`).join('');
 
   html += `<div class="hl-team-box" style="border-color:#ef4444;">
