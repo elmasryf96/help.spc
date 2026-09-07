@@ -80,6 +80,18 @@ function formatCcPulseElapsed(seconds) {
   return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
 }
 
+// رصيد البريك اليومي (30 دقيقة) - بيترست لوحده كل يوم لأنه بيتحسب من "تقرير النهاردة" بس
+const CCP_BREAK_BUDGET_SECONDS = 30 * 60;
+
+// بيرجع نص العداد (المتبقي أو الزيادة بالسالب) + هل تخطى الحد ولا لسه
+function formatCcPulseBreakRemaining(usedSeconds) {
+  const remaining = CCP_BREAK_BUDGET_SECONDS - usedSeconds;
+  if (remaining >= 0) {
+    return { text: formatCcPulseElapsed(remaining), over: false };
+  }
+  return { text: "-" + formatCcPulseElapsed(-remaining), over: true };
+}
+
 function renderCcPulseLiveGrid() {
   const grid = document.getElementById("ccPulseLiveGrid");
   if (!grid) return;
@@ -88,12 +100,22 @@ function renderCcPulseLiveGrid() {
 
   grid.innerHTML = ccPulseAgentsCache.map(a => {
     const isAway = a.status === "Away";
+    const isOnBreak = a.status === "Break";
     const statusClass = isAway ? "ccp-status-away" : "ccp-status-active";
-    let counterHtml = "";
-    if (!isAway && a.sessionStartedAt) {
-      const elapsed = nowSec - a.sessionStartedAt;
-      counterHtml = `<div class="ccp-counter" data-session-start="${a.sessionStartedAt}">${formatCcPulseElapsed(elapsed)}</div>`;
-    }
+
+    // إجمالي وقت الشغل تراكمي طول اليوم (من غير Away): بيعد لايف وهو شغال،
+    // وبيفضل واقف على آخر رقم لما يبقى Away (مش بيختفي) - وبيترست لوحده كل يوم جديد
+    const todayBase = a.todaysTotalSeconds || 0;
+    const todayHtml = `<div class="ccp-counter" data-today-base="${todayBase}" data-today-fetched="${nowSec}" data-today-active="${isAway ? "0" : "1"}">${formatCcPulseElapsed(todayBase)}</div>`;
+
+    // رصيد البريك: عداد تنازلي من 30 دقيقة وهو في بريك، ولو خلص الوقت بيتحول لسالب بالأحمر
+    const breakBase = a.todaysBreakSeconds || 0;
+    const breakInfo = formatCcPulseBreakRemaining(breakBase);
+    const breakHtml = `
+      <div class="ccp-break-badge" data-break-base="${breakBase}" data-break-fetched="${nowSec}" data-break-active="${isOnBreak ? "1" : "0"}">
+        <i class="fa-solid fa-mug-hot"></i> Break:
+        <span class="ccp-break-value" style="${breakInfo.over ? "color:#ef4444;font-weight:800;" : ""}">${breakInfo.text}</span>
+      </div>`;
 
     let callHtml = "";
     if (a.currentCall && a.currentCall.startedAt) {
@@ -109,7 +131,8 @@ function renderCcPulseLiveGrid() {
       <div class="ccp-agent-card">
         <div class="ccp-agent-name">${a.name}</div>
         <div class="ccp-status-badge ${statusClass}">${a.status}</div>
-        ${counterHtml}
+        ${todayHtml}
+        ${breakHtml}
         ${callHtml}
       </div>`;
   }).join("");
@@ -117,10 +140,31 @@ function renderCcPulseLiveGrid() {
 
 function tickCcPulseCounters() {
   const nowSec = Date.now() / 1000;
+
   document.querySelectorAll("#ccPulseLiveGrid .ccp-counter").forEach(el => {
-    const start = parseFloat(el.getAttribute("data-session-start"));
-    if (!isNaN(start)) el.textContent = formatCcPulseElapsed(nowSec - start);
+    const base = parseFloat(el.getAttribute("data-today-base"));
+    const fetchedAt = parseFloat(el.getAttribute("data-today-fetched"));
+    const isActive = el.getAttribute("data-today-active") === "1";
+    if (isNaN(base) || isNaN(fetchedAt)) return;
+    const elapsed = isActive ? Math.max(0, nowSec - fetchedAt) : 0;
+    el.textContent = formatCcPulseElapsed(base + elapsed);
   });
+
+  document.querySelectorAll("#ccPulseLiveGrid .ccp-break-badge").forEach(el => {
+    const base = parseFloat(el.getAttribute("data-break-base"));
+    const fetchedAt = parseFloat(el.getAttribute("data-break-fetched"));
+    const isActive = el.getAttribute("data-break-active") === "1";
+    if (isNaN(base) || isNaN(fetchedAt)) return;
+    const elapsed = isActive ? Math.max(0, nowSec - fetchedAt) : 0;
+    const info = formatCcPulseBreakRemaining(base + elapsed);
+    const valueEl = el.querySelector(".ccp-break-value");
+    if (valueEl) {
+      valueEl.textContent = info.text;
+      valueEl.style.color = info.over ? "#ef4444" : "";
+      valueEl.style.fontWeight = info.over ? "800" : "";
+    }
+  });
+
   document.querySelectorAll("#ccPulseLiveGrid .ccp-call-badge").forEach(el => {
     const start = parseFloat(el.getAttribute("data-call-start"));
     const durEl = el.querySelector(".ccp-call-duration");
