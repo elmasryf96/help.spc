@@ -1,4 +1,5 @@
 import os
+import re
 import asyncio
 import subprocess
 import httpx
@@ -477,6 +478,124 @@ async def debug_3cx_call_log(secret: str = "", days: int = 7, mode: str = "misse
             }
         except Exception as e:
             return {"error": str(e), "queue_rows_scanned": queue_rows_seen}
+
+
+# ------------------------------------------------------------
+# 🔍 تشخيص/معاينة: تقرير المكالمات اللي اترد عليها فعلاً - مين الإيجنت اللي رد
+# وقعد يتكلم قد ايه، عشان نحسب منها عدد المكالمات و AHT لكل إيجنت يوميًا
+# (بيربط صف الكيو "was replaced by X" بصف المكالمة الفعلي مع نفس الإيجنت
+# عن طريق نفس الـ MainCallHistoryId) - معاينة بس، لسه مش بيتكتب في أي شيت
+# استخدام: /debug/3cx-agent-calls?secret=...&days=1
+# ------------------------------------------------------------
+
+_HANDOFF_RE = re.compile(r"was replaced by .*\((\d+)\)")
+
+
+def parse_iso_duration_seconds(duration: str) -> float:
+    """يحول مدة بصيغة ISO 8601 زي 'PT1M59.975875S' لعدد الثواني"""
+    if not duration:
+        return 0.0
+    m = re.match(r"PT(?:(\d+)H)?(?:(\d+)M)?(?:([\d.]+)S)?", duration)
+    if not m:
+        return 0.0
+    hours = float(m.group(1) or 0)
+    minutes = float(m.group(2) or 0)
+    seconds = float(m.group(3) or 0)
+    return hours * 3600 + minutes * 60 + seconds
+
+
+@app.get("/debug/3cx-agent-calls")
+async def debug_3cx_agent_calls(secret: str = "", days: int = 1):
+    if secret != os.environ.get("SYNC_SECRET", ""):
+        return {"status": "error", "message": "Unauthorized"}
+
+    period_to = datetime.utcnow()
+    period_from = period_to - timedelta(days=days)
+
+    def fmt(dt):
+        return dt.strftime("%Y-%m-%dT%H:%M:%S.000Z").replace(":", "%3A")
+
+    def build_url(skip: int, top: int = 500):
+        path = (
+            "/xapi/v1/ReportCallLogData/Pbx.GetCallLogData("
+            f"periodFrom={fmt(period_from)},"
+            f"periodTo={fmt(period_to)},"
+            "sourceType=0,sourceFilter='',"
+            "destinationType=0,destinationFilter='',"
+            "callsType=0,callTimeFilterType=0,"
+            "callTimeFilterFrom='0%3A00%3A0',callTimeFilterTo='0%3A00%3A0',"
+            "hidePcalls=true)"
+            f"?%24top={top}&%24skip={skip}"
+        )
+        return f"https://{THREECX_FQDN}{path}"
+
+    all_rows = []
+    async with httpx.AsyncClient(timeout=25) as client:
+        token = await get_3cx_token(client)
+        headers = {"Authorization": f"Bearer {token}"}
+        skip = 0
+        page_size = 500
+        try:
+            for _ in range(30):
+                resp = await client.get(build_url(skip, page_size), headers=headers)
+                data = resp.json()
+                rows = data.get("value", [])
+                if not rows:
+                    break
+                all_rows.extend(rows)
+                skip += page_size
+        except Exception as e:
+            return {"error": str(e), "rows_fetched": len(all_rows)}
+
+    groups = {}
+    for row in all_rows:
+        groups.setdefault(row.get("MainCallHistoryId"), []).append(row)
+
+    per_agent_day = {}  # (day, ext) -> stats
+
+    for rows in groups.values():
+        for row in rows:
+            if row.get("CallType") != "Queue":
+                continue
+            reason = row.get("Reason", "") or ""
+            m = _HANDOFF_RE.search(reason)
+            if not m:
+                continue
+            agent_ext = m.group(1)
+            agent_row = next(
+                (r for r in rows if r.get("DestinationDn") == agent_ext and r.get("CallType") != "Queue"),
+                None
+            )
+            if not agent_row:
+                continue
+
+            talk = parse_iso_duration_seconds(agent_row.get("TalkingDuration", ""))
+            start = agent_row.get("StartTime", "")
+            day = start[:10] if start else "unknown"
+            key = (day, agent_ext)
+            if key not in per_agent_day:
+                per_agent_day[key] = {
+                    "name": agent_row.get("DestinationDisplayName", agent_ext),
+                    "calls": 0,
+                    "talkSeconds": 0.0,
+                }
+            per_agent_day[key]["calls"] += 1
+            per_agent_day[key]["talkSeconds"] += talk
+
+    report = []
+    for (day, ext), stats in sorted(per_agent_day.items()):
+        calls = stats["calls"]
+        talk = stats["talkSeconds"]
+        report.append({
+            "date": day,
+            "agentExt": ext,
+            "agentName": stats["name"],
+            "callsAnswered": calls,
+            "totalTalkSeconds": round(talk, 1),
+            "ahtSeconds": round(talk / calls, 1) if calls else 0,
+        })
+
+    return {"rows_scanned": len(all_rows), "groups_scanned": len(groups), "report": report}
 
 
 # ------------------------------------------------------------
