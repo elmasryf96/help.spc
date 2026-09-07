@@ -222,6 +222,52 @@ function isAdmin() {
   return localStorage.getItem("userRole") === "admin";
 }
 
+// ============================================================
+// 🚨 FORCE LOGOUT (ADMIN BROADCAST) - كل تاب مفتوح بيتابع لو الأدمن دوس زرار
+// "تسجيل خروج للجميع" بعد ما يعمل تعديل على الموقع، عشان الكل ياخد آخر نسخة
+// ============================================================
+const FORCE_LOGOUT_CHECK_SECONDS = 15;
+const FORCE_LOGOUT_SEEN_KEY = "forceLogoutSeenAt";
+
+async function checkForceLogoutSignal() {
+  try {
+    const res = await fetch(`${GOOGLE_SHEET_API_URL}?action=checkForceLogout&t=${Date.now()}`);
+    const data = await res.json();
+    if (!data || data.status !== "success") return;
+
+    const serverTimestamp = String(data.forceLogoutAt || "0");
+    const seenTimestamp = localStorage.getItem(FORCE_LOGOUT_SEEN_KEY);
+
+    // أول مرة الميزة دي تشتغل عند اليوزر ده على الجهاز ده، بنسجل بس القيمة
+    // الحالية من غير أي Logout، عشان منعملش فورس لوجاوت لناس فاتحة الموقع أول مرة
+    if (seenTimestamp === null) {
+      localStorage.setItem(FORCE_LOGOUT_SEEN_KEY, serverTimestamp);
+      return;
+    }
+
+    if (Number(serverTimestamp) > Number(seenTimestamp)) {
+      localStorage.setItem(FORCE_LOGOUT_SEEN_KEY, serverTimestamp);
+      localStorage.removeItem("loggedInUser");
+      localStorage.removeItem("userPassword");
+      localStorage.removeItem("userRole");
+      localStorage.removeItem("userFullName");
+      localStorage.removeItem("userEmail");
+      location.reload();
+    }
+  } catch (e) {
+    console.error("Force logout check failed:", e);
+  }
+}
+
+// بيبعت إشارة "تسجيل خروج للجميع" - أي تاب مفتوح (بما فيه تاب الأدمن نفسه) هيتعمله Logout + Reload خلال 15 ثانية
+function triggerForceLogoutForEveryone() {
+  return fetch(GOOGLE_SHEET_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action: "triggerForceLogout" })
+  }).then(res => res.json());
+}
+
 function updateUIForRole() {
   const adminMiniBtn = document.getElementById("adminMiniBtn");
   if (adminMiniBtn) adminMiniBtn.style.display = isAdmin() ? "inline-flex" : "none";
@@ -233,4 +279,3 @@ function updateUIForRole() {
   if (ccPulseMenuCard) ccPulseMenuCard.style.display = isAdmin() ? "flex" : "none";
   updateUserProfileUI();
 }
-
