@@ -934,6 +934,7 @@ def classify_outbound_row(row: dict):
     date_part = start[:10] if start else ""
     time_part = start[11:19] if len(start) >= 19 else ""
     talk_seconds = round(parse_iso_duration_seconds(row.get("TalkingDuration", "")), 1)
+    ring_seconds = round(parse_iso_duration_seconds(row.get("RingingDuration", "")), 1)
 
     return {
         "mainId": row.get("MainCallHistoryId"),
@@ -944,7 +945,7 @@ def classify_outbound_row(row: dict):
         "direction": "Outbound",
         "result": "Answered" if row.get("Answered", False) else "Unanswered",
         "agent": f"{agent_name} ({ext})",
-        "waitSeconds": 0,
+        "waitSeconds": ring_seconds,
         "talkSeconds": talk_seconds,
         "reason": row.get("Reason", "") or "",
     }
