@@ -400,7 +400,7 @@ async def debug_3cx_calls(secret: str = ""):
 # ------------------------------------------------------------
 
 @app.get("/debug/3cx-call-log")
-async def debug_3cx_call_log(secret: str = "", days: int = 7):
+async def debug_3cx_call_log(secret: str = "", days: int = 7, mode: str = "missed"):
     if secret != os.environ.get("SYNC_SECRET", ""):
         return {"status": "error", "message": "Unauthorized"}
 
@@ -410,30 +410,73 @@ async def debug_3cx_call_log(secret: str = "", days: int = 7):
     def fmt(dt):
         return dt.strftime("%Y-%m-%dT%H:%M:%S.000Z").replace(":", "%3A")
 
-    path = (
-        "/xapi/v1/ReportCallLogData/Pbx.GetCallLogData("
-        f"periodFrom={fmt(period_from)},"
-        f"periodTo={fmt(period_to)},"
-        "sourceType=0,sourceFilter='',"
-        "destinationType=0,destinationFilter='',"
-        "callsType=0,callTimeFilterType=0,"
-        "callTimeFilterFrom='0%3A00%3A0',callTimeFilterTo='0%3A00%3A0',"
-        "hidePcalls=true)"
-        "?%24top=200&%24skip=0"
-    )
-    url = f"https://{THREECX_FQDN}{path}"
+    def build_url(skip: int, top: int = 500):
+        path = (
+            "/xapi/v1/ReportCallLogData/Pbx.GetCallLogData("
+            f"periodFrom={fmt(period_from)},"
+            f"periodTo={fmt(period_to)},"
+            "sourceType=0,sourceFilter='',"
+            "destinationType=0,destinationFilter='',"
+            "callsType=0,callTimeFilterType=0,"
+            "callTimeFilterFrom='0%3A00%3A0',callTimeFilterTo='0%3A00%3A0',"
+            "hidePcalls=true)"
+            f"?%24top={top}&%24skip={skip}"
+        )
+        return f"https://{THREECX_FQDN}{path}"
 
     async with httpx.AsyncClient(timeout=20) as client:
         token = await get_3cx_token(client)
-        try:
-            resp = await client.get(url, headers={"Authorization": f"Bearer {token}"})
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # mode=raw: نفس السلوك القديم، بيرجع أول صفحة زي ما هي من غير فلترة
+        if mode == "raw":
             try:
-                body = resp.json()
-            except Exception:
-                body = {"raw_snippet": resp.text[:800]}
-            return {"status_code": resp.status_code, "url": url, "body": body}
+                resp = await client.get(build_url(0), headers=headers)
+                try:
+                    body = resp.json()
+                except Exception:
+                    body = {"raw_snippet": resp.text[:800]}
+                return {"status_code": resp.status_code, "body": body}
+            except Exception as e:
+                return {"error": str(e)}
+
+        # mode=missed (افتراضي): بندور صفحة صفحة على مكالمات كيو ملهاش "was replaced by"
+        # في الـ Reason بتاعها (يعني معرفتش توصل لإيجنت) أو Answered=false
+        queue_rows_seen = 0
+        matches = []
+        skip = 0
+        page_size = 500
+        max_pages = 20  # حد أقصى أماني، يعني لغاية 10,000 صف
+
+        try:
+            for _ in range(max_pages):
+                resp = await client.get(build_url(skip, page_size), headers=headers)
+                data = resp.json()
+                rows = data.get("value", [])
+                if not rows:
+                    break
+
+                for row in rows:
+                    if row.get("CallType") != "Queue":
+                        continue
+                    queue_rows_seen += 1
+                    reason = row.get("Reason", "") or ""
+                    if not row.get("Answered", False) or "was replaced by" not in reason:
+                        matches.append(row)
+                        if len(matches) >= 8:
+                            break
+
+                if len(matches) >= 8:
+                    break
+                skip += page_size
+
+            return {
+                "queue_rows_scanned": queue_rows_seen,
+                "matches_found": len(matches),
+                "examples": matches,
+            }
         except Exception as e:
-            return {"error": str(e), "url": url}
+            return {"error": str(e), "queue_rows_scanned": queue_rows_seen}
 
 
 # ------------------------------------------------------------
