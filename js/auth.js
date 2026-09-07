@@ -65,35 +65,36 @@ function handleLogin(event) {
   if (event) {
     if (typeof event.preventDefault === 'function') event.preventDefault();
   }
-  
+
   const user = document.getElementById("username").value.trim();
   const pass = document.getElementById("password").value.trim();
   const errorMsg = document.getElementById("login-error");
+  const submitBtn = document.querySelector("#login-page .btn-login");
 
-  let userObj = dynamicUsers[user];
+  if (errorMsg) errorMsg.style.display = "none";
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.innerText = "Checking..."; }
 
-  if (!userObj) {
-    const fallbackUsers = {
-      "0": { password: "0", role: "admin", fullName: "Admin2", email: "Admin@Test.com" },
-      "SPC": { password: "SPC@2026", role: "user", fullName: "SPC Team", email: "SPCteam@test.com" }
-    };
-    userObj = fallbackUsers[user];
-  }
+  // بنجيب أحدث نسخة من شيت اليوزرز في اللحظة دي بالظبط (مش نسخة قديمة اتحملت
+  // وقت ما الصفحة اتفتحت)، عشان أي إضافة/حذف/تعديل ليوزر في الشيت يشتغل فورًا
+  fetchAllDataFromGoogleSheet().finally(() => {
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = "Sign In"; }
 
-  if (userObj && String(userObj.password) === String(pass)) {
-    if (errorMsg) errorMsg.style.display = "none";
-    localStorage.setItem("loggedInUser", user);
-    localStorage.setItem("userPassword", pass);
-    localStorage.setItem("userRole", userObj.role || "user");
-    localStorage.setItem("userFullName", userObj.fullName || user);
-    localStorage.setItem("userEmail", userObj.email || "");
+    const userObj = dynamicUsers[user];
 
-    updateUserProfileUI();
-    resetInactivityTimer(); // تشغيل مؤقت الخمول عند تسجيل الدخول الناجح
-    navigateTo('home-page');
-  } else {
-    if (errorMsg) errorMsg.style.display = "block";
-  }
+    if (userObj && String(userObj.password) === String(pass)) {
+      localStorage.setItem("loggedInUser", user);
+      localStorage.setItem("userPassword", pass);
+      localStorage.setItem("userRole", userObj.role || "user");
+      localStorage.setItem("userFullName", userObj.fullName || user);
+      localStorage.setItem("userEmail", userObj.email || "");
+
+      updateUserProfileUI();
+      resetInactivityTimer(); // تشغيل مؤقت الخمول عند تسجيل الدخول الناجح
+      navigateTo('home-page');
+    } else {
+      if (errorMsg) errorMsg.style.display = "block";
+    }
+  });
 
   return false;
 }
