@@ -2115,3 +2115,28 @@ input:checked + .slider:before { transform: translateX(20px); }
     color: #b91c1c;
     border: 1.5px solid #fca5a5;
 }
+
+/* ============================================================
+   📊 CC PULSE - QUEUE OVERVIEW (Abandonment Rate & ASA)
+   ============================================================ */
+.ccp-queue-summary-card {
+    background: #ffffff;
+    border: 2px solid var(--primary-yellow);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+}
+.ccp-queue-summary-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--dark-navy);
+    margin-bottom: 10px;
+    border-bottom: 1.5px solid var(--primary-yellow);
+    padding-bottom: 6px;
+}
+.ccp-queue-summary-header i {
+    color: #d97706;
+}
