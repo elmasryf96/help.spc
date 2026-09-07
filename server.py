@@ -343,6 +343,7 @@ async def get_3cx_agent_status():
             "currentCall": calls_by_ext.get(number),
             "todaysTotalSeconds": daily.get("totalSeconds", 0),
             "todaysBreakSeconds": daily.get("breakSeconds", 0),
+            "todaysCallsAnswered": daily.get("callsAnswered", 0),
         })
     return result
 
@@ -775,7 +776,25 @@ async def refresh_daily_totals_cache(client: httpx.AsyncClient):
             per_agent[agent["name"]] = {
                 "totalSeconds": agent.get("totalLoginSeconds", 0),
                 "breakSeconds": totals.get("Break", 0),
+                "callsAnswered": 0,
             }
+
+        try:
+            calls_resp = await client.get(
+                sheet_url,
+                params={"action": "callLogReport", "mode": "day", "date": today_str},
+                timeout=30,
+            )
+            calls_data = calls_resp.json()
+            if calls_data.get("status") == "success":
+                for agent in calls_data.get("agents", []):
+                    name = agent.get("agent")
+                    if name in per_agent:
+                        per_agent[name]["callsAnswered"] = agent.get("callsAnswered", 0)
+                    else:
+                        per_agent[name] = {"totalSeconds": 0, "breakSeconds": 0, "callsAnswered": agent.get("callsAnswered", 0)}
+        except Exception as e:
+            print(f"❌ فشل تحديث عدد المكالمات في كاش اليوم: {e}")
 
         _daily_totals_cache["date"] = today_str
         _daily_totals_cache["perAgent"] = per_agent
