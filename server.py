@@ -1,5 +1,4 @@
 import os
-import re
 import asyncio
 import subprocess
 import httpx
@@ -395,6 +394,49 @@ async def debug_3cx_calls(secret: str = ""):
 
 
 # ------------------------------------------------------------
+# 🔍 تشخيص مؤقت: نفس تقرير سجل المكالمات اللي شفناه في الـ Network tab بالمتصفح،
+# بس بفترة أوسع (آخر N يوم) عشان نتأكد إن التوكن بتاعنا شغال معاه ونشوف شكل سجل حقيقي
+# استخدام: /debug/3cx-call-log?secret=...&days=7
+# ------------------------------------------------------------
+
+@app.get("/debug/3cx-call-log")
+async def debug_3cx_call_log(secret: str = "", days: int = 7):
+    if secret != os.environ.get("SYNC_SECRET", ""):
+        return {"status": "error", "message": "Unauthorized"}
+
+    period_to = datetime.utcnow()
+    period_from = period_to - timedelta(days=days)
+
+    def fmt(dt):
+        return dt.strftime("%Y-%m-%dT%H:%M:%S.000Z").replace(":", "%3A")
+
+    path = (
+        "/xapi/v1/ReportCallLogData/Pbx.GetCallLogData("
+        f"periodFrom={fmt(period_from)},"
+        f"periodTo={fmt(period_to)},"
+        "sourceType=0,sourceFilter='',"
+        "destinationType=0,destinationFilter='',"
+        "callsType=0,callTimeFilterType=0,"
+        "callTimeFilterFrom='0%3A00%3A0',callTimeFilterTo='0%3A00%3A0',"
+        "hidePcalls=true)"
+        "?%24top=200&%24skip=0"
+    )
+    url = f"https://{THREECX_FQDN}{path}"
+
+    async with httpx.AsyncClient(timeout=20) as client:
+        token = await get_3cx_token(client)
+        try:
+            resp = await client.get(url, headers={"Authorization": f"Bearer {token}"})
+            try:
+                body = resp.json()
+            except Exception:
+                body = {"raw_snippet": resp.text[:800]}
+            return {"status_code": resp.status_code, "url": url, "body": body}
+        except Exception as e:
+            return {"error": str(e), "url": url}
+
+
+# ------------------------------------------------------------
 # 🔴 مراقبة لحظية للتغييرات + تسجيلها فوراً في الشيت
 # ------------------------------------------------------------
 
@@ -512,248 +554,3 @@ async def daily_totals_watcher():
 @app.on_event("startup")
 async def start_daily_totals_watcher():
     asyncio.create_task(daily_totals_watcher())
-
-
-# ============================================================
-# 🔄 CONTRACT SYNC — نسخة سريعة بطلبات متوازية (Concurrent)
-# محتاج تضيف الـ Environment Variables دي في Render:
-#   SC_USERNAME          -> يوزرنيم بورتال الفوترة
-#   SC_PASSWORD          -> باسورد بورتال الفوترة
-#   GOOGLE_SHEET_API_URL  -> نفس رابط الـ Apps Script Web App اللي في script.js
-#   SYNC_SECRET          -> أي كلمة سر تختارها إنت، لحماية الرابط من أي حد يشغله غيرك
-# ============================================================
-
-BILLING_BASE_URL = "https://billing.smartcollection.co"
-SYNC_PAGE_SIZE = 200
-SYNC_CONCURRENCY = 8  # وسط بين السرعة واستهلاك الذاكرة (الرام لسه 512MB حتى بعد الترقية)
-
-
-async def sync_login(client: httpx.AsyncClient):
-    payload = {
-        "ReturnUrl": "",
-        "ClientTimeDiff": "4",
-        "Username": os.environ["SC_USERNAME"],
-        "Password": os.environ["SC_PASSWORD"],
-        "RememberMe": "false"
-    }
-    resp = await client.post(f"{BILLING_BASE_URL}/Account/Login/Login", data=payload)
-    if resp.status_code >= 400 and not resp.cookies:
-        raise Exception(f"فشل تسجيل الدخول: {resp.status_code}")
-
-
-def decode_entities(s: str) -> str:
-    return s.replace("&#x2B;", "+").replace("&amp;", "&").strip()
-
-
-def parse_customer_blocks(html: str):
-    blocks = html.split('<div class="kt-portlet">')
-    results = []
-    for block in blocks[1:]:
-        name_match = re.search(r'kt-widget__username">\s*([^<]+?)\s*<span>\s*-\s*([^<]+?)</span>', block)
-        if not name_match:
-            continue
-        id_match = re.search(r'Customers/Manage/(\d+)', block)
-        email_match = re.search(r'data-email="([^"]*)"', block)
-        phone_match = re.search(r'data-phone="([^"]*)"', block)
-        tower_match = re.search(r'<b>Property:</b></label>&nbsp;\s*<label>([^<]*)</label>', block)
-        unit_match = re.search(r'<b>Property Unit No:</b></label>&nbsp;\s*<label>([^<]*)</label>', block)
-        out_match = re.search(r'kt-widget__title">Outstanding</span>\s*<span class="kt-widget__value">([^<]*)</span>', block)
-
-        results.append({
-            "tower": tower_match.group(1).strip() if tower_match else "",
-            "contractNo": name_match.group(2).strip(),
-            "unitNo": unit_match.group(1).strip() if unit_match else "",
-            "name": name_match.group(1).strip(),
-            "email": decode_entities(email_match.group(1)) if email_match else "",
-            "phone": decode_entities(phone_match.group(1)) if phone_match else "",
-            "outstanding": out_match.group(1).strip() if out_match else "",
-            "customerId": id_match.group(1) if id_match else ""
-        })
-    return results
-
-
-async def fetch_list_page(client: httpx.AsyncClient, page: int) -> str:
-    url = f"{BILLING_BASE_URL}/AdminPortal/Customers/GetList"
-    params = {
-        "pageid": page, "pagesize": SYNC_PAGE_SIZE,
-        "PropertyId": "", "ContractID": "", "PropertyUnitId": "",
-        "CustomerName": "", "Email": "", "Status": "All", "ShowActive": "true"
-    }
-    resp = await client.get(url, params=params, headers={"X-Requested-With": "XMLHttpRequest"})
-    return resp.text
-
-
-def total_pages_from_html(html: str):
-    m = re.search(r'Total\s+(\d+)\s+results', html)
-    if not m:
-        return None
-    return -(-int(m.group(1)) // SYNC_PAGE_SIZE)  # قسمة لأعلى
-
-
-async def fetch_tower_unit_fallback(client: httpx.AsyncClient, customer_id: str, contract_no: str):
-    try:
-        manage_url = f"{BILLING_BASE_URL}/AdminPortal/Customers/Manage/{customer_id}"
-        manage_html = (await client.get(manage_url)).text
-
-        id_match = re.search(
-            r"GetContract\('(\d+)'\)[\s\S]{0,150}?" + re.escape(contract_no),
-            manage_html
-        )
-        if not id_match:
-            return None
-        internal_id = id_match.group(1)
-
-        resp = await client.post(
-            f"{BILLING_BASE_URL}/AdminPortal/Customers/GetContractAsync",
-            data={"id": internal_id}
-        )
-        data = resp.json()
-        contract = data.get("contract")
-        if not contract:
-            return None
-
-        units = contract.get("contractUnits") or []
-        if not units:
-            return None
-        unit = units[0].get("propertyUnit") or {}
-        tower = (unit.get("property") or {}).get("name", "")
-        unit_no = unit.get("unitNo", "")
-        return {"tower": tower, "unitNo": unit_no}
-    except Exception:
-        return None
-
-
-async def fetch_payment_link(client: httpx.AsyncClient, contract_no: str) -> str:
-    try:
-        url = f"{BILLING_BASE_URL}/AdminPortal/Customers/GetInvoiceList"
-        params = {
-            "pageid": 1, "pagesize": 1, "PropertyId": "", "ContractNo": contract_no,
-            "PropertyUnitId": 0, "Status": 0, "InvoiceStatus": 0, "SortedBy": 0
-        }
-        resp = await client.get(url, params=params, headers={"X-Requested-With": "XMLHttpRequest"})
-        html = resp.text
-
-        status_match = re.search(r'text-center">\s*(?:<span[^>]*>)?\s*(Not Paid|Partially Paid|Paid)', html, re.I)
-        if status_match and status_match.group(1).strip().lower() == "paid":
-            return ""
-
-        link_match = re.search(r'Billing/DirectPayment/Index/([^"\']+)', html)
-        if not link_match:
-            return ""
-        return f"{BILLING_BASE_URL}/Billing/DirectPayment/Index/{link_match.group(1)}"
-    except Exception:
-        return ""
-
-
-def is_outstanding_nonzero(text: str) -> bool:
-    cleaned = re.sub(r'[^\d.\-]', '', text or "")
-    try:
-        return float(cleaned) != 0
-    except ValueError:
-        return False
-
-
-async def process_contract(client: httpx.AsyncClient, semaphore: asyncio.Semaphore, r: dict):
-    async with semaphore:
-        if (not r["tower"] or not r["unitNo"]) and r["customerId"]:
-            fallback = await fetch_tower_unit_fallback(client, r["customerId"], r["contractNo"])
-            if fallback:
-                if not r["tower"] and fallback["tower"]:
-                    r["tower"] = fallback["tower"]
-                if not r["unitNo"] and fallback["unitNo"]:
-                    r["unitNo"] = fallback["unitNo"]
-
-        payment_link = ""
-        if is_outstanding_nonzero(r["outstanding"]):
-            payment_link = await fetch_payment_link(client, r["contractNo"])
-
-        return {
-            "tower": r["tower"], "contractNo": r["contractNo"], "unitNo": r["unitNo"],
-            "name": r["name"], "email": r["email"], "phone": r["phone"],
-            "outstanding": r["outstanding"], "paymentLink": payment_link
-        }
-
-
-async def push_batch_to_sheet(client: httpx.AsyncClient, rows: list):
-    sheet_url = os.environ["GOOGLE_SHEET_API_URL"]
-    payload = {"action": "bulkUpsertContracts", "rows": rows}
-    await client.post(sheet_url, json=payload, timeout=120)
-
-
-sync_status = {"running": False, "totalPages": 0, "pagesDone": 0, "message": "لسه ما بدأش"}
-
-
-async def run_sync_job():
-    sync_status["running"] = True
-    sync_status["message"] = "بدأ تسجيل الدخول..."
-    sync_status["pagesDone"] = 0
-
-    try:
-        async with httpx.AsyncClient(
-        timeout=30,
-        follow_redirects=False,
-        limits=httpx.Limits(max_connections=15, max_keepalive_connections=5)
-    ) as client:
-            await sync_login(client)
-
-            first_page_html = await fetch_list_page(client, 1)
-            total_pages = total_pages_from_html(first_page_html) or 1
-            sync_status["totalPages"] = total_pages
-            sync_status["message"] = f"شغال... 0 / {total_pages} صفحة"
-
-            semaphore = asyncio.Semaphore(SYNC_CONCURRENCY)
-            page_batch_size = 1  # صفحة واحدة في المرة، عشان نتحكم في الذاكرة (الرام لسه 512MB)
-            all_page_numbers = list(range(1, total_pages + 1))
-
-            for batch_start in range(0, len(all_page_numbers), page_batch_size):
-                batch_pages = all_page_numbers[batch_start:batch_start + page_batch_size]
-
-                page_htmls = await asyncio.gather(*[
-                    fetch_list_page(client, p) if p != 1 else asyncio.sleep(0, result=first_page_html)
-                    for p in batch_pages
-                ])
-
-                all_rows = []
-                for html in page_htmls:
-                    parsed = await asyncio.to_thread(parse_customer_blocks, html)
-                    all_rows.extend(parsed)
-                    del html
-
-                processed = await asyncio.gather(*[
-                    process_contract(client, semaphore, r) for r in all_rows
-                ])
-
-                await push_batch_to_sheet(client, processed)
-                del all_rows, processed, page_htmls  # تنضيف الذاكرة بين كل صفحة والتانية
-
-                sync_status["pagesDone"] = min(batch_start + page_batch_size, total_pages)
-                sync_status["message"] = f"شغال... {sync_status['pagesDone']} / {total_pages} صفحة"
-
-                await asyncio.sleep(0)  # نديله فرصة يستجيب لأي طلب تاني جاي (زي فحوصات Render الصحية)
-
-        sync_status["message"] = f"✅ خلص! تمت معالجة {sync_status['totalPages']} صفحة بالكامل."
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        sync_status["message"] = f"❌ حصل خطأ: {str(e)}"
-    finally:
-        sync_status["running"] = False
-
-
-@app.get("/sync-contracts")
-async def sync_contracts(secret: str = ""):
-    if secret != os.environ.get("SYNC_SECRET", ""):
-        return {"status": "error", "message": "Unauthorized"}
-
-    if sync_status["running"]:
-        return {"status": "already_running", "detail": sync_status}
-
-    asyncio.create_task(run_sync_job())
-    return {"status": "started", "message": "السينك بدأ يشتغل في الخلفية. استخدم /sync-status عشان تتابع."}
-
-
-@app.get("/sync-status")
-async def get_sync_status(secret: str = ""):
-    if secret != os.environ.get("SYNC_SECRET", ""):
-        return {"status": "error", "message": "Unauthorized"}
-    return sync_status
