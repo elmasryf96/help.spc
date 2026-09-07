@@ -583,9 +583,34 @@ async def debug_3cx_agent_calls(secret: str = "", days: int = 1):
             per_agent_day[key]["talkSeconds"] += talk
 
     report = []
+    distinct_days = sorted(set(day for day, _ in per_agent_day.keys()))
+
+    login_totals_by_day = {}
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as sheet_client:
+        sheet_url = os.environ["GOOGLE_SHEET_API_URL"]
+        for day in distinct_days:
+            try:
+                resp = await sheet_client.get(
+                    sheet_url,
+                    params={"action": "allAgentsLoginTotals", "mode": "day", "date": day},
+                )
+                data = resp.json()
+                if data.get("status") == "success":
+                    login_totals_by_day[day] = {
+                        a["name"]: a.get("totalLoginSeconds", 0) for a in data.get("agents", [])
+                    }
+                else:
+                    login_totals_by_day[day] = {}
+            except Exception:
+                login_totals_by_day[day] = {}
+
     for (day, ext), stats in sorted(per_agent_day.items()):
         calls = stats["calls"]
         talk = stats["talkSeconds"]
+        plain_name = AGENT_MAP.get(ext, stats["name"])
+        login_seconds = login_totals_by_day.get(day, {}).get(plain_name)
+        occupancy_pct = round((talk / login_seconds) * 100, 1) if login_seconds else None
+
         report.append({
             "date": day,
             "agentExt": ext,
@@ -593,6 +618,8 @@ async def debug_3cx_agent_calls(secret: str = "", days: int = 1):
             "callsAnswered": calls,
             "totalTalkSeconds": round(talk, 1),
             "ahtSeconds": round(talk / calls, 1) if calls else 0,
+            "loginSeconds": login_seconds,
+            "occupancyPct": occupancy_pct,
         })
 
     return {"rows_scanned": len(all_rows), "groups_scanned": len(groups), "report": report}
