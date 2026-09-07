@@ -13,7 +13,12 @@ let ccPulseAgentsCache = [];
 let ccPulseAgentsCacheFetchedAtMs = 0; // وقت آخر تحديث لبيانات الحالة الحية - يستخدمه ويدجت الصفحة الرئيسية كمان
 
 // ألوان الحالات المستخدمة في كل تايم لاين - مختارة عشان تبان واضحة فوق بار غامق
-const CCP_STATUS_ICONS = { "Available": "fa-headset", "Break": "fa-mug-hot", "Emails": "fa-envelope", "Custom 1": "fa-users", "Custom 2": "fa-star" };
+const CCP_STATUS_ICONS = { "Available": "fa-headset", "Break": "fa-mug-hot", "Emails": "fa-envelope", "Custom 1": "fa-users", "Custom 2": "fa-star", "Out of the Office": "fa-phone-volume" };
+// بعض الحالات اسمها الحقيقي في 3CX مش واضح لليوزر - بنستبدله باسم أوضح وقت العرض بس (البيانات والحسابات لسه شغالة بالاسم الأصلي)
+const CCP_STATUS_DISPLAY_NAMES = { "Out of the Office": "Call Outs" };
+function ccpDisplayStatusName(status) {
+  return CCP_STATUS_DISPLAY_NAMES[status] || status;
+}
 // أخضر = شغال (أي حالة غير Break)، أصفر = Break - مفيش فرق بين الفرق (Calls/Emails/Outbound) في اللون
 function ccpStatusColor(status) {
   return status === "Break" ? "#d97706" : "#107c41";
@@ -154,7 +159,7 @@ function ccPulseBuildAgentCardHtml(a, nowSec) {
   return `
     <div class="ccp-agent-card">
       <div class="ccp-agent-name">${a.name}</div>
-      <div class="ccp-status-badge ${statusClass}">${a.status}</div>
+      <div class="ccp-status-badge ${statusClass}">${ccpDisplayStatusName(a.status)}</div>
       ${shiftHtml}
       ${todayHtml}
       ${breakHtml}
@@ -412,7 +417,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
   const cardsHtml = data.agents.map(a => {
     const totalsHtml = Object.keys(a.totals || {}).map(st => `
       <div class="ccp-metric-card">
-        <div class="ccp-metric-label">${st}</div>
+        <div class="ccp-metric-label">${ccpDisplayStatusName(st)}</div>
         <div class="ccp-metric-value" data-agent-status="${a.name}::${st}">${formatCcPulseDuration(a.totals[st])}</div>
       </div>`).join("");
 
@@ -739,7 +744,7 @@ function buildCcPulseExportRows(agentsList, trackingStartDate) {
   });
   const statusColumns = Array.from(statusSet);
 
-  const headers = ["Date", "Agent", "Ext", "Scheduled Shift", "First Login", "End Shift", "Tardy", "Tardy Minutes", "Total Login Time", "Breaks"].concat(statusColumns);
+  const headers = ["Date", "Agent", "Ext", "Scheduled Shift", "First Login", "End Shift", "Tardy", "Tardy Minutes", "Total Login Time", "Breaks"].concat(statusColumns.map(st => ccpDisplayStatusName(st)));
   const rows = [headers];
 
   agentsList.forEach(agent => {
@@ -849,7 +854,7 @@ function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null, e
     const color = ccpStatusColor(s.status);
     const icon = CCP_STATUS_ICONS[s.status] || "fa-circle";
     const iconColor = "#ffffff";
-    const tooltipText = `${s.status}: ${ccPulseTimeOnly(s.start)} \u2192 ${ccPulseTimeOnly(s.end)} (${formatCcPulseDuration(s.durationSeconds)})`;
+    const tooltipText = `${ccpDisplayStatusName(s.status)}: ${ccPulseTimeOnly(s.start)} \u2192 ${ccPulseTimeOnly(s.end)} (${formatCcPulseDuration(s.durationSeconds)})`;
     return `<div class="ccp-tl-segment" style="left:${left}%;width:${width}%;background:${color};color:${iconColor};" data-tooltip="${tooltipText}"><i class="fa-solid ${icon}"></i></div>`;
   }).join("");
 
@@ -953,7 +958,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
 
   const totalsHtml = Object.keys(data.totals || {}).map(st => `
     <div class="ccp-metric-card">
-      <div class="ccp-metric-label">${st}</div>
+      <div class="ccp-metric-label">${ccpDisplayStatusName(st)}</div>
       <div class="ccp-metric-value" data-status-metric="${st}">${formatCcPulseDuration(data.totals[st])}</div>
     </div>`).join("");
 
@@ -1030,7 +1035,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
         ${day.sessions.map(s => `
           <div class="ccp-session-row">
             <span class="ccp-dot" style="background:${ccpStatusColor(s.status)}"></span>
-            <span class="ccp-session-status">${s.status}</span>
+            <span class="ccp-session-status">${ccpDisplayStatusName(s.status)}</span>
             <span class="ccp-session-time">${ccPulseTimeOnly(s.start)} → ${ccPulseTimeOnly(s.end)}</span>
             <span class="ccp-session-dur">${formatCcPulseDuration(s.durationSeconds)}</span>
           </div>`).join("")}
