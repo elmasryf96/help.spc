@@ -11,6 +11,20 @@ let ccPulseTickTimer = null;
 let ccPulseReportPollTimer = null;
 let ccPulseAgentsCache = [];
 let ccPulseAgentsCacheFetchedAtMs = 0; // وقت آخر تحديث لبيانات الحالة الحية - يستخدمه ويدجت الصفحة الرئيسية كمان
+
+// ألوان الحالات المستخدمة في كل تايم لاين - مختارة عشان تبان واضحة فوق بار غامق
+const CCP_STATUS_ICONS = { "Available": "fa-headset", "Break": "fa-mug-hot", "Emails": "fa-envelope", "Custom 1": "fa-users", "Custom 2": "fa-star" };
+// أخضر = شغال (أي حالة غير Break)، أصفر = Break - مفيش فرق بين الفرق (Calls/Emails/Outbound) في اللون
+function ccpStatusColor(status) {
+  return status === "Break" ? "#d97706" : "#107c41";
+}
+const CCP_STATUS_COLORS = {
+  "Available": ccpStatusColor("Available"),
+  "Break": ccpStatusColor("Break"),
+  "Emails": ccpStatusColor("Emails"),
+  "Custom 1": ccpStatusColor("Custom 1"),
+  "Custom 2": ccpStatusColor("Custom 2")
+};
 let ccPulseMode = "day";
 let ccPulseReportLiveBase = null; // بيتخزن فيه أرقام آخر تقرير عشان نعد عليها بالثانية زي العداد اللي فوق
 let ccPulseLastExportAgentsList = null; // بيتخزن فيه آخر بيانات تقرير اتحمّلت عشان زرار الـ Export يقدر يستخدمها
@@ -388,7 +402,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
     return;
   }
 
-  const statusColors = { "Available": "#107c41", "Break": "#d97706", "Emails": "#1a252f", "Custom 1": "#6d28d9", "Custom 2": "#0369a1" };
+  const statusColors = CCP_STATUS_COLORS;
 
   const callLogByAgent = {};
   if (callLogData && callLogData.status === "success" && Array.isArray(callLogData.agents)) {
@@ -832,9 +846,11 @@ function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null, e
     const endMin = ccPulseTimeToMinutes(s.end);
     const left = ((startMin - dayStart) / span) * 100;
     const width = Math.max(((endMin - startMin) / span) * 100, 0.3);
-    const color = statusColors[s.status] || "#888787";
+    const color = ccpStatusColor(s.status);
+    const icon = CCP_STATUS_ICONS[s.status] || "fa-circle";
+    const iconColor = "#ffffff";
     const tooltipText = `${s.status}: ${ccPulseTimeOnly(s.start)} \u2192 ${ccPulseTimeOnly(s.end)} (${formatCcPulseDuration(s.durationSeconds)})`;
-    return `<div class="ccp-tl-segment" style="left:${left}%;width:${width}%;background:${color};" data-tooltip="${tooltipText}"></div>`;
+    return `<div class="ccp-tl-segment" style="left:${left}%;width:${width}%;background:${color};color:${iconColor};" data-tooltip="${tooltipText}"><i class="fa-solid ${icon}"></i></div>`;
   }).join("");
 
   const outOfAdherenceSegments = computeOutOfAdherenceSegments(sessions, shiftWindow, effectiveEndMin);
@@ -844,6 +860,16 @@ function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null, e
     const tooltipText = `Out Of Adherence: ${ccPulseMinutesToTimeLabel(startMin)} \u2192 ${ccPulseMinutesToTimeLabel(endMin)} (${formatCcPulseDuration((endMin - startMin) * 60)})`;
     return `<div class="ccp-tl-segment ccp-tl-outofadherence" style="left:${left}%;width:${width}%;" data-tooltip="${tooltipText}"></div>`;
   }).join("");
+
+  // خط "دلوقتي" مع بادج الوقت - بيظهر بس لو التايم لاين ده بتاع النهاردة
+  // (effectiveEndMin بيرجع قيمة غير null بس لو التاريخ هو النهاردة)
+  let nowMarkerHtml = "";
+  if (effectiveEndMin != null && effectiveEndMin >= dayStart && effectiveEndMin <= dayEnd) {
+    const nowPos = ((effectiveEndMin - dayStart) / span) * 100;
+    nowMarkerHtml = `
+      <div class="ccp-tl-now-line" style="left:${nowPos}%;"></div>
+      <div class="ccp-tl-now-badge" style="left:${nowPos}%;"><i class="fa-regular fa-clock"></i> ${ccPulseMinutesToTimeLabel(effectiveEndMin)}</div>`;
+  }
 
   const hourCount = 6;
   let axisHtml = "";
@@ -864,7 +890,7 @@ function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null, e
   return `
     <div class="ccp-timeline-wrap">
       ${legendHtml}
-      <div class="ccp-timeline-bar">${shiftBandHtml}${segmentsHtml}${outOfAdherenceHtml}</div>
+      <div class="ccp-timeline-bar">${shiftBandHtml}${segmentsHtml}${outOfAdherenceHtml}${nowMarkerHtml}</div>
       <div class="ccp-timeline-axis">${axisHtml}</div>
       <div class="ccp-tl-tooltip" id="ccpTlTooltip"></div>
     </div>`;
@@ -901,7 +927,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
     return;
   }
 
-  const statusColors = { "Available": "#107c41", "Break": "#d97706", "Emails": "#1a252f", "Custom 1": "#6d28d9", "Custom 2": "#0369a1" };
+  const statusColors = CCP_STATUS_COLORS;
 
   const callStats = (callLogData && callLogData.status === "success") ? callLogData.data : null;
   const singleAgentDept = getAgentDeptToday(data.agent);
@@ -1000,7 +1026,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
       <div class="ccp-session-list">
         ${day.sessions.map(s => `
           <div class="ccp-session-row">
-            <span class="ccp-dot" style="background:${statusColors[s.status] || '#888'}"></span>
+            <span class="ccp-dot" style="background:${ccpStatusColor(s.status)}"></span>
             <span class="ccp-session-status">${s.status}</span>
             <span class="ccp-session-time">${ccPulseTimeOnly(s.start)} → ${ccPulseTimeOnly(s.end)}</span>
             <span class="ccp-session-dur">${formatCcPulseDuration(s.durationSeconds)}</span>
@@ -1084,7 +1110,7 @@ async function loadMyDayCard() {
     const day = data.days[0];
     const shiftWindow = getShiftWindowForAgentDate(agentName, todayStr);
     const effectiveEndMin = getEffectiveShiftEndMin(day.date);
-    const statusColors = { "Available": "#107c41", "Break": "#d97706", "Emails": "#1a252f", "Custom 1": "#6d28d9", "Custom 2": "#0369a1" };
+    const statusColors = CCP_STATUS_COLORS;
     const timelineHtml = renderCcPulseTimelineHtml(day.sessions || [], statusColors, shiftWindow, effectiveEndMin);
 
     const tardyResult = calculateTardyFromDays(agentName, data.days, data.trackingStartDate);
