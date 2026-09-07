@@ -152,8 +152,8 @@ function updateDashboardLiveWidget() {
 
   html += `<div class="hl-team-box" style="border-color:#ef4444;">
       <div class="hl-team-title">
-        <div class="hl-tt-left"><i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;"></i><span>Missing (Scheduled but Away)</span></div>
-        <span class="hl-team-badge" style="background:#fef2f2;color:#991b1b;">${missingAgents.length} Missing</span>
+        <div class="hl-tt-left"><i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;"></i><span>Out Of Adherence</span></div>
+        <span class="hl-team-badge" style="background:#fef2f2;color:#991b1b;">${missingAgents.length} Out</span>
       </div>
       <div class="hl-team-list">${missingHtml}</div>
     </div>`;
