@@ -1090,15 +1090,10 @@ async function loadMyDayCard() {
     const tardyResult = calculateTardyFromDays(agentName, data.days, data.trackingStartDate);
     const callStats = (callLogData && callLogData.status === "success") ? callLogData.data : null;
 
-    const shiftBadgeHtml = shiftWindow
-      ? `<span class="ccp-total-ext"><i class="fa-solid fa-calendar-day"></i> ${shiftWindow.label}</span>`
-      : "";
-
     container.innerHTML = `
       <div class="ccp-agent-report-card" style="margin-bottom: 16px; text-align: left;">
         <div class="ccp-agent-report-header">
           <span class="ccp-total-name">👋 My Day — ${agentName}</span>
-          ${shiftBadgeHtml}
         </div>
         ${timelineHtml}
         <div class="ccp-metrics-grid">
@@ -1106,15 +1101,15 @@ async function loadMyDayCard() {
             <div class="ccp-metric-label">Total login time</div>
             <div class="ccp-metric-value">${formatCcPulseDuration(day.totalLoginSeconds)}</div>
           </div>
-          <div class="ccp-metric-card">
+          <div class="ccp-metric-card ccp-metric-blue">
             <div class="ccp-metric-label">Calls Answered</div>
             <div class="ccp-metric-value">${callStats ? callStats.callsAnswered : 0}</div>
           </div>
-          <div class="ccp-metric-card">
+          <div class="ccp-metric-card ccp-metric-amber">
             <div class="ccp-metric-label">Tardy Minutes</div>
             <div class="ccp-metric-value">${formatCcPulseDuration(tardyResult.minutes * 60)}</div>
           </div>
-          <div class="ccp-metric-card">
+          <div class="ccp-metric-card ccp-metric-purple">
             <div class="ccp-metric-label">Outbound Calls</div>
             <div class="ccp-metric-value">${callStats ? callStats.outboundCallsCount : 0}</div>
           </div>
