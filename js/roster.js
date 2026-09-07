@@ -68,6 +68,13 @@ function updateDashboardLiveWidget() {
   const container = document.getElementById("homeActiveAgentsGrid");
   if (!container) return;
 
+  // بنحفظ مكان السكرول الحالي لكل صندوق قبل ما نعيد بناء الـ HTML كله من الصفر
+  // (الويدجت بيتبني تاني كل ثانية عشان العدادات تفضل تعد لايف)
+  const savedScrollPositions = {};
+  container.querySelectorAll(".hl-team-list[data-team]").forEach(el => {
+    savedScrollPositions[el.getAttribute("data-team")] = el.scrollTop;
+  });
+
   const uae = getUAECurrentDate();
   const monthNum = parseInt(uae.month, 10);
   const yearNum = parseInt(uae.year, 10);
@@ -139,7 +146,7 @@ function updateDashboardLiveWidget() {
       ? `<span class="hl-none-text"><i class="fa-solid fa-moon"></i> No active agents</span>`
       : agents.map(a => ccPulseBuildAgentCardHtml(a, nowSec)).join('');
 
-    html += `<div class="hl-team-box"><div class="hl-team-title"><div class="hl-tt-left"><i class="fa-solid ${teamName === 'Calls' ? 'fa-headset' : teamName === 'Call Outs' ? 'fa-phone-volume' : 'fa-envelope-open-text'}"></i><span>${teamName} Team</span></div><span class="hl-team-badge">${agents.length} Active</span></div><div class="hl-team-list">${agentsHtml}</div></div>`;
+    html += `<div class="hl-team-box"><div class="hl-team-title"><div class="hl-tt-left"><i class="fa-solid ${teamName === 'Calls' ? 'fa-headset' : teamName === 'Call Outs' ? 'fa-phone-volume' : 'fa-envelope-open-text'}"></i><span>${teamName} Team</span></div><span class="hl-team-badge">${agents.length} Active</span></div><div class="hl-team-list" data-team="${teamName}">${agentsHtml}</div></div>`;
   });
 
   const missingHtml = missingAgents.length === 0
@@ -155,10 +162,16 @@ function updateDashboardLiveWidget() {
         <div class="hl-tt-left"><i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;"></i><span>Out Of Adherence</span></div>
         <span class="hl-team-badge" style="background:#fef2f2;color:#991b1b;">${missingAgents.length} Out</span>
       </div>
-      <div class="hl-team-list">${missingHtml}</div>
+      <div class="hl-team-list" data-team="OutOfAdherence">${missingHtml}</div>
     </div>`;
 
   container.innerHTML = html;
+
+  // نرجّع كل صندوق لمكان السكرول القديم بتاعه بعد إعادة البناء
+  container.querySelectorAll(".hl-team-list[data-team]").forEach(el => {
+    const saved = savedScrollPositions[el.getAttribute("data-team")];
+    if (saved) el.scrollTop = saved;
+  });
 }
 
 // ============================================================
