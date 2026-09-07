@@ -1,6 +1,7 @@
 import os
 import re
 import asyncio
+import calendar
 import subprocess
 import httpx
 from datetime import datetime, timedelta
@@ -686,8 +687,51 @@ async def agent_status_watcher():
             await asyncio.sleep(AGENT_STATUS_POLL_SECONDS)
 
 
+def uae_timestamp_to_epoch(ts_str: str) -> float:
+    """يحول تايم ستامب زي '2026-09-06 14:53:25' (مسجل بتوقيت الإمارات UTC+4)
+    لرقم epoch حقيقي (UTC) عشان يتقارن مع time.time()"""
+    naive = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S")
+    utc_naive = naive - timedelta(hours=4)
+    return calendar.timegm(utc_naive.timetuple())
+
+
+async def hydrate_status_from_sheet():
+    """عند تشغيل السيرفر (أو أي Restart)، بيقرا كل تغييرات الحالة اللي
+    حصلت النهاردة من شيت AgentStatusLog ويملي بيها _last_known_status
+    و _session_start، عشان تسجيل التغييرات والعدادات يكملوا صح من غير
+    ما يرجعوا يبدأوا من الصفر - بدل ما يفضل السيرفر فاضي لغاية أول Poll"""
+    try:
+        sheet_url = os.environ["GOOGLE_SHEET_API_URL"]
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+            resp = await client.get(sheet_url, params={"action": "todayStatusLog"})
+            data = resp.json()
+
+        if data.get("status") != "success":
+            print(f"⚠️ فشل تحميل تاريخ الحالات اليومي: {data.get('message')}")
+            return
+
+        for row in data.get("rows", []):
+            key = row.get("number")
+            new_status = row.get("newStatus")
+            old_status = row.get("oldStatus")
+            if not key or not new_status:
+                continue
+
+            if new_status == "Away":
+                _session_start.pop(key, None)
+            elif old_status == "Away" or key not in _last_known_status:
+                _session_start[key] = uae_timestamp_to_epoch(row.get("timestamp"))
+
+            _last_known_status[key] = new_status
+
+        print(f"✅ استكمال حالة {len(_last_known_status)} إيجنت من شيت اليوم بعد التشغيل")
+    except Exception as e:
+        print(f"❌ فشل استكمال تاريخ الحالات عند التشغيل: {e}")
+
+
 @app.on_event("startup")
 async def start_agent_status_watcher():
+    await hydrate_status_from_sheet()
     asyncio.create_task(agent_status_watcher())
 
 
