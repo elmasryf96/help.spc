@@ -3,6 +3,7 @@ import re
 import asyncio
 import subprocess
 import httpx
+from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -329,6 +330,8 @@ async def get_3cx_agent_status():
         if not u.get("IsRegistered", False):
             display_status = "Away"
 
+        daily = _daily_totals_cache["perAgent"].get(AGENT_MAP[number], {})
+
         result.append({
             "name": AGENT_MAP[number],
             "number": number,
@@ -337,6 +340,8 @@ async def get_3cx_agent_status():
             "queueStatus": u.get("QueueStatus"),
             "sessionStartedAt": _session_start.get(number),
             "currentCall": calls_by_ext.get(number),
+            "todaysTotalSeconds": daily.get("totalSeconds", 0),
+            "todaysBreakSeconds": daily.get("breakSeconds", 0),
         })
     return result
 
@@ -409,6 +414,64 @@ async def agent_status_watcher():
 @app.on_event("startup")
 async def start_agent_status_watcher():
     asyncio.create_task(agent_status_watcher())
+
+
+# ------------------------------------------------------------
+# 📊 كاش "إجمالي شغل النهاردة" لكل إيجنت (Total login + Break)
+# مبني على شيت AgentStatusLog نفسه (نفس مصدر التقارير) مش على ذاكرة السيرفر،
+# عشان يفضل صحيح حتى بعد أي Deploy أو Restart، وعشان يترست لوحده مع أي يوم جديد
+# ------------------------------------------------------------
+
+DAILY_TOTALS_REFRESH_SECONDS = 20
+
+# perAgent: { "اسم الإيجنت": {"totalSeconds": ..., "breakSeconds": ...} }
+_daily_totals_cache = {"date": None, "perAgent": {}}
+
+
+def get_uae_today_str() -> str:
+    # الإمارات UTC+4 ثابتة طول السنة (من غير توقيت صيفي)، فمحتاجينش مكتبة تايم زون خارجية
+    uae_now = datetime.utcnow() + timedelta(hours=4)
+    return uae_now.strftime("%Y-%m-%d")
+
+
+async def refresh_daily_totals_cache(client: httpx.AsyncClient):
+    try:
+        sheet_url = os.environ["GOOGLE_SHEET_API_URL"]
+        today_str = get_uae_today_str()
+
+        resp = await client.get(
+            sheet_url,
+            params={"action": "allAgentsLoginTotals", "mode": "day", "date": today_str},
+            timeout=30,
+        )
+        data = resp.json()
+        if data.get("status") != "success":
+            return
+
+        per_agent = {}
+        for agent in data.get("agents", []):
+            totals = agent.get("totals", {}) or {}
+            per_agent[agent["name"]] = {
+                "totalSeconds": agent.get("totalLoginSeconds", 0),
+                "breakSeconds": totals.get("Break", 0),
+            }
+
+        _daily_totals_cache["date"] = today_str
+        _daily_totals_cache["perAgent"] = per_agent
+    except Exception as e:
+        print(f"❌ فشل تحديث كاش إجمالي اليوم: {e}")
+
+
+async def daily_totals_watcher():
+    async with httpx.AsyncClient(timeout=30) as client:
+        while True:
+            await refresh_daily_totals_cache(client)
+            await asyncio.sleep(DAILY_TOTALS_REFRESH_SECONDS)
+
+
+@app.on_event("startup")
+async def start_daily_totals_watcher():
+    asyncio.create_task(daily_totals_watcher())
 
 
 # ============================================================
