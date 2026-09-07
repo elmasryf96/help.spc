@@ -401,7 +401,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
 
     if (a.date) {
       const shiftWindow = getShiftWindowForAgentDate(a.name, a.date);
-      const attendanceStatus = getAttendanceStatus(shiftWindow, a.totalLoginSeconds, a.date);
+      const attendanceStatus = getAttendanceStatus(shiftWindow, a.totalLoginSeconds, a.date, a.firstLogin, a.endShift);
       if (attendanceStatus === "off") {
         attendanceBadgeHtml = `<div class="ccp-attendance-badge ccp-attendance-off">🏖️ Day Off</div>`;
       } else if (attendanceStatus === "no-show") {
@@ -516,11 +516,16 @@ function isDayJudgeable(dateStr, shiftWindow) {
 }
 
 // بيحدد حالة الحضور: "off" (مفيش شيفت في الروستر = إجازة)، "no-show" (شيفت موجود بس اشتغل أقل من نصه)، أو null (عادي أو لسه بدري نحكم)
-function getAttendanceStatus(shiftWindow, totalLoginSeconds, dateStr) {
+function getAttendanceStatus(shiftWindow, totalLoginSeconds, dateStr, firstLogin, endShift) {
   if (!shiftWindow) return "off"; // مفيش شيفت متجدول في الروستر أصلاً
   if (dateStr && !isDayJudgeable(dateStr, shiftWindow)) return null; // لسه بدري (يوم مستقبلي أو الشيفت لسه ماوصلش معاده)
+
+  if (!firstLogin) return "no-show"; // مجاش خالص طول اليوم (ولا مرة غيّر حالته من Away)
+  if (!endShift) return null; // لسه شغال فعليًا (معملش Away تاني) - منقدرش نحكم عليه دلوقتي
+
   const shiftDurationSec = (shiftWindow.endMin - shiftWindow.startMin) * 60;
-  if ((totalLoginSeconds || 0) < shiftDurationSec / 2) return "no-show";
+  const workedSeconds = (new Date(endShift.replace(" ", "T")) - new Date(firstLogin.replace(" ", "T"))) / 1000;
+  if (workedSeconds < shiftDurationSec / 2) return "no-show";
   return null;
 }
 
@@ -543,7 +548,7 @@ function calculateTardyFromDays(agentName, days, trackingStartDate) {
     if (!isDayJudgeable(day.date, shiftWindow)) return; // لسه بدري (يوم مستقبلي أو شيفت النهاردة لسه ماوصلش معاده)
 
     if (day.totalLoginSeconds !== undefined) {
-      if (getAttendanceStatus(shiftWindow, day.totalLoginSeconds, day.date) === "no-show") return;
+      if (getAttendanceStatus(shiftWindow, day.totalLoginSeconds, day.date, day.firstLogin, day.endShift) === "no-show") return;
     }
 
     if (!day.firstLogin) return; // مجاش خالص
@@ -861,7 +866,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
   if (data.mode === "day" && data.days.length === 1) {
     const day = data.days[0];
     const shiftWindow = getShiftWindowForAgentDate(data.agent, day.date);
-    const attendanceStatus = getAttendanceStatus(shiftWindow, day.totalLoginSeconds, day.date);
+    const attendanceStatus = getAttendanceStatus(shiftWindow, day.totalLoginSeconds, day.date, day.firstLogin, day.endShift);
 
     let dayStatusBannerHtml = "";
     if (attendanceStatus === "no-show") {
