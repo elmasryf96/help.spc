@@ -463,7 +463,7 @@ async def refresh_daily_totals_cache(client: httpx.AsyncClient):
 
 
 async def daily_totals_watcher():
-    async with httpx.AsyncClient(timeout=30) as client:
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
         while True:
             await refresh_daily_totals_cache(client)
             await asyncio.sleep(DAILY_TOTALS_REFRESH_SECONDS)
