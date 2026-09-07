@@ -67,6 +67,7 @@ async function fetchCcPulseLiveStatus() {
     ccPulseAgentsCacheFetchedAtMs = Date.now();
     renderCcPulseLiveGrid();
     populateCcPulseAgentSelect();
+    if (typeof updateDashboardLiveWidget === "function") updateDashboardLiveWidget();
   } catch (e) {
     if (grid) grid.innerHTML = `<div class="ccp-error">⚠️ Could not load live status</div>`;
   }
@@ -158,7 +159,7 @@ function renderCcPulseLiveGrid() {
 function tickCcPulseCounters() {
   const nowSec = Date.now() / 1000;
 
-  document.querySelectorAll("#ccPulseLiveGrid .ccp-counter").forEach(el => {
+  document.querySelectorAll(".ccp-counter").forEach(el => {
     const base = parseFloat(el.getAttribute("data-today-base"));
     const fetchedAt = parseFloat(el.getAttribute("data-today-fetched"));
     const isActive = el.getAttribute("data-today-active") === "1";
@@ -167,7 +168,7 @@ function tickCcPulseCounters() {
     el.textContent = formatCcPulseElapsed(base + elapsed);
   });
 
-  document.querySelectorAll("#ccPulseLiveGrid .ccp-break-badge").forEach(el => {
+  document.querySelectorAll(".ccp-break-badge").forEach(el => {
     const base = parseFloat(el.getAttribute("data-break-base"));
     const fetchedAt = parseFloat(el.getAttribute("data-break-fetched"));
     const isActive = el.getAttribute("data-break-active") === "1";
@@ -182,7 +183,7 @@ function tickCcPulseCounters() {
     }
   });
 
-  document.querySelectorAll("#ccPulseLiveGrid .ccp-call-badge").forEach(el => {
+  document.querySelectorAll(".ccp-call-badge").forEach(el => {
     const start = parseFloat(el.getAttribute("data-call-start"));
     const durEl = el.querySelector(".ccp-call-duration");
     if (!isNaN(start) && durEl) durEl.textContent = formatCcPulseElapsed(nowSec - start);
