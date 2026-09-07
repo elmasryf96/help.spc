@@ -13,9 +13,9 @@ let ccPulseAgentsCache = [];
 let ccPulseAgentsCacheFetchedAtMs = 0; // وقت آخر تحديث لبيانات الحالة الحية - يستخدمه ويدجت الصفحة الرئيسية كمان
 
 // ألوان الحالات المستخدمة في كل تايم لاين - مختارة عشان تبان واضحة فوق بار غامق
-const CCP_STATUS_ICONS = { "Available": "fa-headset", "Break": "fa-mug-hot", "Emails": "fa-envelope", "Custom 1": "fa-users", "Custom 2": "fa-star", "Out of the Office": "fa-phone-volume" };
+const CCP_STATUS_ICONS = { "Available": "fa-headset", "Break": "fa-mug-hot", "Emails": "fa-envelope", "Custom 1": "fa-users", "Custom 2": "fa-star", "Out of office": "fa-phone-volume" };
 // بعض الحالات اسمها الحقيقي في 3CX مش واضح لليوزر - بنستبدله باسم أوضح وقت العرض بس (البيانات والحسابات لسه شغالة بالاسم الأصلي)
-const CCP_STATUS_DISPLAY_NAMES = { "Out of the Office": "Call Outs" };
+const CCP_STATUS_DISPLAY_NAMES = { "Out of office": "Call Outs" };
 function ccpDisplayStatusName(status) {
   return CCP_STATUS_DISPLAY_NAMES[status] || status;
 }
