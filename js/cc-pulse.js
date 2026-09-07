@@ -96,7 +96,15 @@ function formatCcPulseBreakRemaining(usedSeconds) {
 function ccPulseBuildAgentCardHtml(a, nowSec) {
   const isAway = a.status === "Away";
   const isOnBreak = a.status === "Break";
-  const statusClass = isAway ? "ccp-status-away" : "ccp-status-active";
+  const statusClass = isAway ? "ccp-status-away" : (isOnBreak ? "ccp-status-break" : "ccp-status-active");
+
+  // الشيفت المجدول للإيجنت ده النهاردة من الروستر (لو موجود)
+  const uaeNow = getUAECurrentDate();
+  const todayStr = `${uaeNow.year}-${uaeNow.month}-${uaeNow.day}`;
+  const shiftWindow = getShiftWindowForAgentDate(a.name, todayStr);
+  const shiftHtml = shiftWindow
+    ? `<div class="ccp-shift-label"><i class="fa-solid fa-calendar-day"></i> ${shiftWindow.label}</div>`
+    : "";
 
   // إجمالي وقت الشغل تراكمي طول اليوم (من غير Away): بيعد لايف وهو شغال،
   // وبيفضل واقف على آخر رقم لما يبقى Away (مش بيختفي) - وبيترست لوحده كل يوم جديد
@@ -126,6 +134,7 @@ function ccPulseBuildAgentCardHtml(a, nowSec) {
     <div class="ccp-agent-card">
       <div class="ccp-agent-name">${a.name}</div>
       <div class="ccp-status-badge ${statusClass}">${a.status}</div>
+      ${shiftHtml}
       ${todayHtml}
       ${breakHtml}
       ${callHtml}
