@@ -452,8 +452,8 @@ function ccPulseBuildQueueTrendHtml(byDay) {
         <td>${d.totalCalls}</td>
         <td>${d.answered}</td>
         <td>${d.abandoned}</td>
-        <td class="${abClass}">${d.totalCalls > 0 ? d.abandonmentRatePct + "%" : '<span style="color:#94a3b8">-</span>'}</td>
-        <td class="${asaClass}">${d.answered > 0 ? formatCcPulseDuration(d.asaSeconds) : '<span style="color:#94a3b8">-</span>'}</td>
+        <td class="${abClass}">${d.totalCalls > 0 ? d.abandonmentRatePct + "%" : '<span style="color:#5a6a75">-</span>'}</td>
+        <td class="${asaClass}">${d.answered > 0 ? formatCcPulseDuration(d.asaSeconds) : '<span style="color:#5a6a75">-</span>'}</td>
       </tr>`;
   }).join("");
 
