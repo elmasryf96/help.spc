@@ -448,10 +448,10 @@ function ccPulseBuildQueueTrendHtml(byDay) {
     const asaClass = d.answered === 0 ? "" : (d.asaSeconds <= 20 ? "ccp-adh-good" : (d.asaSeconds <= 40 ? "ccp-adh-warn" : "ccp-adh-bad"));
     return `
       <tr>
-        <td>${d.date}</td>
-        <td>${d.totalCalls}</td>
-        <td>${d.answered}</td>
-        <td>${d.abandoned}</td>
+        <td style="color:#1a252f">${d.date}</td>
+        <td style="color:#1a252f">${d.totalCalls}</td>
+        <td style="color:#1a252f">${d.answered}</td>
+        <td style="color:#1a252f">${d.abandoned}</td>
         <td class="${abClass}">${d.totalCalls > 0 ? d.abandonmentRatePct + "%" : '<span style="color:#5a6a75">-</span>'}</td>
         <td class="${asaClass}">${d.answered > 0 ? formatCcPulseDuration(d.asaSeconds) : '<span style="color:#5a6a75">-</span>'}</td>
       </tr>`;
