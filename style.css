@@ -2177,3 +2177,9 @@ input:checked + .slider:before { transform: translateX(20px); }
     color: #dc2626;
     font-weight: 700;
 }
+.ccp-queue-trend-table tr.ccp-leaderboard-top {
+    background: var(--badge-bg) !important;
+}
+.ccp-queue-trend-table tr.ccp-leaderboard-top td {
+    font-weight: 700;
+}
