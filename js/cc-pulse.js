@@ -408,6 +408,7 @@ function ccPulseBuildQueueSummaryHtml(qs) {
   if (!qs) return "";
   const abClass = qs.abandonmentRatePct <= 5 ? "ccp-adh-good" : (qs.abandonmentRatePct <= 10 ? "ccp-adh-warn" : "ccp-adh-bad");
   const asaClass = qs.asaSeconds <= 20 ? "ccp-adh-good" : (qs.asaSeconds <= 40 ? "ccp-adh-warn" : "ccp-adh-bad");
+  const slClass = qs.serviceLevelPct >= 80 ? "ccp-adh-good" : (qs.serviceLevelPct >= 70 ? "ccp-adh-warn" : "ccp-adh-bad");
   return `
     <div class="ccp-queue-summary-card">
       <div class="ccp-queue-summary-header"><i class="fa-solid fa-headset"></i> Queue Overview (All Agents)</div>
@@ -427,6 +428,10 @@ function ccPulseBuildQueueSummaryHtml(qs) {
         <div class="ccp-metric-card ${asaClass}">
           <div class="ccp-metric-label">ASA (Avg Speed of Answer)</div>
           <div class="ccp-metric-value">${formatCcPulseDuration(qs.asaSeconds)}</div>
+        </div>
+        <div class="ccp-metric-card ${slClass}">
+          <div class="ccp-metric-label">Service Level (20s)</div>
+          <div class="ccp-metric-value">${qs.serviceLevelPct}%</div>
         </div>
         <div class="ccp-metric-card">
           <div class="ccp-metric-label">Abandoned</div>
@@ -448,6 +453,7 @@ function ccPulseBuildQueueTrendHtml(byDay) {
   const rowsHtml = byDay.map(d => {
     const abClass = d.totalCalls === 0 ? "" : (d.abandonmentRatePct <= 5 ? "ccp-adh-good" : (d.abandonmentRatePct <= 10 ? "ccp-adh-warn" : "ccp-adh-bad"));
     const asaClass = d.answered === 0 ? "" : (d.asaSeconds <= 20 ? "ccp-adh-good" : (d.asaSeconds <= 40 ? "ccp-adh-warn" : "ccp-adh-bad"));
+    const slClass = d.answered === 0 ? "" : (d.serviceLevelPct >= 80 ? "ccp-adh-good" : (d.serviceLevelPct >= 70 ? "ccp-adh-warn" : "ccp-adh-bad"));
     return `
       <tr>
         <td style="color:#1a252f">${d.date}</td>
@@ -456,6 +462,7 @@ function ccPulseBuildQueueTrendHtml(byDay) {
         <td style="color:#1a252f">${d.abandoned}</td>
         <td class="${abClass}">${d.totalCalls > 0 ? d.abandonmentRatePct + "%" : '<span style="color:#5a6a75">-</span>'}</td>
         <td class="${asaClass}">${d.answered > 0 ? formatCcPulseDuration(d.asaSeconds) : '<span style="color:#5a6a75">-</span>'}</td>
+        <td class="${slClass}">${d.answered > 0 ? d.serviceLevelPct + "%" : '<span style="color:#5a6a75">-</span>'}</td>
       </tr>`;
   }).join("");
 
@@ -472,6 +479,7 @@ function ccPulseBuildQueueTrendHtml(byDay) {
               <th>Abandoned</th>
               <th>Abandonment %</th>
               <th>ASA</th>
+              <th>Service Level (20s)</th>
             </tr>
           </thead>
           <tbody>${rowsHtml}</tbody>
@@ -533,6 +541,7 @@ function ccPulseBuildPeakHoursHtml(byHour) {
   const rowsHtml = activeHours.map(h => {
     const abClass = h.abandonmentRatePct <= 5 ? "ccp-adh-good" : (h.abandonmentRatePct <= 10 ? "ccp-adh-warn" : "ccp-adh-bad");
     const asaClass = h.answered === 0 ? "" : (h.asaSeconds <= 20 ? "ccp-adh-good" : (h.asaSeconds <= 40 ? "ccp-adh-warn" : "ccp-adh-bad"));
+    const slClass = h.answered === 0 ? "" : (h.serviceLevelPct >= 80 ? "ccp-adh-good" : (h.serviceLevelPct >= 70 ? "ccp-adh-warn" : "ccp-adh-bad"));
     const barPct = maxCalls > 0 ? Math.round((h.totalCalls / maxCalls) * 100) : 0;
     const hourLabel = String(h.hour).padStart(2, "0") + ":00";
     return `
@@ -546,6 +555,7 @@ function ccPulseBuildPeakHoursHtml(byHour) {
         </td>
         <td class="${abClass}">${h.abandonmentRatePct}%</td>
         <td class="${asaClass}">${h.answered > 0 ? formatCcPulseDuration(h.asaSeconds) : '<span style="color:#5a6a75">-</span>'}</td>
+        <td class="${slClass}">${h.answered > 0 ? h.serviceLevelPct + "%" : '<span style="color:#5a6a75">-</span>'}</td>
       </tr>`;
   }).join("");
 
@@ -560,6 +570,7 @@ function ccPulseBuildPeakHoursHtml(byHour) {
               <th>Calls</th>
               <th>Abandonment %</th>
               <th>ASA</th>
+              <th>Service Level (20s)</th>
             </tr>
           </thead>
           <tbody>${rowsHtml}</tbody>
