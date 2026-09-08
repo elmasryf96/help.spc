@@ -2183,3 +2183,26 @@ input:checked + .slider:before { transform: translateX(20px); }
 .ccp-queue-trend-table tr.ccp-leaderboard-top td {
     font-weight: 700;
 }
+.ccp-peak-bar-wrap {
+    position: relative;
+    background: #f1f5f9;
+    border-radius: 4px;
+    height: 20px;
+    min-width: 140px;
+    max-width: 260px;
+    display: flex;
+    align-items: center;
+}
+.ccp-peak-bar {
+    background: var(--primary-yellow);
+    height: 100%;
+    border-radius: 4px;
+    min-width: 4px;
+}
+.ccp-peak-bar-label {
+    position: absolute;
+    left: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #1a252f;
+}
