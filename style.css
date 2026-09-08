@@ -2140,3 +2140,40 @@ input:checked + .slider:before { transform: translateX(20px); }
 .ccp-queue-summary-header i {
     color: #d97706;
 }
+.ccp-queue-trend-table-wrap {
+    overflow-x: auto;
+}
+.ccp-queue-trend-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    white-space: nowrap;
+}
+.ccp-queue-trend-table th {
+    text-align: left;
+    padding: 8px 12px;
+    background: #f8fafc;
+    color: var(--dark-navy);
+    font-weight: 700;
+    border-bottom: 2px solid #e2e8f0;
+}
+.ccp-queue-trend-table td {
+    padding: 7px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+}
+.ccp-queue-trend-table tbody tr:nth-child(even) {
+    background: #fafafa;
+}
+.ccp-queue-trend-table td.ccp-adh-good {
+    color: #107c41;
+    font-weight: 700;
+}
+.ccp-queue-trend-table td.ccp-adh-warn {
+    color: #d97706;
+    font-weight: 700;
+}
+.ccp-queue-trend-table td.ccp-adh-bad {
+    color: #dc2626;
+    font-weight: 700;
+}
