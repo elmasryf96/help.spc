@@ -438,6 +438,46 @@ function ccPulseBuildQueueSummaryHtml(qs) {
     </div>`;
 }
 
+// بيبني جدول تريند يومي لـ Abandonment Rate و ASA - بيظهر بس لما المدة المختارة
+// أكتر من يوم واحد (Range أو Month)، عشان نلاحظ لو فيه تحسن أو تدهور مع الوقت
+function ccPulseBuildQueueTrendHtml(byDay) {
+  if (!byDay || byDay.length <= 1) return "";
+
+  const rowsHtml = byDay.map(d => {
+    const abClass = d.totalCalls === 0 ? "" : (d.abandonmentRatePct <= 5 ? "ccp-adh-good" : (d.abandonmentRatePct <= 10 ? "ccp-adh-warn" : "ccp-adh-bad"));
+    const asaClass = d.answered === 0 ? "" : (d.asaSeconds <= 20 ? "ccp-adh-good" : (d.asaSeconds <= 40 ? "ccp-adh-warn" : "ccp-adh-bad"));
+    return `
+      <tr>
+        <td>${d.date}</td>
+        <td>${d.totalCalls}</td>
+        <td>${d.answered}</td>
+        <td>${d.abandoned}</td>
+        <td class="${abClass}">${d.totalCalls > 0 ? d.abandonmentRatePct + "%" : "-"}</td>
+        <td class="${asaClass}">${d.answered > 0 ? formatCcPulseDuration(d.asaSeconds) : "-"}</td>
+      </tr>`;
+  }).join("");
+
+  return `
+    <div class="ccp-queue-summary-card">
+      <div class="ccp-queue-summary-header"><i class="fa-solid fa-chart-line"></i> Queue Trend (Daily)</div>
+      <div class="ccp-queue-trend-table-wrap">
+        <table class="ccp-queue-trend-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Total</th>
+              <th>Answered</th>
+              <th>Abandoned</th>
+              <th>Abandonment %</th>
+              <th>ASA</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
 function renderCcPulseAllAgentsReport(data, callLogData) {
   const resultBox = document.getElementById("ccPulseReportResult");
   if (!data || data.status !== "success") {
@@ -555,6 +595,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
       <button type="button" class="ccp-export-btn" onclick="exportCcPulseReportToCsv()">📥 Export to CSV</button>
     </div>
     ${ccPulseBuildQueueSummaryHtml(callLogData && callLogData.queueSummary)}
+    ${ccPulseBuildQueueTrendHtml(callLogData && callLogData.queueSummaryByDay)}
     <div class="ccp-all-agents-report">${cardsHtml || '<div class="ccp-empty">No data for this period</div>'}</div>`;
 
   ccPulseLastExportAgentsList = data.agents.map(a => ({ name: a.name, number: a.number, days: a.days || [] }));
@@ -1096,6 +1137,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
       <button type="button" class="ccp-export-btn" onclick="exportCcPulseReportToCsv()">📥 Export to CSV</button>
     </div>
     ${ccPulseBuildQueueSummaryHtml(callLogData && callLogData.queueSummary)}
+    ${ccPulseBuildQueueTrendHtml(callLogData && callLogData.queueSummaryByDay)}
     <div class="ccp-metric-card ccp-total-highlight">
       <div class="ccp-metric-label">Total login time</div>
       <div class="ccp-metric-value" id="ccpTotalLoginValue">${formatCcPulseDuration(data.totalLoginSeconds)}</div>
