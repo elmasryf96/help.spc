@@ -879,9 +879,16 @@ async def fetch_call_log_rows(client: httpx.AsyncClient, minutes_back: int):
 def classify_queue_group(rows: list):
     """بياخد كل صفوف نفس المكالمة (MainCallHistoryId واحد) ويرجع تفاصيل مصنّفة
     عن صف الكيو بتاعها، أو None لو المجموعة دي مفيهاش أي صف كيو أصلاً"""
-    queue_row = next((r for r in rows if r.get("CallType") == "Queue"), None)
-    if not queue_row:
+    queue_rows = sorted(
+        (r for r in rows if r.get("CallType") == "Queue"),
+        key=lambda r: r.get("StartTime") or ""
+    )
+    if not queue_rows:
         return None
+    # لو المكالمة عدّت على أكتر من كيو (Overflow من كيو لكيو تاني لما التيم الأول
+    # يكون كله مشغول)، بناخد آخر محطة كيو في السلسلة عشان نحكم بالنتيجة النهائية
+    # الحقيقية (اترد من التيم التاني ولا اتقفلت هناك برضو) - مش بس أول كيو دخلت فيها
+    queue_row = queue_rows[-1]
 
     reason = queue_row.get("Reason", "") or ""
     customer_number = queue_row.get("SourceCallerId") or queue_row.get("SourceDn", "")
