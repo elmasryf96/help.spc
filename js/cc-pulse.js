@@ -478,6 +478,47 @@ function ccPulseBuildQueueTrendHtml(byDay) {
     </div>`;
 }
 
+// بيبني جدول Leaderboard لترتيب الإيجنتس حسب عدد المكالمات المردود عليها (والـ AHT
+// جنبها للسياق) - بيظهر بس في تقرير "All agents"، ومقتصر على تيم الـ Calls بس
+// (تيم الإيميلز وتيم الـ Outbound مستبعدين، مش هدفهم عدد مكالمات الكيو)
+function ccPulseBuildLeaderboardHtml(callLogData) {
+  if (!callLogData || callLogData.status !== "success" || !Array.isArray(callLogData.agents)) return "";
+
+  const ranked = callLogData.agents
+    .filter(a => a.callsAnswered > 0 && getAgentDeptToday(a.agent) === "Calls")
+    .slice()
+    .sort((a, b) => b.callsAnswered - a.callsAnswered);
+
+  if (ranked.length === 0) return "";
+
+  const medals = ["🥇", "🥈", "🥉"];
+  const rowsHtml = ranked.map((a, i) => `
+      <tr class="${i < 3 ? 'ccp-leaderboard-top' : ''}">
+        <td style="color:#1a252f">${medals[i] || (i + 1)}</td>
+        <td style="color:#1a252f">${a.agent}</td>
+        <td style="color:#1a252f">${a.callsAnswered}</td>
+        <td style="color:#1a252f">${formatCcPulseDuration(a.ahtSeconds)}</td>
+      </tr>`).join("");
+
+  return `
+    <div class="ccp-queue-summary-card">
+      <div class="ccp-queue-summary-header"><i class="fa-solid fa-trophy"></i> Leaderboard (Calls Answered)</div>
+      <div class="ccp-queue-trend-table-wrap">
+        <table class="ccp-queue-trend-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Agent</th>
+              <th>Calls Answered</th>
+              <th>AHT</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
 function renderCcPulseAllAgentsReport(data, callLogData) {
   const resultBox = document.getElementById("ccPulseReportResult");
   if (!data || data.status !== "success") {
@@ -596,6 +637,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
     </div>
     ${ccPulseBuildQueueSummaryHtml(callLogData && callLogData.queueSummary)}
     ${ccPulseBuildQueueTrendHtml(callLogData && callLogData.queueSummaryByDay)}
+    ${ccPulseBuildLeaderboardHtml(callLogData)}
     <div class="ccp-all-agents-report">${cardsHtml || '<div class="ccp-empty">No data for this period</div>'}</div>`;
 
   ccPulseLastExportAgentsList = data.agents.map(a => ({ name: a.name, number: a.number, days: a.days || [] }));
