@@ -2160,7 +2160,7 @@ input:checked + .slider:before { transform: translateX(20px); }
 .ccp-queue-trend-table td {
     padding: 7px 12px;
     border-bottom: 1px solid #f1f5f9;
-    color: #334155;
+    color: var(--dark-navy);
 }
 .ccp-queue-trend-table tbody tr:nth-child(even) {
     background: #fafafa;
