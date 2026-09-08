@@ -19,9 +19,11 @@ const CCP_STATUS_DISPLAY_NAMES = { "Out of office": "Call Outs" };
 function ccpDisplayStatusName(status) {
   return CCP_STATUS_DISPLAY_NAMES[status] || status;
 }
-// أخضر = شغال (أي حالة غير Break)، أصفر = Break - مفيش فرق بين الفرق (Calls/Emails/Outbound) في اللون
+// أخضر = شغال (أي حالة غير Break)، أصفر = Break، أزرق = Follow up case - مفيش فرق بين الفرق (Calls/Emails/Outbound) في اللون
 function ccpStatusColor(status) {
-  return status === "Break" ? "#d97706" : "#107c41";
+  if (status === "Break") return "#d97706";
+  if (status === "Follow up case") return "#2563eb";
+  return "#107c41";
 }
 const CCP_STATUS_COLORS = {
   "Available": ccpStatusColor("Available"),
