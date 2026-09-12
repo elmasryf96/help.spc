@@ -212,7 +212,6 @@ AGENT_MAP = {
     "126": "Saim",
     "127": "Zain",
     "128": "Fatemeh",
-    "129": "Hajra",
 }
 
 
