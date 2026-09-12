@@ -243,11 +243,85 @@ function handleSelection() {
 function clearSearch() {
   const input = document.getElementById("towerInput");
   if (input) {
-    input.value = ""; 
+    input.value = "";
     const clearBtn = document.getElementById("clearBtn");
-    if (clearBtn) clearBtn.style.display = "none"; 
-    updateFields(null); 
+    if (clearBtn) clearBtn.style.display = "none";
+    updateFields(null);
     input.focus();
   }
+}
+
+// ============================================================
+// 💾 SAVE TOWER CHANGES -> يبعت التعديلات لجوجل شيت (شيت Towers)
+// عشان التعديل يبقى دايم ويظهر لكل اليوزرز، مش بس شكل بصري عند الأدمن
+// ============================================================
+function resolveCurrentTowerKey_() {
+  const input = document.getElementById("towerInput");
+  if (!input) return null;
+  const rawVal = input.value.trim();
+  if (!rawVal) return null;
+
+  if (towersData[rawVal]) return rawVal;
+
+  const matchedKey = Object.keys(towersData).find(key => key.toLowerCase() === rawVal.toLowerCase());
+  return matchedKey || null;
+}
+
+function saveDirectTowerChanges() {
+  const towerName = resolveCurrentTowerKey_();
+  if (!towerName) {
+    alert("⚠️ Please search & select a valid tower first.");
+    return;
+  }
+
+  const getVal = (id) => {
+    const el = document.getElementById(id);
+    return el ? el.value.trim() : "";
+  };
+
+  let depositVal = getVal("direct_input_deposit");
+  if (depositVal === "CUSTOM") {
+    depositVal = getVal("direct_custom_deposit");
+  }
+
+  const updatedData = {
+    client: getVal("direct_input_client"),
+    location: getVal("direct_input_location"),
+    bank: getVal("direct_input_bank"),
+    deposit: depositVal,
+    deposit_amount: getVal("direct_input_deposit_amount"),
+    online: getVal("direct_input_online"),
+    billing: getVal("direct_input_billing"),
+    late: getVal("direct_input_late"),
+    activation: getVal("direct_input_activation"),
+    disconnection: getVal("direct_input_disconnection"),
+    noc: getVal("direct_input_noc"),
+    final: getVal("direct_input_final"),
+    maintenance: (towersData[towerName] && towersData[towerName].maintenance) ? towersData[towerName].maintenance : ""
+  };
+
+  fetch(GOOGLE_SHEET_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({
+      action: "updateTower",
+      towerName: towerName,
+      data: updatedData
+    })
+  })
+    .then(res => res.json())
+    .then(res => {
+      if (res.status === "success") {
+        towersData[towerName] = Object.assign({}, towersData[towerName], updatedData);
+        alert("✅ Tower changes saved to Google Sheet! Everyone will now see the updated data.");
+        fetchAllDataFromGoogleSheet();
+      } else {
+        alert("❌ Failed to save: " + (res.message || "Unknown error"));
+      }
+    })
+    .catch(err => {
+      console.error("Error saving tower changes:", err);
+      alert("❌ Network error while saving. Please check your connection and try again.");
+    });
 }
 
