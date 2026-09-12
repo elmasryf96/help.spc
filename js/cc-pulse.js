@@ -146,7 +146,7 @@ function ccPulseBuildAgentCardHtml(a, nowSec) {
   const callsAnsweredHtml = (agentDept === "Calls")
     ? `<div class="ccp-calls-badge"><i class="fa-solid fa-phone-volume"></i> Calls: ${a.todaysCallsAnswered || 0}</div>`
     : "";
-  const outboundHtml = `<div class="ccp-outbound-badge"><i class="fa-solid fa-arrow-up-right-from-square"></i> Outbound: ${a.todaysOutboundCalls || 0}</div>`;
+  const outboundHtml = `<div class="ccp-outbound-badge" title="Outbound: Answered / Unanswered"><i class="fa-solid fa-arrow-up-right-from-square"></i> Outbound: ${a.todaysOutboundAnswered || 0} / ${a.todaysOutboundUnanswered || 0}</div>`;
 
   let callHtml = "";
   if (a.currentCall && a.currentCall.startedAt) {
@@ -615,8 +615,16 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
       : "";
     const outboundReportHtml = `
       <div class="ccp-metric-card">
-        <div class="ccp-metric-label">Outbound Calls</div>
+        <div class="ccp-metric-label">Outbound Total</div>
         <div class="ccp-metric-value">${callStats ? callStats.outboundCallsCount : 0}</div>
+      </div>
+      <div class="ccp-metric-card">
+        <div class="ccp-metric-label">Outbound Answered</div>
+        <div class="ccp-metric-value">${callStats ? callStats.outboundAnsweredCount : 0}</div>
+      </div>
+      <div class="ccp-metric-card">
+        <div class="ccp-metric-label">Outbound Unanswered</div>
+        <div class="ccp-metric-value">${callStats ? callStats.outboundUnansweredCount : 0}</div>
       </div>`;
 
     let adherenceHtml = "";
@@ -1135,8 +1143,16 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
     : "";
   const outboundReportHtml = `
     <div class="ccp-metric-card">
-      <div class="ccp-metric-label">Outbound Calls</div>
+      <div class="ccp-metric-label">Outbound Total</div>
       <div class="ccp-metric-value">${callStats ? callStats.outboundCallsCount : 0}</div>
+    </div>
+    <div class="ccp-metric-card">
+      <div class="ccp-metric-label">Outbound Answered</div>
+      <div class="ccp-metric-value">${callStats ? callStats.outboundAnsweredCount : 0}</div>
+    </div>
+    <div class="ccp-metric-card">
+      <div class="ccp-metric-label">Outbound Unanswered</div>
+      <div class="ccp-metric-value">${callStats ? callStats.outboundUnansweredCount : 0}</div>
     </div>`;
 
   const totalsHtml = Object.keys(data.totals || {}).map(st => `
@@ -1330,8 +1346,16 @@ async function loadMyDayCard() {
             <div class="ccp-metric-value">${formatCcPulseDuration(tardyResult.minutes * 60)}</div>
           </div>
           <div class="ccp-metric-card ccp-metric-purple">
-            <div class="ccp-metric-label">Outbound Calls</div>
+            <div class="ccp-metric-label">Outbound Total</div>
             <div class="ccp-metric-value">${callStats ? callStats.outboundCallsCount : 0}</div>
+          </div>
+          <div class="ccp-metric-card ccp-metric-purple">
+            <div class="ccp-metric-label">Outbound Answered</div>
+            <div class="ccp-metric-value">${callStats ? callStats.outboundAnsweredCount : 0}</div>
+          </div>
+          <div class="ccp-metric-card ccp-metric-purple">
+            <div class="ccp-metric-label">Outbound Unanswered</div>
+            <div class="ccp-metric-value">${callStats ? callStats.outboundUnansweredCount : 0}</div>
           </div>
         </div>
       </div>`;
