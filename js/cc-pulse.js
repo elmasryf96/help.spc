@@ -146,7 +146,7 @@ function ccPulseBuildAgentCardHtml(a, nowSec) {
   const callsAnsweredHtml = (agentDept === "Calls")
     ? `<div class="ccp-calls-badge"><i class="fa-solid fa-phone-volume"></i> Calls: ${a.todaysCallsAnswered || 0}</div>`
     : "";
-  const outboundHtml = `<div class="ccp-outbound-badge" title="Outbound: Answered / Unanswered"><i class="fa-solid fa-arrow-up-right-from-square"></i> Outbound: ${a.todaysOutboundAnswered || 0} / ${a.todaysOutboundUnanswered || 0}</div>`;
+  const outboundHtml = `<div class="ccp-outbound-badge"><i class="fa-solid fa-arrow-up-right-from-square"></i> Outbound: ${a.todaysOutboundCalls || 0}</div>`;
 
   let callHtml = "";
   if (a.currentCall && a.currentCall.startedAt) {
@@ -171,12 +171,40 @@ function ccPulseBuildAgentCardHtml(a, nowSec) {
     </div>`;
 }
 
+// نفس تصنيف الفرق المستخدم في صفحة الروستر بالظبط (roster.js) - عشان الاتنين يفضلوا متسقين
+const CCP_TEAM_LIST = ["Calls", "Call Outs", "Emails"];
+const CCP_TEAM_ICONS = { "Calls": "fa-headset", "Call Outs": "fa-phone-volume", "Emails": "fa-envelope-open-text" };
+
 function renderCcPulseLiveGrid() {
   const grid = document.getElementById("ccPulseLiveGrid");
   if (!grid) return;
 
   const nowSec = Date.now() / 1000;
-  grid.innerHTML = ccPulseAgentsCache.map(a => ccPulseBuildAgentCardHtml(a, nowSec)).join("");
+
+  // بنقسم الإيجنتس على الفرق التلاتة (مفيش روستر = بيتحسب Calls زي getAgentDeptToday بالظبط)
+  const byTeam = {};
+  CCP_TEAM_LIST.forEach(t => { byTeam[t] = []; });
+  ccPulseAgentsCache.forEach(a => {
+    const dept = getAgentDeptToday(a.name);
+    const team = CCP_TEAM_LIST.includes(dept) ? dept : "Calls";
+    byTeam[team].push(a);
+  });
+
+  grid.innerHTML = CCP_TEAM_LIST.map(team => {
+    const agents = byTeam[team];
+    if (agents.length === 0) return "";
+    return `
+      <div class="ccp-team-block">
+        <div class="dept-card-header" style="margin: 0 15px 8px;">
+          <i class="fa-solid ${CCP_TEAM_ICONS[team] || "fa-users"}"></i>
+          <h3>${team} Team</h3>
+          <span class="dept-count">${agents.length} Agent${agents.length === 1 ? "" : "s"}</span>
+        </div>
+        <div class="ccp-live-grid">
+          ${agents.map(a => ccPulseBuildAgentCardHtml(a, nowSec)).join("")}
+        </div>
+      </div>`;
+  }).join("");
 }
 
 function tickCcPulseCounters() {
@@ -615,16 +643,8 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
       : "";
     const outboundReportHtml = `
       <div class="ccp-metric-card">
-        <div class="ccp-metric-label">Outbound Total</div>
+        <div class="ccp-metric-label">Outbound Calls</div>
         <div class="ccp-metric-value">${callStats ? callStats.outboundCallsCount : 0}</div>
-      </div>
-      <div class="ccp-metric-card">
-        <div class="ccp-metric-label">Outbound Answered</div>
-        <div class="ccp-metric-value">${callStats ? callStats.outboundAnsweredCount : 0}</div>
-      </div>
-      <div class="ccp-metric-card">
-        <div class="ccp-metric-label">Outbound Unanswered</div>
-        <div class="ccp-metric-value">${callStats ? callStats.outboundUnansweredCount : 0}</div>
       </div>`;
 
     let adherenceHtml = "";
@@ -644,16 +664,10 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
       const adherencePct = calculateShiftAdherence(a.sessions || [], shiftWindow, effectiveEndMin);
       if (adherencePct !== null) {
         const adherenceClass = adherencePct >= 90 ? "ccp-adh-good" : (adherencePct >= 70 ? "ccp-adh-warn" : "ccp-adh-bad");
-        const outOfAdherenceMin = computeOutOfAdherenceSegments(a.sessions || [], shiftWindow, effectiveEndMin)
-          .reduce((sum, [s, e]) => sum + (e - s), 0);
         adherenceHtml = `
           <div class="ccp-metric-card ${adherenceClass}">
             <div class="ccp-metric-label">Adherence</div>
-            <div class="ccp-metric-value">${adherencePct.toFixed(0)}%</div>
-          </div>
-          <div class="ccp-metric-card ${adherenceClass}">
-            <div class="ccp-metric-label">Out Of Adherence</div>
-            <div class="ccp-metric-value">${formatCcPulseDuration(outOfAdherenceMin * 60)}</div>
+            <div class="ccp-metric-value">${ccpFormatAdherencePct(adherencePct)}</div>
           </div>`;
       }
       timelineHtml = renderCcPulseTimelineHtml(a.sessions || [], statusColors, shiftWindow, effectiveEndMin);
@@ -664,7 +678,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
         adherenceHtml = `
           <div class="ccp-metric-card ${adherenceClass}">
             <div class="ccp-metric-label">Adherence</div>
-            <div class="ccp-metric-value">${periodAdherencePct.toFixed(0)}%</div>
+            <div class="ccp-metric-value">${ccpFormatAdherencePct(periodAdherencePct)}</div>
           </div>`;
       }
     }
@@ -719,6 +733,14 @@ function ccPulseTimeToMinutes(ts) {
   const timePart = ts.split(" ")[1] || "00:00:00";
   const p = timePart.split(":").map(Number);
   return p[0] * 60 + p[1] + (p[2] || 0) / 60;
+}
+
+// بيفورمات نسبة الـ Adherence كنص: لو الرقم (بعد التقريب لأقرب 0.01) طلع صحيح زي 100، بيظهر "100%" من غير كسور عشري صفرية بتحس إنها "مظبوطة قوي"،
+// ولو فيه كسور فعلية بيظهرها بدقة رقمين عشريين زي "99.89%"
+function ccpFormatAdherencePct(pct) {
+  const rounded = Math.round(pct * 100) / 100;
+  const text = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
+  return `${text}%`;
 }
 
 // بيحول رقم دقايق من نص الليل (زي 570) لنص وقت مقروء (زي "9:30 AM")
@@ -869,14 +891,11 @@ function calculateShiftAdherence(sessions, shiftWindow, effectiveEndMin) {
   const shiftDurationMin = clampedEnd - shiftWindow.startMin;
   if (shiftDurationMin <= 0) return null; // الشيفت لسه ماوصلش معاده أصلاً
 
-  let workedMinInShift = 0;
-  sessions.forEach(s => {
-    const startMin = ccPulseTimeToMinutes(s.start);
-    const endMin = ccPulseTimeToMinutes(s.end);
-    const overlapStart = Math.max(startMin, shiftWindow.startMin);
-    const overlapEnd = Math.min(endMin, clampedEnd);
-    if (overlapEnd > overlapStart) workedMinInShift += (overlapEnd - overlapStart);
-  });
+  // بنستخدم نفس فترة السماح (دقيقة واحدة) المستخدمة في تحديد فترات الـ Out Of Adherence الحمرا على التايم لاين،
+  // عشان النسبة تفضل متسقة مع اللي شايفه الإيجنت/الأدمن بصريًا - أي فجوة دقيقة أو أقل متتحسبش ضد الإيجنت
+  const outOfAdherenceGaps = computeOutOfAdherenceSegments(sessions, shiftWindow, effectiveEndMin);
+  const gapMin = outOfAdherenceGaps.reduce((sum, [start, end]) => sum + (end - start), 0);
+  const workedMinInShift = shiftDurationMin - gapMin;
 
   const pct = (workedMinInShift / shiftDurationMin) * 100;
   return Math.max(0, Math.min(100, pct));
@@ -901,14 +920,10 @@ function calculateAdherenceFromDays(agentName, days, trackingStartDate) {
     const shiftDurationMin = clampedEnd - shiftWindow.startMin;
     if (shiftDurationMin <= 0) return; // الشيفت لسه ماوصلش معاده
 
-    let workedMinInShift = 0;
-    (day.sessions || []).forEach(s => {
-      const startMin = ccPulseTimeToMinutes(s.start);
-      const endMin = ccPulseTimeToMinutes(s.end);
-      const overlapStart = Math.max(startMin, shiftWindow.startMin);
-      const overlapEnd = Math.min(endMin, clampedEnd);
-      if (overlapEnd > overlapStart) workedMinInShift += (overlapEnd - overlapStart);
-    });
+    // بنستخدم نفس فترة السماح (دقيقة واحدة) المستخدمة في الأحمر (Out Of Adherence) عشان النسبة تبقى متسقة معاه
+    const outOfAdherenceGaps = computeOutOfAdherenceSegments(day.sessions || [], shiftWindow, effectiveEndMin);
+    const gapMin = outOfAdherenceGaps.reduce((sum, [start, end]) => sum + (end - start), 0);
+    const workedMinInShift = shiftDurationMin - gapMin;
 
     workedTotalMin += workedMinInShift;
     shiftTotalMin += shiftDurationMin;
@@ -1119,18 +1134,17 @@ function attachCcPulseTimelineHover() {
   });
 }
 
-function renderCcPulseSingleAgentReport(data, callLogData) {
-  const resultBox = document.getElementById("ccPulseReportResult");
-  if (!data || data.status !== "success") {
-    resultBox.innerHTML = `<div class="ccp-error">⚠️ ${data && data.message ? data.message : "No data"}</div>`;
-    return;
-  }
-
+// ============================================================
+// 📆 يوم واحد لإيجنت واحد - الـ HTML الكامل (المتريكس + الهايلايت + التايم لاين + قايمة السيشنز)
+// نفس الدالة مستخدمة في تقرير الأدمن (اليوم الواحد) وفي كارت "My Day" الشخصي، عشان الاتنين يفضلوا متطابقين بالظبط
+// liveIds=true بتضيف id/data-attribute المستخدمين في التحديث اللايف لتقرير الأدمن بس (مش مطلوبين في My Day)
+// ============================================================
+function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, options = {}) {
+  const liveIds = Boolean(options.liveIds);
   const statusColors = CCP_STATUS_COLORS;
 
-  const callStats = (callLogData && callLogData.status === "success") ? callLogData.data : null;
-  const singleAgentDept = getAgentDeptToday(data.agent);
-  const callsHtml = (singleAgentDept === "Calls")
+  const dept = getAgentDeptToday(agentName);
+  const callsHtml = (dept === "Calls")
     ? `
     <div class="ccp-metric-card">
       <div class="ccp-metric-label">Calls Answered</div>
@@ -1143,104 +1157,139 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
     : "";
   const outboundReportHtml = `
     <div class="ccp-metric-card">
-      <div class="ccp-metric-label">Outbound Total</div>
+      <div class="ccp-metric-label">Outbound Calls</div>
       <div class="ccp-metric-value">${callStats ? callStats.outboundCallsCount : 0}</div>
-    </div>
-    <div class="ccp-metric-card">
-      <div class="ccp-metric-label">Outbound Answered</div>
-      <div class="ccp-metric-value">${callStats ? callStats.outboundAnsweredCount : 0}</div>
-    </div>
-    <div class="ccp-metric-card">
-      <div class="ccp-metric-label">Outbound Unanswered</div>
-      <div class="ccp-metric-value">${callStats ? callStats.outboundUnansweredCount : 0}</div>
     </div>`;
 
-  const totalsHtml = Object.keys(data.totals || {}).map(st => `
+  const totalsHtml = Object.keys(day.totals || {}).map(st => `
     <div class="ccp-metric-card">
       <div class="ccp-metric-label">${ccpDisplayStatusName(st)}</div>
-      <div class="ccp-metric-value" data-status-metric="${st}">${formatCcPulseDuration(data.totals[st])}</div>
+      <div class="ccp-metric-value"${liveIds ? ` data-status-metric="${st}"` : ""}>${formatCcPulseDuration(day.totals[st])}</div>
     </div>`).join("");
 
-  const tardyResult = calculateTardyFromDays(data.agent, data.days || [], data.trackingStartDate);
-  const isSingleDayView = data.mode === "day" && data.days.length === 1;
-  const tardyCountLabel = isSingleDayView ? "Tardy" : "Tardy Count";
-  const tardyCountValue = isSingleDayView ? (tardyResult.count > 0 ? "Yes" : "No") : tardyResult.count;
+  const tardyResult = calculateTardyFromDays(agentName, [day], trackingStartDate);
   const tardyHtml = `
     <div class="ccp-metric-card">
-      <div class="ccp-metric-label">${tardyCountLabel}</div>
-      <div class="ccp-metric-value">${tardyCountValue}</div>
+      <div class="ccp-metric-label">Tardy</div>
+      <div class="ccp-metric-value">${tardyResult.count > 0 ? "Yes" : "No"}</div>
     </div>
     <div class="ccp-metric-card">
       <div class="ccp-metric-label">Tardy Minutes</div>
       <div class="ccp-metric-value">${formatCcPulseDuration(tardyResult.minutes * 60)}</div>
     </div>`;
 
-  let periodAdherenceHtml = "";
-  if (!isSingleDayView) {
+  const shiftWindow = getShiftWindowForAgentDate(agentName, day.date);
+  const attendanceStatus = getAttendanceStatus(shiftWindow, day.totalLoginSeconds, day.date, day.firstLogin, day.endShift);
+
+  let dayStatusBannerHtml = "";
+  if (attendanceStatus === "no-show") {
+    dayStatusBannerHtml = `<div class="ccp-daystatus-banner ccp-noshow">🚫 <strong>No Show</strong> — scheduled for ${shiftWindow.label} but worked less than half the shift (${formatCcPulseDuration(day.totalLoginSeconds)})</div>`;
+  } else if (attendanceStatus === "off") {
+    dayStatusBannerHtml = `<div class="ccp-daystatus-banner ccp-dayoff">🏖️ <strong>Day Off</strong> — no shift scheduled for this agent on this date</div>`;
+  }
+
+  const dayEffectiveEndMin = getEffectiveShiftEndMin(day.date);
+  const adherencePct = calculateShiftAdherence(day.sessions, shiftWindow, dayEffectiveEndMin);
+  const adherenceClass = adherencePct === null ? "" : (adherencePct >= 90 ? "ccp-adh-good" : (adherencePct >= 70 ? "ccp-adh-warn" : "ccp-adh-bad"));
+  const adherenceCardHtml = adherencePct !== null ? `
+      <div class="ccp-metric-card ${adherenceClass}">
+        <div class="ccp-metric-label">Adherence</div>
+        <div class="ccp-metric-value">${ccpFormatAdherencePct(adherencePct)}</div>
+      </div>` : "";
+
+  return `
+    <div class="ccp-metric-card ccp-total-highlight">
+      <div class="ccp-metric-label">Total login time</div>
+      <div class="ccp-metric-value"${liveIds ? ` id="ccpTotalLoginValue"` : ""}>${formatCcPulseDuration(day.totalLoginSeconds)}</div>
+    </div>
+    <div class="ccp-metrics-grid">${callsHtml}${outboundReportHtml}${totalsHtml}${tardyHtml}</div>
+    ${dayStatusBannerHtml}
+    <div class="ccp-day-highlight">
+      <div class="ccp-metric-card ccp-accent">
+        <div class="ccp-metric-label">First login</div>
+        <div class="ccp-metric-value">${ccPulseTimeOnly(day.firstLogin)}</div>
+      </div>
+      <div class="ccp-metric-card">
+        <div class="ccp-metric-label">End shift</div>
+        <div class="ccp-metric-value">${ccPulseTimeOnly(day.endShift)}</div>
+      </div>
+      ${adherenceCardHtml}
+    </div>
+    ${renderCcPulseTimelineHtml(day.sessions, statusColors, shiftWindow, dayEffectiveEndMin)}
+    <div class="ccp-session-list">
+      ${(day.sessions || []).map(s => `
+        <div class="ccp-session-row">
+          <span class="ccp-dot" style="background:${ccpStatusColor(s.status)}"></span>
+          <span class="ccp-session-status">${ccpDisplayStatusName(s.status)}</span>
+          <span class="ccp-session-time">${ccPulseTimeOnly(s.start)} → ${ccPulseTimeOnly(s.end)}</span>
+          <span class="ccp-session-dur">${formatCcPulseDuration(s.durationSeconds)}</span>
+        </div>`).join("")}
+    </div>`;
+}
+
+function renderCcPulseSingleAgentReport(data, callLogData) {
+  const resultBox = document.getElementById("ccPulseReportResult");
+  if (!data || data.status !== "success") {
+    resultBox.innerHTML = `<div class="ccp-error">⚠️ ${data && data.message ? data.message : "No data"}</div>`;
+    return;
+  }
+
+  const callStats = (callLogData && callLogData.status === "success") ? callLogData.data : null;
+  const isSingleDayView = data.mode === "day" && data.days.length === 1;
+
+  let bodyHtml;
+  if (isSingleDayView) {
+    // يوم واحد - نفس الدالة المشتركة مع كارت My Day بالظبط (مع الـ id/data-attribute بتوع التحديث اللايف)
+    bodyHtml = buildCcPulseAgentDayHtml(data.agent, data.days[0], callStats, data.trackingStartDate, { liveIds: true });
+  } else {
+    // رينج/شهر - نفس المنطق القديم زي ما هو (تقرير مجمّع لأكتر من يوم)
+    const singleAgentDept = getAgentDeptToday(data.agent);
+    const callsHtml = (singleAgentDept === "Calls")
+      ? `
+      <div class="ccp-metric-card">
+        <div class="ccp-metric-label">Calls Answered</div>
+        <div class="ccp-metric-value">${callStats ? callStats.callsAnswered : 0}</div>
+      </div>
+      <div class="ccp-metric-card">
+        <div class="ccp-metric-label">AHT</div>
+        <div class="ccp-metric-value">${callStats ? formatCcPulseDuration(callStats.ahtSeconds) : "0s"}</div>
+      </div>`
+      : "";
+    const outboundReportHtml = `
+      <div class="ccp-metric-card">
+        <div class="ccp-metric-label">Outbound Calls</div>
+        <div class="ccp-metric-value">${callStats ? callStats.outboundCallsCount : 0}</div>
+      </div>`;
+
+    const totalsHtml = Object.keys(data.totals || {}).map(st => `
+      <div class="ccp-metric-card">
+        <div class="ccp-metric-label">${ccpDisplayStatusName(st)}</div>
+        <div class="ccp-metric-value" data-status-metric="${st}">${formatCcPulseDuration(data.totals[st])}</div>
+      </div>`).join("");
+
+    const tardyResult = calculateTardyFromDays(data.agent, data.days || [], data.trackingStartDate);
+    const tardyHtml = `
+      <div class="ccp-metric-card">
+        <div class="ccp-metric-label">Tardy Count</div>
+        <div class="ccp-metric-value">${tardyResult.count}</div>
+      </div>
+      <div class="ccp-metric-card">
+        <div class="ccp-metric-label">Tardy Minutes</div>
+        <div class="ccp-metric-value">${formatCcPulseDuration(tardyResult.minutes * 60)}</div>
+      </div>`;
+
+    let periodAdherenceHtml = "";
     const periodAdherencePct = calculateAdherenceFromDays(data.agent, data.days || [], data.trackingStartDate);
     if (periodAdherencePct !== null) {
       const adherenceClass = periodAdherencePct >= 90 ? "ccp-adh-good" : (periodAdherencePct >= 70 ? "ccp-adh-warn" : "ccp-adh-bad");
       periodAdherenceHtml = `
     <div class="ccp-metric-card ${adherenceClass}">
       <div class="ccp-metric-label">Adherence</div>
-      <div class="ccp-metric-value">${periodAdherencePct.toFixed(0)}%</div>
+      <div class="ccp-metric-value">${ccpFormatAdherencePct(periodAdherencePct)}</div>
     </div>`;
     }
-  }
 
-  let daysHtml = "";
-  if (data.mode === "day" && data.days.length === 1) {
-    const day = data.days[0];
-    const shiftWindow = getShiftWindowForAgentDate(data.agent, day.date);
-    const attendanceStatus = getAttendanceStatus(shiftWindow, day.totalLoginSeconds, day.date, day.firstLogin, day.endShift);
-
-    let dayStatusBannerHtml = "";
-    if (attendanceStatus === "no-show") {
-      dayStatusBannerHtml = `<div class="ccp-daystatus-banner ccp-noshow">🚫 <strong>No Show</strong> — scheduled for ${shiftWindow.label} but worked less than half the shift (${formatCcPulseDuration(day.totalLoginSeconds)})</div>`;
-    } else if (attendanceStatus === "off") {
-      dayStatusBannerHtml = `<div class="ccp-daystatus-banner ccp-dayoff">🏖️ <strong>Day Off</strong> — no shift scheduled for this agent on this date</div>`;
-    }
-
-    const dayEffectiveEndMin = getEffectiveShiftEndMin(day.date);
-    const adherencePct = calculateShiftAdherence(day.sessions, shiftWindow, dayEffectiveEndMin);
-    const adherenceClass = adherencePct === null ? "" : (adherencePct >= 90 ? "ccp-adh-good" : (adherencePct >= 70 ? "ccp-adh-warn" : "ccp-adh-bad"));
-    const dayOutOfAdherenceMin = computeOutOfAdherenceSegments(day.sessions, shiftWindow, dayEffectiveEndMin)
-      .reduce((sum, [s, e]) => sum + (e - s), 0);
-    const adherenceCardHtml = adherencePct !== null ? `
-        <div class="ccp-metric-card ${adherenceClass}">
-          <div class="ccp-metric-label">Adherence</div>
-          <div class="ccp-metric-value">${adherencePct.toFixed(0)}%</div>
-        </div>
-        <div class="ccp-metric-card ${adherenceClass}">
-          <div class="ccp-metric-label">Out Of Adherence</div>
-          <div class="ccp-metric-value">${formatCcPulseDuration(dayOutOfAdherenceMin * 60)}</div>
-        </div>` : "";
-
-    daysHtml = `
-      ${dayStatusBannerHtml}
-      <div class="ccp-day-highlight">
-        <div class="ccp-metric-card ccp-accent">
-          <div class="ccp-metric-label">First login</div>
-          <div class="ccp-metric-value">${ccPulseTimeOnly(day.firstLogin)}</div>
-        </div>
-        <div class="ccp-metric-card">
-          <div class="ccp-metric-label">End shift</div>
-          <div class="ccp-metric-value">${ccPulseTimeOnly(day.endShift)}</div>
-        </div>
-        ${adherenceCardHtml}
-      </div>
-      ${renderCcPulseTimelineHtml(day.sessions, statusColors, shiftWindow, dayEffectiveEndMin)}
-      <div class="ccp-session-list">
-        ${day.sessions.map(s => `
-          <div class="ccp-session-row">
-            <span class="ccp-dot" style="background:${ccpStatusColor(s.status)}"></span>
-            <span class="ccp-session-status">${ccpDisplayStatusName(s.status)}</span>
-            <span class="ccp-session-time">${ccPulseTimeOnly(s.start)} → ${ccPulseTimeOnly(s.end)}</span>
-            <span class="ccp-session-dur">${formatCcPulseDuration(s.durationSeconds)}</span>
-          </div>`).join("")}
-      </div>`;
-  } else {
-    daysHtml = `
+    const daysHtml = `
       <div class="ccp-days-table">
         ${data.days.map(day => `
           <div class="ccp-day-row">
@@ -1249,6 +1298,14 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
             <span class="ccp-day-total">${formatCcPulseDuration(day.totalLoginSeconds)}</span>
           </div>`).join("")}
       </div>`;
+
+    bodyHtml = `
+      <div class="ccp-metric-card ccp-total-highlight">
+        <div class="ccp-metric-label">Total login time</div>
+        <div class="ccp-metric-value" id="ccpTotalLoginValue">${formatCcPulseDuration(data.totalLoginSeconds)}</div>
+      </div>
+      <div class="ccp-metrics-grid">${callsHtml}${outboundReportHtml}${totalsHtml}${tardyHtml}${periodAdherenceHtml}</div>
+      ${daysHtml}`;
   }
 
   resultBox.innerHTML = `
@@ -1258,12 +1315,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
     ${ccPulseBuildQueueSummaryHtml(callLogData && callLogData.queueSummary)}
     ${ccPulseBuildQueueTrendHtml(callLogData && callLogData.queueSummaryByDay)}
     ${ccPulseBuildPeakHoursHtml(callLogData && callLogData.queueSummaryByHour)}
-    <div class="ccp-metric-card ccp-total-highlight">
-      <div class="ccp-metric-label">Total login time</div>
-      <div class="ccp-metric-value" id="ccpTotalLoginValue">${formatCcPulseDuration(data.totalLoginSeconds)}</div>
-    </div>
-    <div class="ccp-metrics-grid">${callsHtml}${outboundReportHtml}${totalsHtml}${tardyHtml}${periodAdherenceHtml}</div>
-    ${daysHtml}
+    ${bodyHtml}
   `;
 
   const liveAgentMatch = ccPulseAgentsCache.find(x => x.name === data.agent);
@@ -1288,7 +1340,8 @@ function getMyAgentName() {
   return knownNames.has(fullName) ? fullName : null;
 }
 
-async function loadMyDayCard() {
+// dateStr اختياري (YYYY-MM-DD) - لو مبعتش، بيعرض النهاردة. بيتنادى تاني لما الإيجنت يغيّر التاريخ من شريط الاختيار
+async function loadMyDayCard(dateStr) {
   const container = document.getElementById("myDayCardContainer");
   if (!container) return;
 
@@ -1300,10 +1353,19 @@ async function loadMyDayCard() {
 
   const uae = getUAECurrentDate();
   const todayStr = `${uae.year}-${uae.month}-${uae.day}`;
+  const targetDateStr = dateStr || todayStr;
+
+  // شريط اختيار التاريخ - بيفضل ظاهر دايمًا (حتى لو مفيش بيانات لليوم المختار) عشان الإيجنت يقدر يرجع يختار يوم تاني
+  const dateBarHtml = `
+    <div class="ccp-myday-datebar" style="margin: 8px 0 16px; display:flex; align-items:center; gap:8px;">
+      <label for="myDayDateInput" style="font-size:13px; color:#6b7280;">Date:</label>
+      <input type="date" id="myDayDateInput" class="combo-input" style="max-width:170px;"
+        value="${targetDateStr}" max="${todayStr}" onchange="loadMyDayCard(this.value)">
+    </div>`;
 
   try {
-    const statusParams = new URLSearchParams({ action: "agentStatusReport", mode: "day", date: todayStr, name: agentName });
-    const callsParams = new URLSearchParams({ action: "callLogReport", mode: "day", date: todayStr, name: agentName });
+    const statusParams = new URLSearchParams({ action: "agentStatusReport", mode: "day", date: targetDateStr, name: agentName });
+    const callsParams = new URLSearchParams({ action: "callLogReport", mode: "day", date: targetDateStr, name: agentName });
 
     const [statusRes, callsRes] = await Promise.all([
       fetch(`${GOOGLE_SHEET_API_URL}?${statusParams.toString()}`),
@@ -1313,54 +1375,31 @@ async function loadMyDayCard() {
     const callLogData = await callsRes.json().catch(() => null);
 
     if (!data || data.status !== "success" || !data.days || !data.days[0]) {
-      container.innerHTML = "";
+      container.innerHTML = `
+        <div class="ccp-agent-report-card" style="margin-bottom: 16px; text-align: left;">
+          <div class="ccp-agent-report-header">
+            <span class="ccp-total-name">👋 My Day — ${agentName}</span>
+          </div>
+          ${dateBarHtml}
+          <div class="ccp-error">⚠️ No data for this date</div>
+        </div>`;
       return;
     }
 
-    const day = data.days[0];
-    const shiftWindow = getShiftWindowForAgentDate(agentName, todayStr);
-    const effectiveEndMin = getEffectiveShiftEndMin(day.date);
-    const statusColors = CCP_STATUS_COLORS;
-    const timelineHtml = renderCcPulseTimelineHtml(day.sessions || [], statusColors, shiftWindow, effectiveEndMin);
-
-    const tardyResult = calculateTardyFromDays(agentName, data.days, data.trackingStartDate);
     const callStats = (callLogData && callLogData.status === "success") ? callLogData.data : null;
+    // نفس دالة تقرير الأدمن لليوم الواحد بالظبط - عشان الإيجنت يشوف كل التفاصيل اللي الأدمن شايفها
+    const dayHtml = buildCcPulseAgentDayHtml(agentName, data.days[0], callStats, data.trackingStartDate, { liveIds: false });
 
     container.innerHTML = `
       <div class="ccp-agent-report-card" style="margin-bottom: 16px; text-align: left;">
         <div class="ccp-agent-report-header">
           <span class="ccp-total-name">👋 My Day — ${agentName}</span>
         </div>
-        ${timelineHtml}
-        <div class="ccp-metrics-grid">
-          <div class="ccp-metric-card ccp-total-highlight">
-            <div class="ccp-metric-label">Total login time</div>
-            <div class="ccp-metric-value">${formatCcPulseDuration(day.totalLoginSeconds)}</div>
-          </div>
-          <div class="ccp-metric-card ccp-metric-blue">
-            <div class="ccp-metric-label">Calls Answered</div>
-            <div class="ccp-metric-value">${callStats ? callStats.callsAnswered : 0}</div>
-          </div>
-          <div class="ccp-metric-card ccp-metric-amber">
-            <div class="ccp-metric-label">Tardy Minutes</div>
-            <div class="ccp-metric-value">${formatCcPulseDuration(tardyResult.minutes * 60)}</div>
-          </div>
-          <div class="ccp-metric-card ccp-metric-purple">
-            <div class="ccp-metric-label">Outbound Total</div>
-            <div class="ccp-metric-value">${callStats ? callStats.outboundCallsCount : 0}</div>
-          </div>
-          <div class="ccp-metric-card ccp-metric-purple">
-            <div class="ccp-metric-label">Outbound Answered</div>
-            <div class="ccp-metric-value">${callStats ? callStats.outboundAnsweredCount : 0}</div>
-          </div>
-          <div class="ccp-metric-card ccp-metric-purple">
-            <div class="ccp-metric-label">Outbound Unanswered</div>
-            <div class="ccp-metric-value">${callStats ? callStats.outboundUnansweredCount : 0}</div>
-          </div>
-        </div>
+        ${dateBarHtml}
+        ${dayHtml}
       </div>`;
   } catch (e) {
     console.error("My Day card error:", e);
-    container.innerHTML = "";
+    container.innerHTML = dateBarHtml;
   }
 }
