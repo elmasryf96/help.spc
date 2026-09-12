@@ -33,6 +33,19 @@ const CCP_STATUS_COLORS = {
   "Custom 2": ccpStatusColor("Custom 2")
 };
 let ccPulseMode = "day";
+let ccpResultView = "queue"; // "queue" | "agents" - بيفصل بين قسم الـ Queue Overview وقسم كروت الإيجنتس في تقرير "All agents"، وبيفضل زي ما هو حتى مع التحديث التلقائي كل 20 ثانية
+
+function setCcpResultView(view) {
+  ccpResultView = view;
+  const queueBox = document.getElementById("ccpQueueSection");
+  const agentsBox = document.getElementById("ccpAgentsSection");
+  const queueBtn = document.getElementById("ccpResultViewBtn_queue");
+  const agentsBtn = document.getElementById("ccpResultViewBtn_agents");
+  if (queueBox) queueBox.style.display = (view === "queue") ? "" : "none";
+  if (agentsBox) agentsBox.style.display = (view === "agents") ? "" : "none";
+  if (queueBtn) queueBtn.classList.toggle("active", view === "queue");
+  if (agentsBtn) agentsBtn.classList.toggle("active", view === "agents");
+}
 let ccPulseReportLiveBase = null; // بيتخزن فيه أرقام آخر تقرير عشان نعد عليها بالثانية زي العداد اللي فوق
 let ccPulseLastExportAgentsList = null; // بيتخزن فيه آخر بيانات تقرير اتحمّلت عشان زرار الـ Export يقدر يستخدمها
 let ccPulseLastExportTrackingStartDate = null; // بيتخزن فيه trackingStartDate بتاع آخر تقرير، عشان الـ CSV يستبعد نفس الأيام
@@ -717,15 +730,24 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
     <div class="ccp-export-bar">
       <button type="button" class="ccp-export-btn" onclick="exportCcPulseReportToCsv()">📥 Export to CSV</button>
     </div>
-    ${ccPulseBuildQueueSummaryHtml(callLogData && callLogData.queueSummary)}
-    ${ccPulseBuildQueueTrendHtml(callLogData && callLogData.queueSummaryByDay)}
-    ${ccPulseBuildPeakHoursHtml(callLogData && callLogData.queueSummaryByHour)}
-    ${ccPulseBuildLeaderboardHtml(callLogData)}
-    <div class="ccp-all-agents-report">${cardsHtml || '<div class="ccp-empty">No data for this period</div>'}</div>`;
+    <div class="ccp-mode-bar" style="margin: 4px 0 14px;">
+      <button type="button" id="ccpResultViewBtn_queue" class="ccp-mode-btn" onclick="setCcpResultView('queue')"><i class="fa-solid fa-headset"></i> Queue</button>
+      <button type="button" id="ccpResultViewBtn_agents" class="ccp-mode-btn" onclick="setCcpResultView('agents')"><i class="fa-solid fa-users"></i> Agents</button>
+    </div>
+    <div id="ccpQueueSection">
+      ${ccPulseBuildQueueSummaryHtml(callLogData && callLogData.queueSummary)}
+      ${ccPulseBuildQueueTrendHtml(callLogData && callLogData.queueSummaryByDay)}
+      ${ccPulseBuildPeakHoursHtml(callLogData && callLogData.queueSummaryByHour)}
+      ${ccPulseBuildLeaderboardHtml(callLogData)}
+    </div>
+    <div id="ccpAgentsSection">
+      <div class="ccp-all-agents-report">${cardsHtml || '<div class="ccp-empty">No data for this period</div>'}</div>
+    </div>`;
 
   ccPulseLastExportAgentsList = data.agents.map(a => ({ name: a.name, number: a.number, days: a.days || [] }));
   ccPulseLastExportTrackingStartDate = data.trackingStartDate || null;
 
+  setCcpResultView(ccpResultView);
   attachCcPulseTimelineHover();
 }
 
