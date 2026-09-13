@@ -96,6 +96,7 @@ async function fetchCcPulseLiveStatus() {
   const grid = document.getElementById("ccPulseLiveGrid");
   try {
     const res = await fetch(PYTHON_BACKEND_AGENT_STATUS_URL);
+    if (!res.ok) throw new Error("bad status " + res.status);
     const agents = await res.json();
     ccPulseAgentsCache = Array.isArray(agents) ? agents : [];
     ccPulseAgentsCacheFetchedAtMs = Date.now();
@@ -103,7 +104,13 @@ async function fetchCcPulseLiveStatus() {
     populateCcPulseAgentSelect();
     if (typeof updateDashboardLiveWidget === "function") updateDashboardLiveWidget();
   } catch (e) {
-    if (grid) grid.innerHTML = `<div class="ccp-error">⚠️ Could not load live status</div>`;
+    // فشل مؤقت (شبكة بطيئة/تايم آوت) - نسيب آخر بيانات صحيحة زي ما هي بدل ما
+    // نمسح الكروت كلها (ده كان سبب اختفاء الكروت كل شوية). بس لو دي أول مرة
+    // فعلاً (لسه معندناش أي بيانات) نوري رسالة بدل ما يفضل فاضي بالكامل.
+    console.warn("⚠️ fetchCcPulseLiveStatus failed, keeping last known data:", e);
+    if (grid && (!ccPulseAgentsCache || ccPulseAgentsCache.length === 0)) {
+      grid.innerHTML = `<div class="ccp-error">⚠️ Could not load live status</div>`;
+    }
   }
 }
 
@@ -159,7 +166,7 @@ function ccPulseBuildAgentCardHtml(a, nowSec) {
   const callsAnsweredHtml = (agentDept === "Calls")
     ? `<div class="ccp-calls-badge"><i class="fa-solid fa-phone-volume"></i> Calls: ${a.todaysCallsAnswered || 0}</div>`
     : "";
-  const outboundHtml = `<div class="ccp-outbound-badge"><i class="fa-solid fa-arrow-up-right-from-square"></i> Outbound: ${a.todaysOutboundCalls || 0}</div>`;
+  const outboundHtml = `<div class="ccp-outbound-badge" title="Answered / Unanswered"><i class="fa-solid fa-arrow-up-right-from-square"></i> Outbound: ${a.todaysOutboundAnswered || 0} <span style="opacity:.7;font-size:.85em">Ans</span> / ${a.todaysOutboundUnanswered || 0} <span style="opacity:.7;font-size:.85em">Unans</span></div>`;
 
   let callHtml = "";
   if (a.currentCall && a.currentCall.startedAt) {
@@ -658,6 +665,14 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
       <div class="ccp-metric-card">
         <div class="ccp-metric-label">Outbound Calls</div>
         <div class="ccp-metric-value">${callStats ? callStats.outboundCallsCount : 0}</div>
+      </div>
+      <div class="ccp-metric-card">
+        <div class="ccp-metric-label">Outbound Answered</div>
+        <div class="ccp-metric-value">${callStats ? callStats.outboundAnsweredCount : 0}</div>
+      </div>
+      <div class="ccp-metric-card">
+        <div class="ccp-metric-label">Outbound Unanswered</div>
+        <div class="ccp-metric-value">${callStats ? callStats.outboundUnansweredCount : 0}</div>
       </div>`;
 
     let adherenceHtml = "";
@@ -1181,6 +1196,14 @@ function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, 
     <div class="ccp-metric-card">
       <div class="ccp-metric-label">Outbound Calls</div>
       <div class="ccp-metric-value">${callStats ? callStats.outboundCallsCount : 0}</div>
+    </div>
+    <div class="ccp-metric-card">
+      <div class="ccp-metric-label">Outbound Answered</div>
+      <div class="ccp-metric-value">${callStats ? callStats.outboundAnsweredCount : 0}</div>
+    </div>
+    <div class="ccp-metric-card">
+      <div class="ccp-metric-label">Outbound Unanswered</div>
+      <div class="ccp-metric-value">${callStats ? callStats.outboundUnansweredCount : 0}</div>
     </div>`;
 
   const totalsHtml = Object.keys(day.totals || {}).map(st => `
@@ -1281,6 +1304,14 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
       <div class="ccp-metric-card">
         <div class="ccp-metric-label">Outbound Calls</div>
         <div class="ccp-metric-value">${callStats ? callStats.outboundCallsCount : 0}</div>
+      </div>
+      <div class="ccp-metric-card">
+        <div class="ccp-metric-label">Outbound Answered</div>
+        <div class="ccp-metric-value">${callStats ? callStats.outboundAnsweredCount : 0}</div>
+      </div>
+      <div class="ccp-metric-card">
+        <div class="ccp-metric-label">Outbound Unanswered</div>
+        <div class="ccp-metric-value">${callStats ? callStats.outboundUnansweredCount : 0}</div>
       </div>`;
 
     const totalsHtml = Object.keys(data.totals || {}).map(st => `
