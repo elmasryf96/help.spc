@@ -846,6 +846,19 @@ _REDIRECT_NAME_EXT_RE = re.compile(r"forwarded to (.+?)\s*\((\d+)\)")
 _ENDED_BY_RE = re.compile(r"[Ee]nded by \S+\s*\((\d+)\)")
 
 
+def classify_ended_by(ended_by_match):
+    """بياخد نتيجة _ENDED_BY_RE.search(reason) ويرجع (endedBy, endedByType):
+    لو الرقم اللي بين القوسين إيجستنشن إيجنت معروف -> (اسم الإيجنت, "Agent")
+    غير كده (رقم عميل) -> (الرقم نفسه, "Customer")
+    ولو الـ Reason مفيهوش "Ended by" أصلاً -> ("-", "-")"""
+    if not ended_by_match:
+        return "-", "-"
+    number = ended_by_match.group(1)
+    if number in AGENT_MAP:
+        return AGENT_MAP[number], "Agent"
+    return number, "Customer"
+
+
 def build_call_log_url(period_from: datetime, period_to: datetime, skip: int, top: int = 500) -> str:
     def fmt(dt):
         return dt.strftime("%Y-%m-%dT%H:%M:%S.000Z").replace(":", "%3A")
@@ -906,6 +919,9 @@ def classify_queue_group(rows: list):
     time_part = start[11:19] if len(start) >= 19 else ""
     main_id = queue_row.get("MainCallHistoryId")
 
+    ended_by_match = _ENDED_BY_RE.search(reason)
+    ended_by, ended_by_type = classify_ended_by(ended_by_match)
+
     base = {
         "mainId": main_id,
         "date": date_part,
@@ -915,6 +931,8 @@ def classify_queue_group(rows: list):
         "direction": "Inbound",
         "waitSeconds": wait_seconds,
         "reason": reason,
+        "endedBy": ended_by,
+        "endedByType": ended_by_type,
     }
 
     handoff = _HANDOFF_NAME_EXT_RE.search(reason)
@@ -925,7 +943,17 @@ def classify_queue_group(rows: list):
             None
         )
         talk_seconds = round(parse_iso_duration_seconds(agent_row.get("TalkingDuration", "")), 1) if agent_row else wait_seconds
-        base.update({"result": "Answered", "agent": f"{agent_name} ({agent_ext})", "talkSeconds": talk_seconds})
+        # مهم: "Ended by" في المكالمات اللي اترد عليها بيكون موجود في الـ Reason
+        # بتاع صف الإيجنت نفسه (مش صف الكيو) - عشان كده بنقرا الـ endedBy هنا تاني
+        # من reason بتاع agent_row، وبنسيب النسخة اللي في base (من reason الكيو)
+        # بس لو مفيش agent_row أصلاً
+        if agent_row:
+            agent_ended_by_match = _ENDED_BY_RE.search(agent_row.get("Reason", "") or "")
+            ended_by, ended_by_type = classify_ended_by(agent_ended_by_match)
+        base.update({
+            "result": "Answered", "agent": f"{agent_name} ({agent_ext})", "talkSeconds": talk_seconds,
+            "endedBy": ended_by, "endedByType": ended_by_type,
+        })
         return base
 
     redirect = _REDIRECT_NAME_EXT_RE.search(reason)
@@ -943,8 +971,7 @@ def classify_queue_group(rows: list):
     # العميل نفسه قفل السماعة وهو لسه مستني في الكيو (Reason: "Ended by <رقم العميل>")
     # - ده تقفيل حقيقي من العميل قبل ما حد يرد عليه، بغض النظر عن قيمة "Answered"
     # اللي 3CX أحياناً بترجعها true غلط في الحالة دي
-    ended_by = _ENDED_BY_RE.search(reason)
-    if ended_by and ended_by.group(1) not in AGENT_MAP:
+    if ended_by_match and ended_by_match.group(1) not in AGENT_MAP:
         base.update({"result": "Abandoned", "agent": "-", "talkSeconds": 0})
         return base
 
@@ -968,6 +995,8 @@ def classify_outbound_row(row: dict):
     time_part = start[11:19] if len(start) >= 19 else ""
     talk_seconds = round(parse_iso_duration_seconds(row.get("TalkingDuration", "")), 1)
     ring_seconds = round(parse_iso_duration_seconds(row.get("RingingDuration", "")), 1)
+    reason = row.get("Reason", "") or ""
+    ended_by, ended_by_type = classify_ended_by(_ENDED_BY_RE.search(reason))
 
     return {
         "mainId": row.get("MainCallHistoryId"),
@@ -980,7 +1009,9 @@ def classify_outbound_row(row: dict):
         "agent": f"{agent_name} ({ext})",
         "waitSeconds": ring_seconds,
         "talkSeconds": talk_seconds,
-        "reason": row.get("Reason", "") or "",
+        "reason": reason,
+        "endedBy": ended_by,
+        "endedByType": ended_by_type,
     }
 
 
