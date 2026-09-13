@@ -66,6 +66,18 @@ function stopMyDayCardPolling() {
   myDayCardPollTimer = null;
 }
 
+// المتصفح (خصوصًا Chrome) بيبطّئ/يجمّد أي setInterval في تاب مش هو التاب المفتوح فوق دلوقتي
+// (مثلاً الإيجنت شغال في تاب تاني - 3CX أو غيره - وسايب صفحته هنا في الخلفية طول الوقت)،
+// فالتحديث كل 20 ثانية لوحده ممكن ياخد وقت أطول بكتير لحد ما يرجع يفتح التاب فعليًا.
+// عشان كده، لحظة ما التاب يرجع يبقى ظاهر (Visible)، بنعمل تحديث فوري بدل ما نستنى الدورة الجاية.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  const homePage = document.getElementById("home-page");
+  if (homePage && homePage.classList.contains("active-page") && typeof loadMyDayCard === "function") {
+    loadMyDayCard(myDayCardCurrentDate);
+  }
+});
+
 function initCcPulsePage() {
   const uae = getUAECurrentDate();
   const todayStr = `${uae.year}-${uae.month}-${uae.day}`;
