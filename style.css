@@ -451,6 +451,7 @@ body {
     padding: 2px 5px;
     font-size: 9.5px;
     border-radius: 6px;
+    white-space: nowrap;
 }
 #homeActiveAgentsGrid .ccp-break-value,
 #homeActiveAgentsGrid .ccp-call-duration {
@@ -1720,6 +1721,7 @@ input:checked + .slider:before { transform: translateX(20px); }
     align-items: center;
     justify-content: center;
     gap: 4px;
+    white-space: nowrap;
 }
 .ccp-report-box {
     background: #ffffff;
