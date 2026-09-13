@@ -23,6 +23,7 @@ function navigateTo(pageId) {
   });
 
   stopCcPulsePolling();
+  stopMyDayCardPolling();
 
   const targetPage = document.getElementById(pageId);
   if (targetPage) {
@@ -49,6 +50,7 @@ function navigateTo(pageId) {
       updateDashboardLiveWidget();
       updateUIForRole();
       loadMyDayCard();
+      startMyDayCardPolling();
     } else if (pageId === 'towers-page') {
       updateUIForRole();
       handleSelection();

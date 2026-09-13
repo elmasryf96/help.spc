@@ -50,6 +50,22 @@ let ccPulseReportLiveBase = null; // بيتخزن فيه أرقام آخر تق�
 let ccPulseLastExportAgentsList = null; // بيتخزن فيه آخر بيانات تقرير اتحمّلت عشان زرار الـ Export يقدر يستخدمها
 let ccPulseLastExportTrackingStartDate = null; // بيتخزن فيه trackingStartDate بتاع آخر تقرير، عشان الـ CSV يستبعد نفس الأيام
 
+// كارت "My Day" (بيانات/تايم لاين الإيجنت لنفسه في الصفحة الرئيسية) كان بيتحمّل مرة واحدة بس وبيفضل واقف زي ما هو،
+// فمع مرور الوقت الداتا بتفضل قديمة والـ Out Of Adherence بيبان غلط لحد ما الإيجنت يعمل refresh يدوي.
+// دول بيخلوه يتحدّث لوحده زي باقي الصفحة (Live widget/تقرير الأدمن) - كل 20 ثانية طول ما هو واقف في الصفحة الرئيسية.
+let myDayCardPollTimer = null;
+let myDayCardCurrentDate = null; // آخر تاريخ مختار في شريط التاريخ بتاع الكارت - عشان التحديث التلقائي يفضل على نفس اليوم اللي الإيجنت شايفه
+
+function startMyDayCardPolling() {
+  stopMyDayCardPolling();
+  myDayCardPollTimer = setInterval(() => loadMyDayCard(myDayCardCurrentDate), 20000);
+}
+
+function stopMyDayCardPolling() {
+  if (myDayCardPollTimer) clearInterval(myDayCardPollTimer);
+  myDayCardPollTimer = null;
+}
+
 function initCcPulsePage() {
   const uae = getUAECurrentDate();
   const todayStr = `${uae.year}-${uae.month}-${uae.day}`;
@@ -1407,6 +1423,7 @@ async function loadMyDayCard(dateStr) {
   const uae = getUAECurrentDate();
   const todayStr = `${uae.year}-${uae.month}-${uae.day}`;
   const targetDateStr = dateStr || todayStr;
+  myDayCardCurrentDate = targetDateStr; // عشان التحديث التلقائي (كل 20 ثانية) يفضل على نفس اليوم ده
 
   // شريط اختيار التاريخ - بيفضل ظاهر دايمًا (حتى لو مفيش بيانات لليوم المختار) عشان الإيجنت يقدر يرجع يختار يوم تاني
   const dateBarHtml = `
