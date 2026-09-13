@@ -766,7 +766,7 @@ async def refresh_daily_totals_cache(client: httpx.AsyncClient):
         resp = await client.get(
             sheet_url,
             params={"action": "allAgentsLoginTotals", "mode": "day", "date": today_str},
-            timeout=30,
+            timeout=45,  # زودنا شوية (كانت 30) - شيت Call Log بقى أكبر بعد الباكفيل
         )
         data = resp.json()
         if data.get("status") != "success":
@@ -788,7 +788,7 @@ async def refresh_daily_totals_cache(client: httpx.AsyncClient):
             calls_resp = await client.get(
                 sheet_url,
                 params={"action": "callLogReport", "mode": "day", "date": today_str},
-                timeout=30,
+                timeout=45,  # زودنا شوية (كانت 30) - شيت Call Log بقى أكبر بعد الباكفيل
             )
             calls_data = calls_resp.json()
             if calls_data.get("status") == "success":
