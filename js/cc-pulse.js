@@ -166,7 +166,7 @@ function ccPulseBuildAgentCardHtml(a, nowSec) {
   const callsAnsweredHtml = (agentDept === "Calls")
     ? `<div class="ccp-calls-badge"><i class="fa-solid fa-phone-volume"></i> Calls: ${a.todaysCallsAnswered || 0}</div>`
     : "";
-  const outboundHtml = `<div class="ccp-outbound-badge" title="Answered / Unanswered"><i class="fa-solid fa-arrow-up-right-from-square"></i> Outbound: ${a.todaysOutboundAnswered || 0} <span style="opacity:.7;font-size:.85em">Ans</span> / ${a.todaysOutboundUnanswered || 0} <span style="opacity:.7;font-size:.85em">Unans</span></div>`;
+  const outboundHtml = `<div class="ccp-outbound-badge" title="Outbound: Answered / Unanswered"><i class="fa-solid fa-arrow-up-right-from-square"></i> Outbound: ${a.todaysOutboundAnswered || 0} / ${a.todaysOutboundUnanswered || 0}</div>`;
 
   let callHtml = "";
   if (a.currentCall && a.currentCall.startedAt) {
