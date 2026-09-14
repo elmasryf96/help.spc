@@ -376,52 +376,65 @@ function handleLightLogin_(params) {
 // الفترة المطلوبة (يوم واحد مثلاً = عشرات الصفوف بس، مهما كبر تاريخ الشيت).
 // ------------------------------------------------------------
 
-// بيدوّر على أول صف (رقم الصف الحقيقي في الشيت) اللي قيمته في العمود ده
-// >= targetValue، في مدى [startRow, endRow] (الشيت مرتب تصاعديًا في العمود ده)
-function findFirstRowAtOrAfter_(sheet, columnIndex, startRow, endRow, targetValue) {
-  var lo = startRow, hi = endRow + 1;
+// ⚠️ تصحيح مهم: النسخة الأولى من الدالتين دول كانت بتعمل getRange(...).getValue()
+// جوه اللوب (نداء منفصل لـ Apps Script لكل خطوة بحث - حوالي 17 نداء×2) - وده
+// أبطأ بكتير في الواقع من قراءة الشيت كله بنداء واحد! كل نداء لـ Apps Script
+// بيكلف زمن ثابت (RPC) بغض النظر عن حجم البيانات، فـ30+ نداء صغير متتالي بيبقوا
+// أبطأ من نداء واحد كبير - وده اللي سبب تهنيج الموقع كله (حتى اللوجن) بعد أول
+// نسخة من الإصلاح. الحل الصح: نقرا عمود التاريخ/الوقت كله بنداء واحد بس (bulk)،
+// ونعمل البحث الثنائي في الميموري (على مصفوفة JS عادية - سريع جداً ومفيش أي
+// نداء لـ Apps Script فيه خالص)، وبعدين نقرا الصفوف المطلوبة بنداء واحد تاني.
+// النتيجة: نداءين بس لـ Apps Script لكل طلب تقرير، بدل نداء واحد ضخم (الأصلي
+// البطيء) أو 30+ نداء صغير (النسخة الأولى الغلط) - وده أسرع من الاتنين.
+function findFirstIndexAtOrAfter_(sortedArr, targetValue) {
+  var lo = 0, hi = sortedArr.length;
   while (lo < hi) {
     var mid = Math.floor((lo + hi) / 2);
-    var cellVal = String(sheet.getRange(mid, columnIndex).getValue()).replace(/^'/, "").trim();
-    if (cellVal >= targetValue) {
+    if (sortedArr[mid] >= targetValue) {
       hi = mid;
     } else {
       lo = mid + 1;
     }
   }
-  return lo; // لو مفيش صف مطابق، بيرجع endRow+1 (يعني "برة النطاق من فوق")
+  return lo; // لو مفيش، بيرجع sortedArr.length (برة النطاق من فوق)
 }
 
-// بيدوّر على آخر صف اللي قيمته في العمود ده <= targetValue
-function findLastRowAtOrBefore_(sheet, columnIndex, startRow, endRow, targetValue) {
-  var lo = startRow - 1, hi = endRow;
+function findLastIndexAtOrBefore_(sortedArr, targetValue) {
+  var lo = -1, hi = sortedArr.length - 1;
   while (lo < hi) {
     var mid = Math.ceil((lo + hi + 1) / 2);
-    var cellVal = String(sheet.getRange(mid, columnIndex).getValue()).replace(/^'/, "").trim();
-    if (cellVal <= targetValue) {
+    if (sortedArr[mid] <= targetValue) {
       lo = mid;
     } else {
       hi = mid - 1;
     }
   }
-  return lo; // لو مفيش صف مطابق، بيرجع startRow-1 (يعني "برة النطاق من تحت")
+  return lo; // لو مفيش، بيرجع -1 (برة النطاق من تحت)
 }
 
 // بيرجع بس صفوف AgentStatusLog (كل الأعمدة الخمسة) اللي بين startDateStr و
 // endDateStr شامل الاتنين - مصفوفة من غير هيدر (كل عنصر = [Name, Number,
-// OldStatus, NewStatus, Timestamp])
+// OldStatus, NewStatus, Timestamp]). نداءين بس لـ Apps Script (شوف الشرح فوق)
 function readAgentStatusLogRange_(sheet, lastRow, startDateStr, endDateStr) {
   if (lastRow < 2) return [];
+
+  // نداء 1: عمود التاريخ/الوقت (E) لوحده بس، لكل صفوف الشيت - بنداء واحد
+  var timestamps = sheet.getRange(2, 5, lastRow - 1, 1).getValues().map(function (r) {
+    return String(r[0]).replace(/^'/, "").trim();
+  });
 
   var startTs = startDateStr + " 00:00:00";
   var endTs = endDateStr + " 23:59:59";
 
-  var firstRow = findFirstRowAtOrAfter_(sheet, 5, 2, lastRow, startTs);
-  var lastMatchRow = findLastRowAtOrBefore_(sheet, 5, 2, lastRow, endTs);
+  var firstIdx = findFirstIndexAtOrAfter_(timestamps, startTs);
+  var lastIdx = findLastIndexAtOrBefore_(timestamps, endTs);
 
-  if (firstRow > lastMatchRow) return [];
+  if (firstIdx > lastIdx) return [];
 
-  return sheet.getRange(firstRow, 1, lastMatchRow - firstRow + 1, 5).getValues();
+  // نداء 2: الصفوف المطابقة بس (كل الأعمدة الخمسة)
+  var firstRow = firstIdx + 2; // تحويل من فهرس مصفوفة (0-based) لرقم صف حقيقي في الشيت
+  var numRows = lastIdx - firstIdx + 1;
+  return sheet.getRange(firstRow, 1, numRows, 5).getValues();
 }
 
 // أقدم تاريخ فيه بيانات في شيت AgentStatusLog - بما إن الشيت مرتب تصاعديًا،
