@@ -1715,13 +1715,19 @@ async function ccpShowOutboundUnansweredModal(agentName, mode, dateOrStart, endD
       return;
     }
 
-    const rowsHtml = data.calls.map(c => `
+    // بنعرض عمود "Reason" بس لو السبب "No route to destination" (يعني رقم غلط/معطل) -
+    // أي سبب تاني بيتسيب فاضي عشان الجدول يفضل نضيف ومركز على الحالة دي بالذات
+    const rowsHtml = data.calls.map(c => {
+      const isNoRoute = /no route to destination/i.test(c.reason || "");
+      return `
       <tr>
         <td>${c.date}</td>
         <td>${c.time ? c.time.slice(0, 8) : "--"}</td>
         <td>${c.customerNumber || "-"}</td>
         <td>${formatCcPulseDuration(c.waitSeconds)}</td>
-      </tr>`).join("");
+        <td>${isNoRoute ? '<span style="color:#dc2626; font-weight:700;">No route to destination</span>' : "-"}</td>
+      </tr>`;
+    }).join("");
 
     body.innerHTML = `
       <div class="ccp-queue-trend-table-wrap">
@@ -1732,6 +1738,7 @@ async function ccpShowOutboundUnansweredModal(agentName, mode, dateOrStart, endD
               <th>Time</th>
               <th>Customer Number</th>
               <th>Rang For</th>
+              <th>Reason</th>
             </tr>
           </thead>
           <tbody>${rowsHtml}</tbody>
