@@ -51,8 +51,11 @@ function doGet(e) {
       var uRow = uData[u];
       var uName = String(uRow[0]).trim();
       if (uName !== "") {
+        // ⚠️ الباسورد اتشال من هنا عمداً - الرد ده كان قبل كده بيرجع باسورد كل
+        // اليوزرز بالنص الصريح لأي حد يعمل GET عادي للرابط من غير أي تسجيل
+        // دخول. الباسورد بقى بيتفحص على السيرفر نفسه بس (handleLightLogin_
+        // و doPost's changePassword) ومش بيتبعت للفرونت إند خالص تاني.
         usersData[uName] = {
-          password: String(uRow[1] !== undefined ? uRow[1] : "").trim(),
           role: String(uRow[2] || "user").trim().toLowerCase(),
           fullName: uRow[3] ? String(uRow[3]).trim() : uName,
           email: uRow[4] ? String(uRow[4]).trim() : ""
@@ -219,6 +222,87 @@ function invalidateFullDataCache_() {
 // واحفظ (ممكن يطلب صلاحية إضافية أول مرة - وافق عليها). من ساعتها أي
 // تعديل يدوي في الشيتات دي هيعمل Force Logout تلقائي لكل اليوزرز.
 // ------------------------------------------------------------
+// ------------------------------------------------------------
+// 🔐 SESSION TOKENS - توكن موقّع (HMAC-SHA256) بيتولد وقت اللوجن بس، وبيتبعت
+// بعد كده مع أي عملية "حساسة" (تغيير باسورد / تعديل بيانات برج / فورس لوجاوت
+// للكل) عشان السيرفر يتأكد إن الطلب فعلاً جاي من يوزر سجل دخول ببيانات صح -
+// مش من أي حد عرف رابط الـ Web App بس (اللي هو أصلاً ظاهر لأي حد يفتح الريبو
+// على GitHub أو يفتح Network tab في المتصفح). التوقيع بيتعمل بمفتاح سري
+// (APP_SECRET) متخزن في Script Properties بس - مش موجود في أي كود بيتنشر،
+// فمفيش حد برا يقدر يزوّر توكن حتى لو شاف كل كود الموقع.
+//
+// ⚙️ التركيب (مرة واحدة بس، لازم إنسان يعملها يدوي): من محرر Apps Script >
+// أيقونة الترس ⚙️ (Project Settings) من الشريط الجانبي الشمال > انزل لـ
+// "Script Properties" > Add script property:
+//   Property: APP_SECRET
+//   Value: أي نص عشوائي طويل (32 حرف فأكتر) - أي password generator يكفي
+// واحفظ. من غيرها أي عملية حساسة هترجع "Unauthorized" لحد ما تتظبط.
+// ------------------------------------------------------------
+var SESSION_TOKEN_TTL_MS_ = 24 * 60 * 60 * 1000; // صلاحية التوكن: 24 ساعة
+
+function getAppSecret_() {
+  var secret = PropertiesService.getScriptProperties().getProperty("APP_SECRET");
+  if (!secret) throw new Error("APP_SECRET is not configured in Script Properties - see setup comment above generateSessionToken_");
+  return secret;
+}
+
+function generateSessionToken_(username, role) {
+  var payload = JSON.stringify({ u: username, r: role, exp: Date.now() + SESSION_TOKEN_TTL_MS_ });
+  var payloadB64 = Utilities.base64EncodeWebSafe(payload);
+  var sigBytes = Utilities.computeHmacSha256Signature(payloadB64, getAppSecret_());
+  var sigB64 = Utilities.base64EncodeWebSafe(sigBytes);
+  return payloadB64 + "." + sigB64;
+}
+
+// بيرجع {valid:true, username, role} لو التوكن صح ولسه ساري، أو {valid:false, message}
+function verifySessionToken_(token) {
+  try {
+    if (!token || typeof token !== "string" || token.indexOf(".") === -1) {
+      return { valid: false, message: "Missing or invalid session - please log in again" };
+    }
+    var dotIdx = token.indexOf(".");
+    var payloadB64 = token.substring(0, dotIdx);
+    var sigB64 = token.substring(dotIdx + 1);
+
+    var expectedSigBytes = Utilities.computeHmacSha256Signature(payloadB64, getAppSecret_());
+    var expectedSigB64 = Utilities.base64EncodeWebSafe(expectedSigBytes);
+
+    if (sigB64 !== expectedSigB64) {
+      return { valid: false, message: "Invalid session - please log in again" };
+    }
+
+    var payload = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(payloadB64)).getDataAsString());
+    if (!payload.exp || Date.now() > payload.exp) {
+      return { valid: false, message: "Session expired - please log in again" };
+    }
+
+    return { valid: true, username: payload.u, role: payload.r };
+  } catch (err) {
+    return { valid: false, message: "Invalid session - please log in again" };
+  }
+}
+
+// بيتأكد إن الطلب معاه توكن صحيح (ولو requireAdmin=true، إن الرول admin) -
+// بيرجع {ok:true, username, role} أو {ok:false, response: جاهز للـ return مباشرة}
+function requireSession_(data, requireAdmin) {
+  var check = verifySessionToken_(data && data.token);
+  if (!check.valid) {
+    return {
+      ok: false,
+      response: ContentService.createTextOutput(JSON.stringify({ status: "error", message: check.message }))
+        .setMimeType(ContentService.MimeType.JSON)
+    };
+  }
+  if (requireAdmin && check.role !== "admin") {
+    return {
+      ok: false,
+      response: ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Admin access required" }))
+        .setMimeType(ContentService.MimeType.JSON)
+    };
+  }
+  return { ok: true, username: check.username, role: check.role };
+}
+
 var MASTER_DATA_SHEET_NAMES_ = ["towers", "roster", "users", "unitmapping", "inspection schedule", "schedule", "inspection"];
 
 function onEditMasterSheets(e) {
@@ -259,13 +343,16 @@ function handleLightLogin_(params) {
     if (uName === username) {
       var storedPass = String(uRow[1] !== undefined ? uRow[1] : "").trim();
       if (storedPass === password) {
+        var loginRole = String(uRow[2] || "user").trim().toLowerCase();
         return {
           status: "success",
           user: {
-            role: String(uRow[2] || "user").trim().toLowerCase(),
+            role: loginRole,
             fullName: uRow[3] ? String(uRow[3]).trim() : uName,
             email: uRow[4] ? String(uRow[4]).trim() : ""
-          }
+          },
+          // توكن جلسة موقّع - الفرونت إند بيخزنه وبيبعته مع أي عملية حساسة بعد كده
+          token: generateSessionToken_(uName, loginRole)
         };
       }
       return { status: "error", message: "Invalid credentials" };
@@ -559,6 +646,16 @@ function doPost(e) {
 
     // 1. تغيير كلمة المرور
     if (data.action === "changePassword") {
+      // لازم توكن جلسة صحيح - وأي يوزر عادي (مش أدمن) لازم يكون بيغيّر باسورد نفسه بس
+      var pwSession = requireSession_(data, false);
+      if (!pwSession.ok) return pwSession.response;
+
+      var targetUserRaw = String(data.username || "").trim();
+      if (pwSession.role !== "admin" && pwSession.username.toLowerCase() !== targetUserRaw.toLowerCase()) {
+        return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "You can only change your own password" }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
       var sheet = ss.getSheetByName("Users") || ss.getSheetByName("users");
 
       if (!sheet) {
@@ -568,13 +665,24 @@ function doPost(e) {
 
       var dataRange = sheet.getDataRange();
       var values = dataRange.getValues();
-      var targetUser = String(data.username).trim().toLowerCase();
+      var targetUser = targetUserRaw.toLowerCase();
+      var oldPassSubmitted = String(data.oldPassword || "").trim();
       var newPass = String(data.newPassword).trim();
       var updated = false;
 
       for (var i = 1; i < values.length; i++) {
         var sheetUser = String(values[i][0]).trim().toLowerCase();
         if (sheetUser === targetUser) {
+          // يوزر عادي لازم يثبت الباسورد القديم صح الأول (على السيرفر نفسه،
+          // مش بس محلي زي قبل كده) - الأدمن بس اللي يقدر يغيّر باسورد حد تاني
+          // من غير ما يعرف الباسورد القديم بتاعه
+          if (pwSession.role !== "admin") {
+            var currentStoredPass = String(values[i][1] !== undefined ? values[i][1] : "").trim();
+            if (currentStoredPass !== oldPassSubmitted) {
+              return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Current password is incorrect" }))
+                .setMimeType(ContentService.MimeType.JSON);
+            }
+          }
           sheet.getRange(i + 1, 2).setValue("'" + newPass);
           SpreadsheetApp.flush();
           updated = true;
@@ -594,6 +702,9 @@ function doPost(e) {
 
     // 2. تسجيل اللوجات للشهادات (NOC & Move-In Clearance Logs)
     else if (data.action === "logNoc") {
+      var nocSession = requireSession_(data, false);
+      if (!nocSession.ok) return nocSession.response;
+
       var logSheet = ss.getSheetByName("NOC_Logs");
       if (!logSheet) {
         return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Sheet NOC_Logs not found" }))
@@ -655,8 +766,11 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    // 5. تسجيل خروج إجباري لكل التابات المفتوحة (زرار الأدمن)
+    // 5. تسجيل خروج إجباري لكل التابات المفتوحة (زرار الأدمن) - أدمن بس
     else if (data.action === "triggerForceLogout") {
+      var logoutSession = requireSession_(data, true);
+      if (!logoutSession.ok) return logoutSession.response;
+
       PropertiesService.getScriptProperties().setProperty("forceLogoutAt", String(Date.now()));
       return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
         .setMimeType(ContentService.MimeType.JSON);
@@ -664,7 +778,11 @@ function doPost(e) {
 
     // 6. تعديل بيانات برج من صفحة الأدمن (Save Tower Changes) - بيكتب مباشرة في شيت Towers
     // عشان التعديل يبقى دايم ويظهر لكل اليوزرز اللي بيفتحوا الموقع (مش بس شكل بصري عند الأدمن)
+    // أدمن بس يقدر يعمل العملية دي
     else if (data.action === "updateTower") {
+      var towerSession = requireSession_(data, true);
+      if (!towerSession.ok) return towerSession.response;
+
       var towersSheetPost = ss.getSheetByName("Towers") || ss.getSheets()[0];
       if (!towersSheetPost) {
         return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Sheet Towers not found" }))

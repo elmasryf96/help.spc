@@ -90,16 +90,17 @@ function handleLogin(event) {
 
       if (res.status === "success" && res.user) {
         localStorage.setItem("loggedInUser", user);
-        localStorage.setItem("userPassword", pass);
+        // مبقاش بنخزن الباسورد نفسه في الجهاز خالص - بدل كده بنخزن توكن جلسة
+        // موقّع من السيرفر (sessionToken)، وهو اللي بيتبعت مع أي عملية حساسة
+        // (تغيير باسورد / تعديل برج / فورس لوجاوت) عشان السيرفر يتأكد إن
+        // الطلب فعلاً جاي من يوزر سجل دخول صح، مش من أي حد عرف رابط الموقع بس
+        localStorage.setItem("sessionToken", res.token || "");
         localStorage.setItem("userRole", res.user.role || "user");
         localStorage.setItem("userFullName", res.user.fullName || user);
         localStorage.setItem("userEmail", res.user.email || "");
 
-        // بنحدّث dynamicUsers محليًا بنفس القيم عشان أي حاجة زي تغيير الباسورد
-        // لاحقًا (اللي بتقرا من dynamicUsers) تفضل شغالة صح من غير ما تستنى
-        // تحميل تاني لكل بيانات الموقع
+        // بنحدّث dynamicUsers محليًا (من غير باسورد - السيرفر بقى مبيرجعوش أصلاً)
         dynamicUsers[user] = {
-          password: pass,
           role: res.user.role || "user",
           fullName: res.user.fullName || user,
           email: res.user.email || ""
@@ -178,13 +179,8 @@ function submitPasswordChange() {
   const msgEl = document.getElementById("passChangeMsg");
   const username = localStorage.getItem("loggedInUser");
 
-  const currentSavedPass = localStorage.getItem("userPassword") || (dynamicUsers[username] ? dynamicUsers[username].password : null);
-  if (currentSavedPass && String(oldPass) !== String(currentSavedPass)) {
-    msgEl.style.color = "#ef4444";
-    msgEl.innerText = "❌ Current password is incorrect!";
-    msgEl.style.display = "block";
-    return;
-  }
+  // فحص الباسورد القديم بقى بيتم على السيرفر نفسه (مش هنا محليًا) عشان محدش
+  // يقدر يغيّر باسورد أي حد من غير ما يثبت الباسورد القديم فعليًا للسيرفر
 
   if (newPass !== confirmPass) {
     msgEl.style.color = "#ef4444";
@@ -203,7 +199,9 @@ function submitPasswordChange() {
     body: JSON.stringify({
       action: "changePassword",
       username: username,
-      newPassword: newPass
+      oldPassword: oldPass,
+      newPassword: newPass,
+      token: localStorage.getItem("sessionToken") || ""
     })
   })
   .then(res => res.json())
@@ -211,11 +209,6 @@ function submitPasswordChange() {
     if (res.status === "success") {
       msgEl.style.color = "#22c55e";
       msgEl.innerText = "✅ Password updated successfully in Google Sheet!";
-      
-      localStorage.setItem("userPassword", newPass);
-      if (dynamicUsers[username]) {
-        dynamicUsers[username].password = newPass;
-      }
 
       setTimeout(() => {
         fetchAllDataFromGoogleSheet();
@@ -242,6 +235,7 @@ function handleLogout() {
   if (errorMsg) errorMsg.style.display = "none";
   localStorage.removeItem("loggedInUser");
   localStorage.removeItem("userPassword");
+  localStorage.removeItem("sessionToken");
   localStorage.removeItem("userRole");
   localStorage.removeItem("userFullName");
   localStorage.removeItem("userEmail");
@@ -282,6 +276,7 @@ async function checkForceLogoutSignal() {
       localStorage.setItem(FORCE_LOGOUT_SEEN_KEY, serverTimestamp);
       localStorage.removeItem("loggedInUser");
       localStorage.removeItem("userPassword");
+      localStorage.removeItem("sessionToken");
       localStorage.removeItem("userRole");
       localStorage.removeItem("userFullName");
       localStorage.removeItem("userEmail");
@@ -297,7 +292,7 @@ function triggerForceLogoutForEveryone() {
   return fetch(GOOGLE_SHEET_API_URL, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({ action: "triggerForceLogout" })
+    body: JSON.stringify({ action: "triggerForceLogout", token: localStorage.getItem("sessionToken") || "" })
   }).then(res => res.json());
 }
 

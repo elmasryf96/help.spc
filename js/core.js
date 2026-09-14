@@ -32,6 +32,7 @@ function autoLogoutUser() {
   // 1. مسح الجلسة وبيانات الدخول
   localStorage.removeItem("loggedInUser");
   localStorage.removeItem("userPassword");
+  localStorage.removeItem("sessionToken");
   localStorage.removeItem("userRole");
   localStorage.removeItem("userFullName");
   localStorage.removeItem("userEmail");
@@ -77,6 +78,7 @@ function sendLogToGoogleSheet(logPayload) {
 
   const dataToSend = {
     action: "logNoc",
+    token: localStorage.getItem("sessionToken") || "",
     user: currentUser,
     noc_type: logPayload.noc_type || "-",
     tenant_name: logPayload.tenant_name || "-",

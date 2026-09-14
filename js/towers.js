@@ -306,7 +306,8 @@ function saveDirectTowerChanges() {
     body: JSON.stringify({
       action: "updateTower",
       towerName: towerName,
-      data: updatedData
+      data: updatedData,
+      token: localStorage.getItem("sessionToken") || ""
     })
   })
     .then(res => res.json())
