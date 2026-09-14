@@ -58,36 +58,6 @@ class MoveInClearanceRequest(BaseModel):
 def read_root():
     return {"status": "Backend is online and running!"}
 
-# ============================================================
-# ⚡ LibreOffice Listener - بيفتح نسخة LibreOffice واحدة بس في الخلفية
-# ومتفضل شغالة طول الوقت (بدل ما نفتح نسخة جديدة من الصفر لكل ملف PDF،
-# وده كان السبب الرئيسي في إن توليد كل NOC كان بياخد وقت طويل نسبيًا حتى
-# لو السيرفر نفسه صاحي أصلاً). unoconv بيتكلم مع النسخة دي عن طريق socket
-# محلي بدل ما يفتح LibreOffice تاني.
-# ============================================================
-_libreoffice_listener_process = None
-
-def start_libreoffice_listener():
-    global _libreoffice_listener_process
-    try:
-        _libreoffice_listener_process = subprocess.Popen([
-            "soffice", "--headless", "--invisible", "--nocrashreport",
-            "--nodefault", "--norestore", "--nofirststartwizard", "--nologo",
-            "--accept=socket,host=127.0.0.1,port=2002;urp;"
-        ])
-        print(f"✅ LibreOffice listener started (PID: {_libreoffice_listener_process.pid})")
-    except Exception as e:
-        print(f"❌ Failed to start LibreOffice listener: {e}")
-
-
-@app.on_event("startup")
-async def start_libreoffice_listener_on_boot():
-    start_libreoffice_listener()
-    # بنستنى شوية وقت الإقلاع بس (مرة واحدة لما السيرفر يشتغل) عشان
-    # LibreOffice ياخد وقته يفتح فعليًا قبل ما أول طلب PDF يوصل
-    await asyncio.sleep(8)
-
-
 def convert_and_return_pdf(doc_template: str, context: dict, unit_no: str, prefix: str):
     if not os.path.exists(doc_template):
         print(f"❌ Template file '{doc_template}' not found!")
@@ -100,18 +70,10 @@ def convert_and_return_pdf(doc_template: str, context: dict, unit_no: str, prefi
     temp_docx = f"temp_{prefix}_{clean_unit}.docx"
     doc.save(temp_docx)
 
-    generated_pdf = temp_docx.replace(".docx", ".pdf")
+    cmd = f"libreoffice --headless --convert-to pdf {temp_docx} --outdir ."
+    subprocess.run(cmd, shell=True, check=True)
 
-    # ⚡ أول حاجة بنجرب unoconv (بيكلم نسخة LibreOffice الشغالة في الخلفية -
-    # أسرع بكتير). لو فشل لأي سبب (مثلاً النسخة الخلفية مش شغالة أو وقعت)،
-    # بنرجع تلقائيًا للطريقة القديمة (فتح LibreOffice من جديد لكل ملف) عشان
-    # توليد الشهادات يفضل شغال مهما حصل، بس أبطأ شوية في الحالة دي بس.
-    try:
-        subprocess.run(["unoconv", "-f", "pdf", temp_docx], check=True, timeout=25)
-    except Exception as e:
-        print(f"⚠️ unoconv failed ({e}), falling back to a fresh LibreOffice instance...")
-        cmd = f"libreoffice --headless --convert-to pdf {temp_docx} --outdir ."
-        subprocess.run(cmd, shell=True, check=True)
+    generated_pdf = temp_docx.replace(".docx", ".pdf")
 
     if os.path.exists(temp_docx):
         os.remove(temp_docx)
