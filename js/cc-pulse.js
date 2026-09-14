@@ -878,16 +878,19 @@ function isDayJudgeable(dateStr, shiftWindow) {
 }
 
 // بيحدد حالة الحضور: "off" (مفيش شيفت في الروستر = إجازة)، "no-show" (شيفت موجود بس اشتغل أقل من نصه)، أو null (عادي أو لسه بدري نحكم)
+// ⚠️ ملحوظة: قبل كده كانت بتحسب "قد إيه اشتغل" من الفرق بين firstLogin وendShift (أول Away لآخر Away) -
+// دي كانت بتغلط لو ظهرت نقطة Away مبكرة والإيجنت رجع اشتغل تاني بعدها (زي لو اتضافت غلط من تعديل التايم لاين
+// مثلاً) - كانت بتحسبها "اشتغل دقايق قليلة بس" وتحط No Show غلط رغم إنه شغال فعليًا لساعات بعد كده. الحساب الصح
+// هو totalLoginSeconds (إجمالي الوقت الحقيقي في أي حالة غير Away، محسوب أصلاً وبيتبعت جاهز) - مش الفرق الزمني
+// بين أول وآخر Away، فمبقاش محتاجين endShift في الحساب خالص
 function getAttendanceStatus(shiftWindow, totalLoginSeconds, dateStr, firstLogin, endShift) {
   if (!shiftWindow) return "off"; // مفيش شيفت متجدول في الروستر أصلاً
   if (dateStr && !isDayJudgeable(dateStr, shiftWindow)) return null; // لسه بدري (يوم مستقبلي أو الشيفت لسه ماوصلش معاده)
 
   if (!firstLogin) return "no-show"; // مجاش خالص طول اليوم (ولا مرة غيّر حالته من Away)
-  if (!endShift) return null; // لسه شغال فعليًا (معملش Away تاني) - منقدرش نحكم عليه دلوقتي
 
   const shiftDurationSec = (shiftWindow.endMin - shiftWindow.startMin) * 60;
-  const workedSeconds = (new Date(endShift.replace(" ", "T")) - new Date(firstLogin.replace(" ", "T"))) / 1000;
-  if (workedSeconds < shiftDurationSec / 2) return "no-show";
+  if ((totalLoginSeconds || 0) < shiftDurationSec / 2) return "no-show";
   return null;
 }
 
@@ -1258,6 +1261,10 @@ function ccpEnsureEditModal_() {
             <button type="button" class="ccp-edit-btn-secondary" id="ccpEditCancelBtn" onclick="ccpCloseEditModal()">Cancel</button>
             <button type="button" class="btn-primary" id="ccpEditSaveBtn" onclick="ccpSaveEditModal()" style="flex:1;">Save</button>
           </div>
+
+          <button type="button" class="ccp-edit-delete-link" id="ccpEditDeleteBtn" onclick="ccpDeleteEditPoint()" style="display:none;">
+            <i class="fa-solid fa-trash-can"></i> Undo — delete this status change
+          </button>
         </div>
       </div>
     </div>
@@ -1300,6 +1307,12 @@ function ccpOpenEditModal(seg) {
   const saveBtn = document.getElementById("ccpEditSaveBtn");
   saveBtn.disabled = false;
   saveBtn.textContent = "Save";
+
+  // زرار "Undo" بيظهر بس لو بنعدل نقطة موجودة بالفعل (مش فجوة بنعبيها لأول مرة - مفيش حاجة نمسحها لسه)
+  const delBtn = document.getElementById("ccpEditDeleteBtn");
+  delBtn.style.display = originalTime ? "block" : "none";
+  delBtn.disabled = false;
+  delBtn.innerHTML = `<i class="fa-solid fa-trash-can"></i> Undo — delete this status change`;
 
   document.getElementById("ccpEditModal").style.display = "flex";
 }
@@ -1367,6 +1380,54 @@ function ccpSaveEditModal() {
       console.error("Error saving status edit:", err);
       saveBtn.disabled = false;
       saveBtn.textContent = "Save";
+      errEl.textContent = "❌ Network error. Please check your connection and try again.";
+      errEl.style.display = "block";
+    });
+}
+
+// زرار "Undo" - بيمسح النقطة اللي المودال فاتح عليها دلوقتي خالص (مش تعديل، مسح فعلي من الشيت)
+// متاح بس لما بنعدل نقطة موجودة بالفعل (ccpEditState.originalTime مش فاضي)
+function ccpDeleteEditPoint() {
+  if (!ccpEditState || !ccpEditState.originalTime) return;
+  if (!confirm("Delete this status change? This cannot be undone.")) return;
+
+  const saveBtn = document.getElementById("ccpEditSaveBtn");
+  const delBtn = document.getElementById("ccpEditDeleteBtn");
+  const errEl = document.getElementById("ccpEditError");
+  saveBtn.disabled = true;
+  delBtn.disabled = true;
+  delBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Deleting...`;
+  errEl.style.display = "none";
+
+  fetch(GOOGLE_SHEET_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({
+      action: "deleteAgentStatusPoint",
+      agentName: ccpEditState.agentName,
+      originalTime: ccpEditState.originalTime,
+      token: localStorage.getItem("sessionToken") || ""
+    })
+  })
+    .then(res => res.json())
+    .then(res => {
+      if (res.status === "success") {
+        ccpCloseEditModal();
+        ccpShowEditToast_("↩️ Removed — refreshing timeline...");
+        loadCcPulseReport(false);
+      } else {
+        saveBtn.disabled = false;
+        delBtn.disabled = false;
+        delBtn.innerHTML = `<i class="fa-solid fa-trash-can"></i> Undo — delete this status change`;
+        errEl.textContent = "❌ " + (res.message || "Failed to delete");
+        errEl.style.display = "block";
+      }
+    })
+    .catch(err => {
+      console.error("Error deleting status point:", err);
+      saveBtn.disabled = false;
+      delBtn.disabled = false;
+      delBtn.innerHTML = `<i class="fa-solid fa-trash-can"></i> Undo — delete this status change`;
       errEl.textContent = "❌ Network error. Please check your connection and try again.";
       errEl.style.display = "block";
     });

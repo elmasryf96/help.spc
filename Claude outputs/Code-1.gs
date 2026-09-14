@@ -556,6 +556,38 @@ function editAgentStatusPoint_(ss, data) {
 }
 
 // ------------------------------------------------------------
+// 🗑️ مسح نقطة من سجل حالة إيجنت (Undo) - بيتنادى من نفس مودال تعديل التايم لاين في CC Pulse
+// لما الأدمن يحب يشيل نقطة أضافها غلط (بدل ما يعدل وقتها/حالتها بس) - بيدور عليها بالاسم
+// + الوقت بالظبط ويمسحها. مسح صف من نص الشيت مبيبوظش ترتيب باقي الصفوف (لسه متسلسل تصاعديًا)
+// ------------------------------------------------------------
+function deleteAgentStatusPoint_(ss, data) {
+  var sheet = ss.getSheetByName("AgentStatusLog");
+  if (!sheet) return { status: "error", message: "Sheet AgentStatusLog not found" };
+
+  var agentName = String(data.agentName || "").trim();
+  var originalTimestamp = String(data.originalTime || "").trim();
+  if (!agentName || !originalTimestamp) {
+    return { status: "error", message: "Missing agent name or time" };
+  }
+
+  var lastRow = sheet.getLastRow();
+  if (lastRow >= 2) {
+    var values = sheet.getRange(2, 1, lastRow - 1, 5).getValues();
+    for (var i = 0; i < values.length; i++) {
+      var name = String(values[i][0]).trim();
+      var ts = String(values[i][4]).replace(/^'/, "").trim();
+      if (name === agentName && ts === originalTimestamp) {
+        sheet.deleteRow(i + 2);
+        SpreadsheetApp.flush();
+        return { status: "success", message: "Deleted" };
+      }
+    }
+  }
+
+  return { status: "error", message: "Could not find the original record - it may have already changed. Please refresh and try again." };
+}
+
+// ------------------------------------------------------------
 // 🔄 بيرجع كل تغييرات الحالة اللي حصلت النهاردة بس (بتوقيت الإمارات)، مرتبة بالوقت
 // مستخدمة عشان السيرفر يقدر "يفتكر" آخر حالة لكل إيجنت فور ما يشتغل بعد أي Restart
 // استخدام: ?action=todayStatusLog
@@ -1036,6 +1068,16 @@ function doPost(e) {
 
       var editResult = editAgentStatusPoint_(ss, data);
       return ContentService.createTextOutput(JSON.stringify(editResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 8. مسح نقطة من سجل حالة إيجنت (Undo) - نفس مودال تعديل التايم لاين في CC Pulse - أدمن بس
+    else if (data.action === "deleteAgentStatusPoint") {
+      var deleteSession = requireSession_(data, true);
+      if (!deleteSession.ok) return deleteSession.response;
+
+      var deleteResult = deleteAgentStatusPoint_(ss, data);
+      return ContentService.createTextOutput(JSON.stringify(deleteResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
