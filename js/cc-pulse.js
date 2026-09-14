@@ -1658,7 +1658,7 @@ function ccpEnsureCallDetailModal_() {
           <h3 id="ccpCallDetailTitle"><i class="fa-solid fa-phone-slash"></i> Outbound Unanswered</h3>
           <button type="button" class="close-modal-btn" onclick="ccpCloseCallDetailModal()">✕</button>
         </div>
-        <div class="modal-body" id="ccpCallDetailBody"></div>
+        <div class="modal-body" id="ccpCallDetailBody" style="max-height: 65vh; overflow-y: auto;"></div>
       </div>
     </div>`;
 
