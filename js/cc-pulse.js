@@ -1653,7 +1653,7 @@ function ccpEnsureCallDetailModal_() {
 
   const modalHtml = `
     <div id="ccpCallDetailModal" class="modal-overlay" style="display:none; z-index: 10000;">
-      <div class="modal-content" style="max-width: 600px; border-radius: 16px;">
+      <div class="modal-content" style="max-width: 760px; border-radius: 16px;">
         <div class="modal-header">
           <h3 id="ccpCallDetailTitle"><i class="fa-solid fa-phone-slash"></i> Outbound Unanswered</h3>
           <button type="button" class="close-modal-btn" onclick="ccpCloseCallDetailModal()">✕</button>
@@ -1717,8 +1717,7 @@ async function ccpShowOutboundUnansweredModal(agentName, mode, dateOrStart, endD
 
     // بنعرض عمود "Reason" بس لو السبب "No route to destination" (يعني رقم غلط/معطل) -
     // أي سبب تاني بيتسيب فاضي عشان الجدول يفضل نضيف ومركز على الحالة دي بالذات.
-    // العمود ده بس اللي بيعمل wrap (white-space:normal) عشان النص الطويل يفضل جوه
-    // عرض المودال من غير ما يعمل سكرول أفقي زي باقي جداول الموقع (اللي كلها nowrap)
+    // المودال بقى واسع بما فيه الكفاية إن النص الكامل يبان في سطر واحد من غير سكرول أفقي
     const rowsHtml = data.calls.map(c => {
       const isNoRoute = /no route to destination/i.test(c.reason || "");
       return `
@@ -1727,12 +1726,12 @@ async function ccpShowOutboundUnansweredModal(agentName, mode, dateOrStart, endD
         <td>${c.time ? c.time.slice(0, 8) : "--"}</td>
         <td>${c.customerNumber || "-"}</td>
         <td>${formatCcPulseDuration(c.waitSeconds)}</td>
-        <td style="white-space:normal; max-width:110px;">${isNoRoute ? '<span style="color:#dc2626; font-weight:700;" title="No route to destination">No route</span>' : "-"}</td>
+        <td>${isNoRoute ? '<span style="color:#dc2626; font-weight:700;">No route to destination</span>' : "-"}</td>
       </tr>`;
     }).join("");
 
     body.innerHTML = `
-      <div class="ccp-queue-trend-table-wrap" style="overflow-x:hidden;">
+      <div class="ccp-queue-trend-table-wrap">
         <table class="ccp-queue-trend-table">
           <thead>
             <tr>
@@ -1740,7 +1739,7 @@ async function ccpShowOutboundUnansweredModal(agentName, mode, dateOrStart, endD
               <th>Time</th>
               <th>Customer Number</th>
               <th>Rang For</th>
-              <th style="white-space:normal; max-width:110px;">Reason</th>
+              <th>Reason</th>
             </tr>
           </thead>
           <tbody>${rowsHtml}</tbody>
