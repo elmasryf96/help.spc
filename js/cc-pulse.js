@@ -1716,8 +1716,7 @@ async function ccpShowOutboundUnansweredModal(agentName, mode, dateOrStart, endD
     }
 
     // بنعرض عمود "Reason" بس لو السبب "No route to destination" (يعني رقم غلط/معطل) -
-    // أي سبب تاني بيتسيب فاضي عشان الجدول يفضل نضيف ومركز على الحالة دي بالذات.
-    // المودال بقى واسع بما فيه الكفاية إن النص الكامل يبان في سطر واحد من غير سكرول أفقي
+    // أي سبب تاني بيتسيب فاضي عشان الجدول يفضل نضيف ومركز على الحالة دي بالذات
     const rowsHtml = data.calls.map(c => {
       const isNoRoute = /no route to destination/i.test(c.reason || "");
       return `
