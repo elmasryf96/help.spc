@@ -711,7 +711,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
       </div>
       <div class="ccp-metric-card">
         <div class="ccp-metric-label">Outbound Unanswered</div>
-        <div class="ccp-metric-value">${callStats ? callStats.outboundUnansweredCount : 0}</div>
+        <div class="ccp-metric-value" style="cursor:pointer; text-decoration:underline dotted;" title="Click to see each call" onclick="ccpShowOutboundUnansweredModal('${a.name}', 'day', '${a.date}')">${callStats ? callStats.outboundUnansweredCount : 0}</div>
       </div>`;
 
     let adherenceHtml = "";
@@ -1356,6 +1356,18 @@ function ccpNormalizeTimeToHHMMSS_(timeVal) {
   return (timeVal && timeVal.length === 5) ? (timeVal + ":00") : timeVal;
 }
 
+// بيوضح رسالة الخطأ "already a status change" أكتر - عشان الأدمن يفهم إن مفيش حاجة اتمسحت،
+// إحنا بس رفضنا نضيف نقطة جديدة لأن في نقطة موجودة أصلاً في نفس الثانية بالظبط
+function ccpFriendlyEditError_(message) {
+  message = message || "Failed to save";
+  if (message.indexOf("already a status change") !== -1) {
+    return message + " — nothing was deleted or changed. There's already a saved point at that exact second; " +
+      "try adjusting the time by a second or a minute (e.g. 08:59:59 PM instead of 09:00:00 PM) and save again, " +
+      "or leave it as is if that existing point already covers it.";
+  }
+  return message;
+}
+
 // بيبعت نقطة واحدة (editAgentStatusPoint) للسيرفر ويرجع الـ JSON - مستخدمة مرة واحدة أو مرتين (بداية + نهاية)
 function ccpPostAgentStatusEdit_(agentName, originalTime, newTime, newStatus) {
   return fetch(GOOGLE_SHEET_API_URL, {
@@ -1403,7 +1415,7 @@ async function ccpSaveEditModal() {
     if (res.status !== "success") {
       saveBtn.disabled = false;
       saveBtn.textContent = "Save";
-      errEl.textContent = "❌ " + (res.message || "Failed to save");
+      errEl.textContent = "❌ " + ccpFriendlyEditError_(res.message);
       errEl.style.display = "block";
       return;
     }
@@ -1419,7 +1431,7 @@ async function ccpSaveEditModal() {
       if (res2.status !== "success") {
         saveBtn.disabled = false;
         saveBtn.textContent = "Save";
-        errEl.textContent = "⚠️ Start time saved, but the automatic end point failed: " + (res2.message || "unknown error") + ". Please check the timeline.";
+        errEl.textContent = "⚠️ Start time saved, but the automatic end point failed: " + ccpFriendlyEditError_(res2.message || "unknown error") + ". Please check the timeline.";
         errEl.style.display = "block";
         loadCcPulseReport(false); // نحدث التايم لاين برضو عشان يبان اللي اتحفظ فعلاً
         return;
@@ -1558,7 +1570,7 @@ function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, 
     </div>
     <div class="ccp-metric-card">
       <div class="ccp-metric-label">Outbound Unanswered</div>
-      <div class="ccp-metric-value">${callStats ? callStats.outboundUnansweredCount : 0}</div>
+      <div class="ccp-metric-value" style="cursor:pointer; text-decoration:underline dotted;" title="Click to see each call" onclick="ccpShowOutboundUnansweredModal('${agentName}', 'day', '${day.date}')">${callStats ? callStats.outboundUnansweredCount : 0}</div>
     </div>`;
 
   const totalsHtml = Object.keys(day.totals || {}).map(st => `
@@ -1627,6 +1639,109 @@ function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, 
     </div>`;
 }
 
+// ============================================================
+// 📞 POPUP: تفاصيل مكالمات الـ "Outbound Unanswered" لإيجنت معين - بيتفتح لما
+// اليوزر يدوس على رقم الـ Outbound Unanswered في أي حتة ظاهر فيها (تقرير All
+// agents، تقرير إيجنت واحد يوم/رينج، أو كارت My Day) - بيجيب من Code.gs
+// (action=callLogDetail) كل مكالمة صادرة ماتردش عليها: رقم العميل، الوقت،
+// ومدة الرنين بالثانية (waitSeconds بتاعت 3CX)
+// ============================================================
+
+// بيبني المودال مرة واحدة بس ويحطه في آخر الصفحة (زي نفس أسلوب ccpEnsureEditModal_)
+function ccpEnsureCallDetailModal_() {
+  if (document.getElementById("ccpCallDetailModal")) return;
+
+  const modalHtml = `
+    <div id="ccpCallDetailModal" class="modal-overlay" style="display:none; z-index: 10000;">
+      <div class="modal-content" style="max-width: 480px; border-radius: 16px;">
+        <div class="modal-header">
+          <h3 id="ccpCallDetailTitle"><i class="fa-solid fa-phone-slash"></i> Outbound Unanswered</h3>
+          <button type="button" class="close-modal-btn" onclick="ccpCloseCallDetailModal()">✕</button>
+        </div>
+        <div class="modal-body" id="ccpCallDetailBody"></div>
+      </div>
+    </div>`;
+
+  document.body.insertAdjacentHTML("beforeend", modalHtml);
+
+  document.getElementById("ccpCallDetailModal").addEventListener("click", (e) => {
+    if (e.target.id === "ccpCallDetailModal") ccpCloseCallDetailModal();
+  });
+}
+
+function ccpCloseCallDetailModal() {
+  const modal = document.getElementById("ccpCallDetailModal");
+  if (modal) modal.style.display = "none";
+}
+
+// mode="day" -> ccpShowOutboundUnansweredModal(agentName, "day", dateStr)
+// mode="range" -> ccpShowOutboundUnansweredModal(agentName, "range", startDateStr, endDateStr)
+async function ccpShowOutboundUnansweredModal(agentName, mode, dateOrStart, endDate) {
+  ccpEnsureCallDetailModal_();
+
+  const modal = document.getElementById("ccpCallDetailModal");
+  const body = document.getElementById("ccpCallDetailBody");
+  document.getElementById("ccpCallDetailTitle").innerHTML =
+    `<i class="fa-solid fa-phone-slash"></i> Outbound Unanswered — ${agentName}`;
+  body.innerHTML = `<div class="ccp-loading">Loading...</div>`;
+  modal.style.display = "flex";
+
+  const params = new URLSearchParams({
+    action: "callLogDetail",
+    name: agentName,
+    direction: "Outbound",
+    result: "Unanswered"
+  });
+  if (mode === "day") {
+    params.set("mode", "day");
+    params.set("date", dateOrStart);
+  } else {
+    params.set("mode", "range");
+    params.set("start", dateOrStart);
+    params.set("end", endDate);
+  }
+
+  try {
+    const res = await fetch(`${GOOGLE_SHEET_API_URL}?${params.toString()}`);
+    const data = await res.json();
+
+    if (!data || data.status !== "success") {
+      body.innerHTML = `<div class="ccp-error">⚠️ ${data && data.message ? data.message : "Failed to load"}</div>`;
+      return;
+    }
+
+    if (!data.calls || data.calls.length === 0) {
+      body.innerHTML = `<div class="ccp-empty">No unanswered outbound calls in this period</div>`;
+      return;
+    }
+
+    const rowsHtml = data.calls.map(c => `
+      <tr>
+        <td>${c.date}</td>
+        <td>${c.time ? c.time.slice(0, 8) : "--"}</td>
+        <td>${c.customerNumber || "-"}</td>
+        <td>${formatCcPulseDuration(c.waitSeconds)}</td>
+      </tr>`).join("");
+
+    body.innerHTML = `
+      <div class="ccp-queue-trend-table-wrap">
+        <table class="ccp-queue-trend-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Customer Number</th>
+              <th>Rang For</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>`;
+  } catch (err) {
+    body.innerHTML = `<div class="ccp-error">⚠️ ${err}</div>`;
+  }
+}
+
 function renderCcPulseSingleAgentReport(data, callLogData) {
   const resultBox = document.getElementById("ccPulseReportResult");
   if (!data || data.status !== "success") {
@@ -1666,7 +1781,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
       </div>
       <div class="ccp-metric-card">
         <div class="ccp-metric-label">Outbound Unanswered</div>
-        <div class="ccp-metric-value">${callStats ? callStats.outboundUnansweredCount : 0}</div>
+        <div class="ccp-metric-value" style="cursor:pointer; text-decoration:underline dotted;" title="Click to see each call" onclick="ccpShowOutboundUnansweredModal('${data.agent}', 'range', '${data.days[0].date}', '${data.days[data.days.length - 1].date}')">${callStats ? callStats.outboundUnansweredCount : 0}</div>
       </div>`;
 
     const totalsHtml = Object.keys(data.totals || {}).map(st => `
