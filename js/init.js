@@ -14,7 +14,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // بنستنى بيانات الشيت (الروستر وغيرها) توصل الأول قبل ما نروح للصفحة الرئيسية،
   // عشان كروت زي "My Day" تلاقي البيانات جاهزة من أول مرة، مش تفتح فاضية
-  fetchAllDataFromGoogleSheet().finally(() => {
+  //
+  // بنحتفظ بالـ promise ده عالميًا (window.initialDataReadyPromise) عشان أي
+  // مكان تاني محتاج يستنى لحد ما البيانات دي توصل فعلاً يقدر يستخدم نفس
+  // الـ promise من غير ما يعمل fetch تاني - أهم استخدام ليها دلوقتي هو
+  // اللوجن (auth.js) اللي بقى بيتحقق من السيرفر على طول من غير ما يستنى كل
+  // بيانات الموقع، فلو اللوجن حصل بسرعة قبل ما الـ fetch الأول ده يخلص،
+  // لازم يستناها هو كمان قبل ما يفتح الصفحة الرئيسية عشان كروت زي "Active
+  // On Shift Right Now" متلاقيش بيانات الروستر لسه فاضية
+  window.initialDataReadyPromise = fetchAllDataFromGoogleSheet().finally(() => {
     if (loggedUser) {
       resetInactivityTimer(); // تفعيل المؤقت فور تحميل الصفحة لو كان مسجل دخول
       navigateTo('home-page');

@@ -105,9 +105,16 @@ function handleLogin(event) {
           email: res.user.email || ""
         };
 
-        updateUserProfileUI();
-        resetInactivityTimer(); // تشغيل مؤقت الخمول عند تسجيل الدخول الناجح
-        navigateTo('home-page');
+        // اللوجن بقى سريع جدًا، وممكن يخلص قبل ما بيانات الموقع (towers/roster/
+        // schedule/unitMapping) اللي بتتحمل مرة واحدة بس عند فتح الصفحة تكون
+        // وصلت - فبنستنى نفس الـ promise ده (من init.js) قبل ما نفتح الصفحة
+        // الرئيسية، عشان كروت زي "Active On Shift Right Now" متلاقيش الروستر
+        // لسه فاضي وتحط كل الإيجنتس في فريق واحد غلط
+        Promise.resolve(window.initialDataReadyPromise).finally(() => {
+          updateUserProfileUI();
+          resetInactivityTimer(); // تشغيل مؤقت الخمول عند تسجيل الدخول الناجح
+          navigateTo('home-page');
+        });
       } else {
         if (errorMsg) errorMsg.style.display = "block";
       }
