@@ -71,30 +71,55 @@ function handleLogin(event) {
   const errorMsg = document.getElementById("login-error");
   const submitBtn = document.querySelector("#login-page .btn-login");
 
-  if (errorMsg) errorMsg.style.display = "none";
+  if (errorMsg) {
+    errorMsg.style.display = "none";
+    errorMsg.innerText = "❌ Invalid Username or Password!"; // رجّع النص الافتراضي لو كان اتغيّر من محاولة فيها خطأ شبكة قبل كده
+  }
   if (submitBtn) { submitBtn.disabled = true; submitBtn.innerText = "Checking..."; }
 
-  // بنجيب أحدث نسخة من شيت اليوزرز في اللحظة دي بالظبط (مش نسخة قديمة اتحملت
-  // وقت ما الصفحة اتفتحت)، عشان أي إضافة/حذف/تعديل ليوزر في الشيت يشتغل فورًا
-  fetchAllDataFromGoogleSheet().finally(() => {
-    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = "Sign In"; }
+  // اللوجن بقى بيبعت طلب خفيف بيتحقق بس من شيت اليوزرز (مش الموقع كله زي قبل
+  // كده) عشان يبقى سريع، وبرضو بيتأكد من أحدث نسخة في الشيت في اللحظة دي بالظبط
+  fetch(GOOGLE_SHEET_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action: "login", username: user, password: pass })
+  })
+    .then(res => res.json())
+    .then(res => {
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = "Sign In"; }
 
-    const userObj = dynamicUsers[user];
+      if (res.status === "success" && res.user) {
+        localStorage.setItem("loggedInUser", user);
+        localStorage.setItem("userPassword", pass);
+        localStorage.setItem("userRole", res.user.role || "user");
+        localStorage.setItem("userFullName", res.user.fullName || user);
+        localStorage.setItem("userEmail", res.user.email || "");
 
-    if (userObj && String(userObj.password) === String(pass)) {
-      localStorage.setItem("loggedInUser", user);
-      localStorage.setItem("userPassword", pass);
-      localStorage.setItem("userRole", userObj.role || "user");
-      localStorage.setItem("userFullName", userObj.fullName || user);
-      localStorage.setItem("userEmail", userObj.email || "");
+        // بنحدّث dynamicUsers محليًا بنفس القيم عشان أي حاجة زي تغيير الباسورد
+        // لاحقًا (اللي بتقرا من dynamicUsers) تفضل شغالة صح من غير ما تستنى
+        // تحميل تاني لكل بيانات الموقع
+        dynamicUsers[user] = {
+          password: pass,
+          role: res.user.role || "user",
+          fullName: res.user.fullName || user,
+          email: res.user.email || ""
+        };
 
-      updateUserProfileUI();
-      resetInactivityTimer(); // تشغيل مؤقت الخمول عند تسجيل الدخول الناجح
-      navigateTo('home-page');
-    } else {
-      if (errorMsg) errorMsg.style.display = "block";
-    }
-  });
+        updateUserProfileUI();
+        resetInactivityTimer(); // تشغيل مؤقت الخمول عند تسجيل الدخول الناجح
+        navigateTo('home-page');
+      } else {
+        if (errorMsg) errorMsg.style.display = "block";
+      }
+    })
+    .catch(err => {
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = "Sign In"; }
+      console.error("Login request failed:", err);
+      if (errorMsg) {
+        errorMsg.innerText = "❌ Network error. Please check your connection and try again.";
+        errorMsg.style.display = "block";
+      }
+    });
 
   return false;
 }
