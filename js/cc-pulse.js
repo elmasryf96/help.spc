@@ -32,6 +32,17 @@ const CCP_STATUS_COLORS = {
   "Custom 1": ccpStatusColor("Custom 1"),
   "Custom 2": ccpStatusColor("Custom 2")
 };
+
+// الحالات المتاحة في مودال "تعديل التايم لاين" (Click-to-edit) - من غير Custom 1/Custom 2 بناءً على طلب الأدمن
+const CCP_EDITABLE_STATUSES = [
+  { value: "Available", label: "🟢 Available" },
+  { value: "Break", label: "🟠 Break" },
+  { value: "Follow up case", label: "🔵 Follow up case" },
+  { value: "Emails", label: "🟢 Emails" },
+  { value: "Out of office", label: "🟢 Call Outs" },
+  { value: "Away", label: "⚪ Away" }
+];
+
 let ccPulseMode = "day";
 let ccpResultView = "queue"; // "queue" | "agents" - بيفصل بين قسم الـ Queue Overview وقسم كروت الإيجنتس في تقرير "All agents"، وبيفضل زي ما هو حتى مع التحديث التلقائي كل 20 ثانية
 
@@ -726,7 +737,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
             <div class="ccp-metric-value">${ccpFormatAdherencePct(adherencePct)}</div>
           </div>`;
       }
-      timelineHtml = renderCcPulseTimelineHtml(a.sessions || [], statusColors, shiftWindow, effectiveEndMin);
+      timelineHtml = renderCcPulseTimelineHtml(a.sessions || [], statusColors, shiftWindow, effectiveEndMin, { agentName: a.name, dateStr: a.date });
     } else {
       const periodAdherencePct = calculateAdherenceFromDays(a.name, a.days || [], data.trackingStartDate);
       if (periodAdherencePct !== null) {
@@ -792,6 +803,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
 
   setCcpResultView(ccpResultView);
   attachCcPulseTimelineHover();
+  attachCcPulseTimelineEditHandlers();
 }
 
 function ccPulseTimeToMinutes(ts) {
@@ -1095,8 +1107,24 @@ function exportCcPulseReportToCsv() {
   downloadCcPulseCsv(rows, filename);
 }
 
-function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null, effectiveEndMin = null) {
+// بيرجع "HH:MM" بصيغة 24 ساعة (الصيغة اللي محتاجها <input type="time">) من رقم دقايق من نص الليل
+function ccpMinutesToHHMM_(totalMinutes) {
+  const hour24 = Math.floor(totalMinutes / 60) % 24;
+  const minute = Math.round(totalMinutes % 60);
+  return `${String(hour24).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+// تهريب بسيط لأي قيمة بتتحط جوه data-attribute في الـ HTML (زي اسم الإيجنت)
+function ccpEscapeAttr_(str) {
+  return String(str == null ? "" : str).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+}
+
+// editCtx = { agentName, dateStr } - لو موجودة، بيضيف data-attributes لكل جزء تايم لاين (حقيقي أو فجوة
+// Out Of Adherence) عشان يبقى قابل للدوس عليه وتعديله - الدوس نفسه بيتفعّل بس للأدمن (شوف attachCcPulseTimelineEditHandlers)
+function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null, effectiveEndMin = null, editCtx = null) {
   if (!sessions.length && !shiftWindow) return ""; // مفيش جلسات ولا شيفت متجدول، مفيش حاجة نرسمها
+
+  const canEdit = Boolean(editCtx && editCtx.agentName && editCtx.dateStr && typeof isAdmin === "function" && isAdmin());
 
   let dayStart = 9 * 60;
   let dayEnd = 21 * 60;
@@ -1126,7 +1154,10 @@ function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null, e
     const icon = CCP_STATUS_ICONS[s.status] || "fa-circle";
     const iconColor = "#ffffff";
     const tooltipText = `${ccpDisplayStatusName(s.status)}: ${ccPulseTimeOnly(s.start)} \u2192 ${ccPulseTimeOnly(s.end)} (${formatCcPulseDuration(s.durationSeconds)})`;
-    return `<div class="ccp-tl-segment" style="left:${left}%;width:${width}%;background:${color};color:${iconColor};" data-tooltip="${tooltipText}"><i class="fa-solid ${icon}"></i></div>`;
+    const editAttrs = canEdit
+      ? ` data-ccp-edit="1" data-agent="${ccpEscapeAttr_(editCtx.agentName)}" data-date="${editCtx.dateStr}" data-time="${s.start}" data-status="${ccpEscapeAttr_(s.status)}"`
+      : "";
+    return `<div class="ccp-tl-segment" style="left:${left}%;width:${width}%;background:${color};color:${iconColor};" data-tooltip="${tooltipText}"${editAttrs}><i class="fa-solid ${icon}"></i></div>`;
   }).join("");
 
   const outOfAdherenceSegments = computeOutOfAdherenceSegments(sessions, shiftWindow, effectiveEndMin);
@@ -1134,7 +1165,10 @@ function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null, e
     const left = ((startMin - dayStart) / span) * 100;
     const width = Math.max(((endMin - startMin) / span) * 100, 0.3);
     const tooltipText = `Out Of Adherence: ${ccPulseMinutesToTimeLabel(startMin)} \u2192 ${ccPulseMinutesToTimeLabel(endMin)} (${formatCcPulseDuration((endMin - startMin) * 60)})`;
-    return `<div class="ccp-tl-segment ccp-tl-outofadherence" style="left:${left}%;width:${width}%;" data-tooltip="${tooltipText}"></div>`;
+    const editAttrs = canEdit
+      ? ` data-ccp-edit="1" data-agent="${ccpEscapeAttr_(editCtx.agentName)}" data-date="${editCtx.dateStr}" data-time="" data-prefill="${ccpMinutesToHHMM_(startMin)}" data-status=""`
+      : "";
+    return `<div class="ccp-tl-segment ccp-tl-outofadherence" style="left:${left}%;width:${width}%;" data-tooltip="${tooltipText}"${editAttrs}></div>`;
   }).join("");
 
   // خط "دلوقتي" مع بادج الوقت - بيظهر بس لو التايم لاين ده بتاع النهاردة
@@ -1160,7 +1194,7 @@ function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null, e
   }
 
   const legendHtml = shiftWindow
-    ? `<div class="ccp-tl-shift-legend"><span class="ccp-tl-shift-swatch"></span> Scheduled shift: ${shiftWindow.label}${outOfAdherenceSegments.length ? ` &nbsp;·&nbsp; <span class="ccp-tl-outofadherence-swatch"></span> Out Of Adherence` : ""}</div>`
+    ? `<div class="ccp-tl-shift-legend"><span class="ccp-tl-shift-swatch"></span> Scheduled shift: ${shiftWindow.label}${outOfAdherenceSegments.length ? ` &nbsp;·&nbsp; <span class="ccp-tl-outofadherence-swatch"></span> Out Of Adherence` : ""}${canEdit ? ` &nbsp;·&nbsp; ✏️ Click a segment to edit` : ""}</div>`
     : "";
 
   return `
@@ -1173,6 +1207,185 @@ function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null, e
       <div class="ccp-timeline-axis">${axisHtml}</div>
       <div class="ccp-tl-tooltip" id="ccpTlTooltip"></div>
     </div>`;
+}
+
+// ============================================================
+// ✏️ CC PULSE TIMELINE - CLICK TO EDIT (ADMIN ONLY)
+// بيسمح للأدمن يعدّل/يضيف نقطة في سجل حالة إيجنت بالدوس على التايم لاين مباشرة
+// (سيجمنت حقيقي أو فجوة Out Of Adherence)، بدل ما يعدل شيت AgentStatusLog بإيده
+// شوف Code.gs -> editAgentStatusPoint_ للمنطق اللي بيحصل في الشيت فعليًا
+// ============================================================
+
+// بيبني المودال مرة واحدة بس ويحطه في آخر الصفحة (لو موجود بالفعل مبيعملش حاجة)
+function ccpEnsureEditModal_() {
+  if (document.getElementById("ccpEditModal")) return;
+
+  const statusOptionsHtml = CCP_EDITABLE_STATUSES.map(s => `<option value="${s.value}">${s.label}</option>`).join("");
+
+  const modalHtml = `
+    <div id="ccpEditModal" class="modal-overlay" style="display:none; z-index: 10000;">
+      <div class="modal-content" style="max-width: 380px; border-radius: 16px;">
+        <div class="modal-header">
+          <h3 id="ccpEditModalTitle"><i class="fa-solid fa-pen"></i> Edit Status</h3>
+          <button type="button" class="close-modal-btn" onclick="ccpCloseEditModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="ccp-edit-admin-note">🔒 Admin only — same permission as editing towers</div>
+
+          <div class="form-group">
+            <label for="ccpEditAgentDisplay">Agent</label>
+            <input class="combo-input" id="ccpEditAgentDisplay" disabled style="background:#f8fafc;color:#64748b;">
+          </div>
+
+          <div class="form-group">
+            <label for="ccpEditDate">Date</label>
+            <input class="date-input" id="ccpEditDate" type="date">
+          </div>
+
+          <div class="form-group">
+            <label for="ccpEditTime">Time — status changes to this from here on</label>
+            <input class="date-input" id="ccpEditTime" type="time">
+          </div>
+
+          <div class="form-group">
+            <label for="ccpEditStatus">Status</label>
+            <select class="combo-input" id="ccpEditStatus">${statusOptionsHtml}</select>
+          </div>
+
+          <div id="ccpEditError" class="ccp-edit-error" style="display:none;"></div>
+
+          <div class="ccp-edit-actions">
+            <button type="button" class="ccp-edit-btn-secondary" id="ccpEditCancelBtn" onclick="ccpCloseEditModal()">Cancel</button>
+            <button type="button" class="btn-primary" id="ccpEditSaveBtn" onclick="ccpSaveEditModal()" style="flex:1;">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ccp-edit-toast" id="ccpEditToast"></div>`;
+
+  document.body.insertAdjacentHTML("beforeend", modalHtml);
+
+  document.getElementById("ccpEditModal").addEventListener("click", (e) => {
+    if (e.target.id === "ccpEditModal") ccpCloseEditModal();
+  });
+}
+
+let ccpEditState = null; // { agentName, originalTime } - بيتحط وقت فتح المودال، ومطلوب وقت الحفظ
+
+// seg = العنصر (.ccp-tl-segment) اللي اتدوس عليه
+function ccpOpenEditModal(seg) {
+  if (!isAdmin()) return; // حماية إضافية - مش متوقع يوصل هنا أصلاً لو مش أدمن (الزرار مش بيتربط أصلاً)
+  ccpEnsureEditModal_();
+
+  const agentName = seg.getAttribute("data-agent") || "";
+  const dateStr = seg.getAttribute("data-date") || "";
+  const originalTime = seg.getAttribute("data-time") || "";
+  const status = seg.getAttribute("data-status") || "";
+  const prefillTime = seg.getAttribute("data-prefill") || "";
+  const isGap = seg.classList.contains("ccp-tl-outofadherence");
+
+  ccpEditState = { agentName: agentName, originalTime: originalTime };
+
+  document.getElementById("ccpEditModalTitle").innerHTML = isGap
+    ? `<i class="fa-solid fa-pen"></i> Fill Gap`
+    : `<i class="fa-solid fa-pen"></i> Edit Status`;
+  document.getElementById("ccpEditAgentDisplay").value = agentName;
+  document.getElementById("ccpEditDate").value = dateStr;
+  document.getElementById("ccpEditTime").value = originalTime ? originalTime.split(" ")[1].slice(0, 5) : (prefillTime || "09:00");
+  document.getElementById("ccpEditStatus").value = isGap ? "Available" : (status || "Available");
+
+  const errEl = document.getElementById("ccpEditError");
+  errEl.style.display = "none";
+  errEl.textContent = "";
+  const saveBtn = document.getElementById("ccpEditSaveBtn");
+  saveBtn.disabled = false;
+  saveBtn.textContent = "Save";
+
+  document.getElementById("ccpEditModal").style.display = "flex";
+}
+
+function ccpCloseEditModal() {
+  const modal = document.getElementById("ccpEditModal");
+  if (modal) modal.style.display = "none";
+  ccpEditState = null;
+}
+
+function ccpShowEditToast_(message) {
+  const toast = document.getElementById("ccpEditToast");
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 2400);
+}
+
+function ccpSaveEditModal() {
+  if (!ccpEditState) return;
+
+  const dateVal = document.getElementById("ccpEditDate").value;
+  const timeVal = document.getElementById("ccpEditTime").value; // "HH:MM"
+  const statusVal = document.getElementById("ccpEditStatus").value;
+  const errEl = document.getElementById("ccpEditError");
+
+  if (!dateVal || !timeVal || !statusVal) {
+    errEl.textContent = "⚠️ Please fill in date, time, and status.";
+    errEl.style.display = "block";
+    return;
+  }
+
+  const newTime = `${dateVal} ${timeVal}:00`;
+  const saveBtn = document.getElementById("ccpEditSaveBtn");
+  saveBtn.disabled = true;
+  saveBtn.textContent = "Saving...";
+  errEl.style.display = "none";
+
+  fetch(GOOGLE_SHEET_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({
+      action: "editAgentStatusPoint",
+      agentName: ccpEditState.agentName,
+      originalTime: ccpEditState.originalTime,
+      newTime: newTime,
+      newStatus: statusVal,
+      token: localStorage.getItem("sessionToken") || ""
+    })
+  })
+    .then(res => res.json())
+    .then(res => {
+      if (res.status === "success") {
+        ccpCloseEditModal();
+        ccpShowEditToast_("✅ Saved — refreshing timeline...");
+        loadCcPulseReport(false); // إعادة تحميل التقرير عشان التايم لاين يتحدث بالبيانات الجديدة فورًا
+      } else {
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Save";
+        errEl.textContent = "❌ " + (res.message || "Failed to save");
+        errEl.style.display = "block";
+      }
+    })
+    .catch(err => {
+      console.error("Error saving status edit:", err);
+      saveBtn.disabled = false;
+      saveBtn.textContent = "Save";
+      errEl.textContent = "❌ Network error. Please check your connection and try again.";
+      errEl.style.display = "block";
+    });
+}
+
+// بيربط الدوس على أجزاء التايم لاين (حقيقية أو فجوة Out Of Adherence) بفتح مودال التعديل - أدمن بس
+// (بيتنادى بعد كل رندر تقرير جديد - زي attachCcPulseTimelineHover بالظبط)
+function attachCcPulseTimelineEditHandlers() {
+  if (!isAdmin()) return;
+  document.querySelectorAll(".ccp-timeline-bar").forEach(bar => {
+    if (bar.dataset.editBound === "true") return;
+    bar.dataset.editBound = "true";
+
+    bar.addEventListener("click", (e) => {
+      const seg = e.target.closest('.ccp-tl-segment[data-ccp-edit="1"]');
+      if (!seg) return;
+      ccpOpenEditModal(seg);
+    });
+  });
 }
 
 function attachCcPulseTimelineHover() {
@@ -1288,7 +1501,7 @@ function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, 
       </div>
       ${adherenceCardHtml}
     </div>
-    ${renderCcPulseTimelineHtml(day.sessions, statusColors, shiftWindow, dayEffectiveEndMin)}
+    ${renderCcPulseTimelineHtml(day.sessions, statusColors, shiftWindow, dayEffectiveEndMin, { agentName: agentName, dateStr: day.date })}
     <div class="ccp-session-list">
       ${(day.sessions || []).map(s => `
         <div class="ccp-session-row">
@@ -1404,6 +1617,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
   ccPulseLastExportTrackingStartDate = data.trackingStartDate || null;
 
   attachCcPulseTimelineHover();
+  attachCcPulseTimelineEditHandlers();
 }
 
 // ============================================================

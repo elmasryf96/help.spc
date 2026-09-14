@@ -2043,6 +2043,69 @@ input:checked + .slider:before { transform: translateX(20px); }
     border-radius: 3px;
     background: #ef4444;
 }
+
+/* ---- Timeline click-to-edit modal (CC Pulse, admin only) ---- */
+.ccp-edit-admin-note {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--badge-bg);
+    border: 1.5px solid var(--badge-border);
+    border-radius: 8px;
+    padding: 7px 10px;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #78716c;
+    margin-bottom: 14px;
+}
+.ccp-edit-error {
+    color: var(--coral-red);
+    font-size: 12.5px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    text-align: left;
+}
+.ccp-edit-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+.ccp-edit-btn-secondary {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 13px;
+    cursor: pointer;
+    text-align: center;
+    background: #ffffff;
+    color: #64748b;
+    border: 2px solid #e2e8f0;
+}
+.ccp-edit-btn-secondary:hover {
+    background: #f1f5f9;
+}
+.ccp-edit-toast {
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--dark-navy);
+    color: var(--primary-yellow);
+    font-weight: 800;
+    font-size: 13px;
+    padding: 10px 18px;
+    border-radius: 999px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s, transform .2s;
+    z-index: 10001;
+}
+.ccp-edit-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
 .ccp-daystatus-banner {
     padding: 12px 16px;
     border-radius: 10px;

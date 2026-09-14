@@ -446,6 +446,116 @@ function getEarliestLogDate_(sheet, lastRow) {
 }
 
 // ------------------------------------------------------------
+// ✏️ تعديل نقطة في سجل حالة إيجنت من التايم لاين في CC Pulse مباشرة (Click-to-edit)
+// بدل ما الأدمن يعدل شيت AgentStatusLog بإيده - بيتعامل مع 3 حالات:
+//   أ) نفس الوقت بالظبط، الحالة بس اتغيرت -> تعديل الصف الموجود في مكانه
+//   ب) الوقت اتغير -> مسح الصف القديم وإضافة صف جديد في مكانه الصحيح كرونولوجيًا
+//   ج) مفيش originalTime (تعبئة فجوة Out Of Adherence) -> إضافة صف جديد بس
+// الشيت لازم يفضل مرتب تصاعديًا بعمود E (Timestamp) عشان البحث الثنائي في
+// التقارير (readAgentStatusLogRange_) يفضل شغال صح - فأي إضافة/نقل بيتحط في
+// مكانه الصحيح كرونولوجيًا بالظبط، مش في آخر الشيت
+// ------------------------------------------------------------
+function editAgentStatusPoint_(ss, data) {
+  var sheet = ss.getSheetByName("AgentStatusLog");
+  if (!sheet) return { status: "error", message: "Sheet AgentStatusLog not found" };
+
+  var agentName = String(data.agentName || "").trim();
+  if (!agentName) return { status: "error", message: "Missing agent name" };
+
+  var newStatus = String(data.newStatus || "").trim();
+  if (!newStatus) return { status: "error", message: "Missing new status" };
+
+  var newTimestamp = String(data.newTime || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(newTimestamp)) {
+    return { status: "error", message: "Invalid time format" };
+  }
+
+  var originalTimestamp = String(data.originalTime || "").trim(); // فاضي = إضافة جديدة (تعبئة فجوة)
+
+  var lastRow = sheet.getLastRow();
+  var allValues = (lastRow >= 2) ? sheet.getRange(2, 1, lastRow - 1, 5).getValues() : [];
+
+  var rows = [];
+  for (var i = 0; i < allValues.length; i++) {
+    rows.push({
+      name: String(allValues[i][0]).trim(),
+      number: allValues[i][1],
+      oldStatus: String(allValues[i][2]).trim(),
+      newStatus: String(allValues[i][3]).trim(),
+      timestamp: String(allValues[i][4]).replace(/^'/, "").trim(),
+      rowNum: i + 2
+    });
+  }
+
+  // رقم الإكستنشن بتاع الإيجنت - بناخده من أي صف قديم ليه في الشيت
+  var agentNumber = "-";
+  for (var n = 0; n < rows.length; n++) {
+    if (rows[n].name === agentName) { agentNumber = rows[n].number; break; }
+  }
+
+  var matchedIdx = -1;
+  if (originalTimestamp) {
+    for (var m = 0; m < rows.length; m++) {
+      if (rows[m].name === agentName && rows[m].timestamp === originalTimestamp) { matchedIdx = m; break; }
+    }
+    if (matchedIdx === -1) {
+      return { status: "error", message: "Could not find the original record - it may have already changed. Please refresh and try again." };
+    }
+  }
+
+  // حالة أ: نفس الوقت بالظبط، الحالة بس اتغيرت -> تعديل مكانه في الشيت مباشرة
+  if (matchedIdx !== -1 && originalTimestamp === newTimestamp) {
+    sheet.getRange(rows[matchedIdx].rowNum, 4).setValue(newStatus);
+    SpreadsheetApp.flush();
+    return { status: "success", message: "Status updated" };
+  }
+
+  // من هنا: إما نقل صف (حالة ب) أو إضافة صف جديد (حالة ج) - الاتنين محتاجين
+  // نلاقي مكانه الصحيح كرونولوجيًا في مصفوفة "بعد ما نشيل الصف القديم لو موجود"
+  var remainingRows = rows.slice();
+  if (matchedIdx !== -1) remainingRows.splice(matchedIdx, 1);
+
+  // منع التصادم: صف تاني لنفس الإيجنت بنفس الوقت بالظبط ممكن يبوظ حساب الجلسات
+  for (var c = 0; c < remainingRows.length; c++) {
+    if (remainingRows[c].name === agentName && remainingRows[c].timestamp === newTimestamp) {
+      return { status: "error", message: "There is already a status change for this agent at this exact time" };
+    }
+  }
+
+  // البحث عن مكانه الصحيح (أول صف وقته بعد الوقت الجديد - الصف الجديد هيتحط قبله)
+  var insertAtIndex = remainingRows.length;
+  for (var p = 0; p < remainingRows.length; p++) {
+    if (remainingRows[p].timestamp > newTimestamp) { insertAtIndex = p; break; }
+  }
+
+  // الـ OldStatus بتاع الصف الجديد = آخر حالة كانت شغالة قبله زمنيًا لنفس
+  // الإيجنت (أو "Away" لو دي أول حركة ليه في السجل كله) - مستخدمة بس في حساب
+  // "أول لوجين"/"آخر شيفت" (buildOneDayReport_)، مش في رسم الجلسات نفسها
+  var computedOldStatus = "Away";
+  for (var q = insertAtIndex - 1; q >= 0; q--) {
+    if (remainingRows[q].name === agentName) { computedOldStatus = remainingRows[q].newStatus; break; }
+  }
+
+  // لو فيه صف قديم هيتشال، امسحه الأول (يبسّط حساب رقم الصف بعد كده)
+  if (matchedIdx !== -1) {
+    sheet.deleteRow(rows[matchedIdx].rowNum);
+  }
+
+  var newRowValues = [agentName, agentNumber, computedOldStatus, newStatus, "'" + newTimestamp];
+
+  if (insertAtIndex >= remainingRows.length) {
+    sheet.appendRow(newRowValues);
+  } else {
+    var targetSheetRow = insertAtIndex + 2; // remainingRows[0] -> صف رقم 2 في الشيت
+    sheet.insertRowBefore(targetSheetRow);
+    sheet.getRange(targetSheetRow, 1, 1, 5).setValues([newRowValues]);
+  }
+
+  SpreadsheetApp.flush();
+  return { status: "success", message: matchedIdx !== -1 ? "Time & status updated" : "Status added" };
+}
+
+// ------------------------------------------------------------
 // 🔄 بيرجع كل تغييرات الحالة اللي حصلت النهاردة بس (بتوقيت الإمارات)، مرتبة بالوقت
 // مستخدمة عشان السيرفر يقدر "يفتكر" آخر حالة لكل إيجنت فور ما يشتغل بعد أي Restart
 // استخدام: ?action=todayStatusLog
@@ -916,6 +1026,16 @@ function doPost(e) {
       PropertiesService.getScriptProperties().setProperty("forceLogoutAt", String(Date.now()));
 
       return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "Tower updated successfully in Sheet" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 7. تعديل نقطة في سجل حالة إيجنت من التايم لاين في CC Pulse مباشرة (Click-to-edit) - أدمن بس
+    else if (data.action === "editAgentStatusPoint") {
+      var editSession = requireSession_(data, true);
+      if (!editSession.ok) return editSession.response;
+
+      var editResult = editAgentStatusPoint_(ss, data);
+      return ContentService.createTextOutput(JSON.stringify(editResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
