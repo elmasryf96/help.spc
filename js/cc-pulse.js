@@ -1250,7 +1250,7 @@ function ccpEnsureEditModal_() {
 
           <div class="form-group">
             <label for="ccpEditTime">Start time — status changes to this from here on</label>
-            <input class="date-input" id="ccpEditTime" type="time">
+            <input class="date-input" id="ccpEditTime" type="time" step="1">
           </div>
 
           <div class="form-group">
@@ -1260,7 +1260,7 @@ function ccpEnsureEditModal_() {
 
           <div class="form-group">
             <label for="ccpEditEndTime">End time (optional)</label>
-            <input class="date-input" id="ccpEditEndTime" type="time">
+            <input class="date-input" id="ccpEditEndTime" type="time" step="1">
             <div class="ccp-edit-hint" id="ccpEditEndTimeHint"></div>
           </div>
 
@@ -1314,7 +1314,7 @@ function ccpOpenEditModal(seg) {
     : `<i class="fa-solid fa-pen"></i> Edit Status`;
   document.getElementById("ccpEditAgentDisplay").value = agentName;
   document.getElementById("ccpEditDate").value = dateStr;
-  document.getElementById("ccpEditTime").value = originalTime ? originalTime.split(" ")[1].slice(0, 5) : (prefillTime || "09:00");
+  document.getElementById("ccpEditTime").value = originalTime ? originalTime.split(" ")[1] : ((prefillTime ? prefillTime + ":00" : "09:00:00"));
   document.getElementById("ccpEditStatus").value = isGap ? "Available" : (status || "Available");
   document.getElementById("ccpEditEndTime").value = ""; // دايمًا فاضي لما نفتح - اختياري
   document.getElementById("ccpEditEndTimeHint").textContent =
@@ -1350,6 +1350,12 @@ function ccpShowEditToast_(message) {
   setTimeout(() => toast.classList.remove("show"), 2400);
 }
 
+// بيرجع "HH:MM:SS" من قيمة حقل <input type="time" step="1"> - المفروض دايمًا يرجع الثواني بفضل step="1"،
+// بس لو المتصفح مدعمش ده وبيرجع "HH:MM" بس، بنضيف ":00" احتياطًا
+function ccpNormalizeTimeToHHMMSS_(timeVal) {
+  return (timeVal && timeVal.length === 5) ? (timeVal + ":00") : timeVal;
+}
+
 // بيبعت نقطة واحدة (editAgentStatusPoint) للسيرفر ويرجع الـ JSON - مستخدمة مرة واحدة أو مرتين (بداية + نهاية)
 function ccpPostAgentStatusEdit_(agentName, originalTime, newTime, newStatus) {
   return fetch(GOOGLE_SHEET_API_URL, {
@@ -1370,8 +1376,8 @@ async function ccpSaveEditModal() {
   if (!ccpEditState) return;
 
   const dateVal = document.getElementById("ccpEditDate").value;
-  const timeVal = document.getElementById("ccpEditTime").value; // "HH:MM"
-  const endTimeVal = document.getElementById("ccpEditEndTime").value; // "HH:MM" أو فاضي (اختياري)
+  const timeVal = ccpNormalizeTimeToHHMMSS_(document.getElementById("ccpEditTime").value); // "HH:MM:SS"
+  const endTimeVal = ccpNormalizeTimeToHHMMSS_(document.getElementById("ccpEditEndTime").value); // "HH:MM:SS" أو فاضي (اختياري)
   const statusVal = document.getElementById("ccpEditStatus").value;
   const errEl = document.getElementById("ccpEditError");
 
@@ -1386,7 +1392,7 @@ async function ccpSaveEditModal() {
     return;
   }
 
-  const newTime = `${dateVal} ${timeVal}:00`;
+  const newTime = `${dateVal} ${timeVal}`;
   const saveBtn = document.getElementById("ccpEditSaveBtn");
   saveBtn.disabled = true;
   saveBtn.textContent = "Saving...";
@@ -1408,7 +1414,7 @@ async function ccpSaveEditModal() {
     if (endTimeVal) {
       saveBtn.textContent = "Saving end time...";
       const autoRevertStatus = ccpEditState.autoRevertStatus;
-      const endTime = `${dateVal} ${endTimeVal}:00`;
+      const endTime = `${dateVal} ${endTimeVal}`;
       const res2 = await ccpPostAgentStatusEdit_(ccpEditState.agentName, "", endTime, autoRevertStatus);
       if (res2.status !== "success") {
         saveBtn.disabled = false;
