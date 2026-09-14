@@ -1148,7 +1148,7 @@ function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null, e
     shiftBandHtml = `<div class="ccp-tl-shift-band" style="left:${left}%;width:${width}%;" data-tooltip="Scheduled shift: ${shiftWindow.label}"></div>`;
   }
 
-  const segmentsHtml = sessions.map(s => {
+  const segmentsHtml = sessions.map((s, sIdx) => {
     const startMin = ccPulseTimeToMinutes(s.start);
     const endMin = ccPulseTimeToMinutes(s.end);
     const left = ((startMin - dayStart) / span) * 100;
@@ -1157,8 +1157,11 @@ function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null, e
     const icon = CCP_STATUS_ICONS[s.status] || "fa-circle";
     const iconColor = "#ffffff";
     const tooltipText = `${ccpDisplayStatusName(s.status)}: ${ccPulseTimeOnly(s.start)} \u2192 ${ccPulseTimeOnly(s.end)} (${formatCcPulseDuration(s.durationSeconds)})`;
+    // \u0627\u0644\u062d\u0627\u0644\u0629 \u0627\u0644\u0644\u064a \u0643\u0627\u0646\u062a \u0634\u063a\u0627\u0644\u0629 \u0642\u0628\u0644 \u0627\u0644\u0633\u064a\u062c\u0645\u0646\u062a \u062f\u0647 \u0645\u0628\u0627\u0634\u0631\u0629 - \u0639\u0634\u0627\u0646 \u0644\u0648 \u0627\u0644\u0623\u062f\u0645\u0646 \u062d\u062f\u062f "End time" \u0647\u0646\u0627 \u0646\u0631\u062c\u0639\u0644\u0647
+    // \u0644\u0646\u0641\u0633 \u0627\u0644\u062d\u0627\u0644\u0629 \u0627\u0644\u0644\u064a \u0643\u0627\u0646 \u0639\u0644\u064a\u0647\u0627 \u0641\u0639\u0644\u0627\u064b \u0642\u0628\u0644 \u0643\u062f\u0647 (\u0645\u0634 \u062a\u062e\u0645\u064a\u0646 \u0639\u0627\u0645 \u0632\u064a Available)\u060c \u0623\u0648\u0644 \u0633\u064a\u062c\u0645\u0646\u062a \u0641\u064a \u0627\u0644\u064a\u0648\u0645 \u0645\u0641\u064a\u0634 \u0642\u0628\u0644\u0647 \u062d\u0627\u062c\u0629
+    const prevStatus = sIdx > 0 ? sessions[sIdx - 1].status : "";
     const editAttrs = canEdit
-      ? ` data-ccp-edit="1" data-agent="${ccpEscapeAttr_(editCtx.agentName)}" data-date="${editCtx.dateStr}" data-time="${s.start}" data-status="${ccpEscapeAttr_(s.status)}"`
+      ? ` data-ccp-edit="1" data-agent="${ccpEscapeAttr_(editCtx.agentName)}" data-date="${editCtx.dateStr}" data-time="${s.start}" data-status="${ccpEscapeAttr_(s.status)}" data-prev-status="${ccpEscapeAttr_(prevStatus)}"`
       : "";
     return `<div class="ccp-tl-segment" style="left:${left}%;width:${width}%;background:${color};color:${iconColor};" data-tooltip="${tooltipText}"${editAttrs}><i class="fa-solid ${icon}"></i></div>`;
   }).join("");
@@ -1295,12 +1298,16 @@ function ccpOpenEditModal(seg) {
   const originalTime = seg.getAttribute("data-time") || "";
   const status = seg.getAttribute("data-status") || "";
   const prefillTime = seg.getAttribute("data-prefill") || "";
+  const prevStatus = seg.getAttribute("data-prev-status") || "";
   const isGap = seg.classList.contains("ccp-tl-outofadherence");
-  // الحالة اللي بيرجعلها لوحده لو حددنا "End time" - فجوة (مفيش داتا خالص) بترجع Away،
-  // سيجمنت شغل حقيقي بيرجع Available (زي حد نسي يغيّر حالته ولسه شغال فعليًا)
-  const autoRevertStatus = isGap ? "Away" : "Available";
+  // الحالة اللي بيرجعلها لوحده لو حددنا "End time":
+  // - فجوة (مفيش داتا خالص) بترجع "Away" (كأن الفجوة استمرت بعد كده)
+  // - سيجمنت شغل حقيقي بيرجع لنفس الحالة اللي كانت شغالة قبله فعلاً (زي مثال "كان بيعمل Emails، حط Break
+  //   ونسي يرجع" - بيرجعله Emails تحديدًا، مش تخمين عام) - لو مفيش سيجمنت قبله في اليوم (أول حاجة حصلت)
+  // بيرجع "Available" كافتراض معقول
+  const autoRevertStatus = isGap ? "Away" : (prevStatus || "Available");
 
-  ccpEditState = { agentName: agentName, originalTime: originalTime, isGap: isGap };
+  ccpEditState = { agentName: agentName, originalTime: originalTime, isGap: isGap, autoRevertStatus: autoRevertStatus };
 
   document.getElementById("ccpEditModalTitle").innerHTML = isGap
     ? `<i class="fa-solid fa-pen"></i> Fill Gap`
@@ -1311,7 +1318,7 @@ function ccpOpenEditModal(seg) {
   document.getElementById("ccpEditStatus").value = isGap ? "Available" : (status || "Available");
   document.getElementById("ccpEditEndTime").value = ""; // دايمًا فاضي لما نفتح - اختياري
   document.getElementById("ccpEditEndTimeHint").textContent =
-    `Leave blank to keep this status running until the next logged change. If set, it'll automatically switch to "${autoRevertStatus}" right after — no need to add that point yourself.`;
+    `Leave blank to keep this status running until the next logged change. If set, it'll automatically switch back to "${ccpDisplayStatusName(autoRevertStatus)}" right after — no need to add that point yourself.`;
 
   const errEl = document.getElementById("ccpEditError");
   errEl.style.display = "none";
@@ -1396,10 +1403,11 @@ async function ccpSaveEditModal() {
     }
 
     // فيه "End time" - نضيف نقطة جديدة تانية (أول مرة، مفيش originalTime) ترجع الحالة أوتوماتيك
-    // (Away لو دي فجوة كانت بتتعبى، أو Available لو ده تصحيح لحالة شغل حقيقي نسي يغيّرها)
+    // (Away لو دي فجوة كانت بتتعبى، أو نفس الحالة اللي كانت شغالة قبل السيجمنت ده فعليًا لو ده تصحيح
+    // لحالة شغل حقيقي نسي يغيّرها - اتحسبت وقت فتح المودال، شوف ccpOpenEditModal)
     if (endTimeVal) {
       saveBtn.textContent = "Saving end time...";
-      const autoRevertStatus = ccpEditState.isGap ? "Away" : "Available";
+      const autoRevertStatus = ccpEditState.autoRevertStatus;
       const endTime = `${dateVal} ${endTimeVal}:00`;
       const res2 = await ccpPostAgentStatusEdit_(ccpEditState.agentName, "", endTime, autoRevertStatus);
       if (res2.status !== "success") {
