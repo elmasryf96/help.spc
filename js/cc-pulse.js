@@ -1246,13 +1246,19 @@ function ccpEnsureEditModal_() {
           </div>
 
           <div class="form-group">
-            <label for="ccpEditTime">Time — status changes to this from here on</label>
+            <label for="ccpEditTime">Start time — status changes to this from here on</label>
             <input class="date-input" id="ccpEditTime" type="time">
           </div>
 
           <div class="form-group">
             <label for="ccpEditStatus">Status</label>
             <select class="combo-input" id="ccpEditStatus">${statusOptionsHtml}</select>
+          </div>
+
+          <div class="form-group">
+            <label for="ccpEditEndTime">End time (optional)</label>
+            <input class="date-input" id="ccpEditEndTime" type="time">
+            <div class="ccp-edit-hint" id="ccpEditEndTimeHint"></div>
           </div>
 
           <div id="ccpEditError" class="ccp-edit-error" style="display:none;"></div>
@@ -1277,7 +1283,7 @@ function ccpEnsureEditModal_() {
   });
 }
 
-let ccpEditState = null; // { agentName, originalTime } - بيتحط وقت فتح المودال، ومطلوب وقت الحفظ
+let ccpEditState = null; // { agentName, originalTime, isGap } - بيتحط وقت فتح المودال، ومطلوب وقت الحفظ
 
 // seg = العنصر (.ccp-tl-segment) اللي اتدوس عليه
 function ccpOpenEditModal(seg) {
@@ -1290,8 +1296,11 @@ function ccpOpenEditModal(seg) {
   const status = seg.getAttribute("data-status") || "";
   const prefillTime = seg.getAttribute("data-prefill") || "";
   const isGap = seg.classList.contains("ccp-tl-outofadherence");
+  // الحالة اللي بيرجعلها لوحده لو حددنا "End time" - فجوة (مفيش داتا خالص) بترجع Away،
+  // سيجمنت شغل حقيقي بيرجع Available (زي حد نسي يغيّر حالته ولسه شغال فعليًا)
+  const autoRevertStatus = isGap ? "Away" : "Available";
 
-  ccpEditState = { agentName: agentName, originalTime: originalTime };
+  ccpEditState = { agentName: agentName, originalTime: originalTime, isGap: isGap };
 
   document.getElementById("ccpEditModalTitle").innerHTML = isGap
     ? `<i class="fa-solid fa-pen"></i> Fill Gap`
@@ -1300,6 +1309,9 @@ function ccpOpenEditModal(seg) {
   document.getElementById("ccpEditDate").value = dateStr;
   document.getElementById("ccpEditTime").value = originalTime ? originalTime.split(" ")[1].slice(0, 5) : (prefillTime || "09:00");
   document.getElementById("ccpEditStatus").value = isGap ? "Available" : (status || "Available");
+  document.getElementById("ccpEditEndTime").value = ""; // دايمًا فاضي لما نفتح - اختياري
+  document.getElementById("ccpEditEndTimeHint").textContent =
+    `Leave blank to keep this status running until the next logged change. If set, it'll automatically switch to "${autoRevertStatus}" right after — no need to add that point yourself.`;
 
   const errEl = document.getElementById("ccpEditError");
   errEl.style.display = "none";
@@ -1331,16 +1343,38 @@ function ccpShowEditToast_(message) {
   setTimeout(() => toast.classList.remove("show"), 2400);
 }
 
-function ccpSaveEditModal() {
+// بيبعت نقطة واحدة (editAgentStatusPoint) للسيرفر ويرجع الـ JSON - مستخدمة مرة واحدة أو مرتين (بداية + نهاية)
+function ccpPostAgentStatusEdit_(agentName, originalTime, newTime, newStatus) {
+  return fetch(GOOGLE_SHEET_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({
+      action: "editAgentStatusPoint",
+      agentName: agentName,
+      originalTime: originalTime,
+      newTime: newTime,
+      newStatus: newStatus,
+      token: localStorage.getItem("sessionToken") || ""
+    })
+  }).then(res => res.json());
+}
+
+async function ccpSaveEditModal() {
   if (!ccpEditState) return;
 
   const dateVal = document.getElementById("ccpEditDate").value;
   const timeVal = document.getElementById("ccpEditTime").value; // "HH:MM"
+  const endTimeVal = document.getElementById("ccpEditEndTime").value; // "HH:MM" أو فاضي (اختياري)
   const statusVal = document.getElementById("ccpEditStatus").value;
   const errEl = document.getElementById("ccpEditError");
 
   if (!dateVal || !timeVal || !statusVal) {
     errEl.textContent = "⚠️ Please fill in date, time, and status.";
+    errEl.style.display = "block";
+    return;
+  }
+  if (endTimeVal && endTimeVal <= timeVal) {
+    errEl.textContent = "⚠️ End time must be after the start time.";
     errEl.style.display = "block";
     return;
   }
@@ -1351,38 +1385,43 @@ function ccpSaveEditModal() {
   saveBtn.textContent = "Saving...";
   errEl.style.display = "none";
 
-  fetch(GOOGLE_SHEET_API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({
-      action: "editAgentStatusPoint",
-      agentName: ccpEditState.agentName,
-      originalTime: ccpEditState.originalTime,
-      newTime: newTime,
-      newStatus: statusVal,
-      token: localStorage.getItem("sessionToken") || ""
-    })
-  })
-    .then(res => res.json())
-    .then(res => {
-      if (res.status === "success") {
-        ccpCloseEditModal();
-        ccpShowEditToast_("✅ Saved — refreshing timeline...");
-        loadCcPulseReport(false); // إعادة تحميل التقرير عشان التايم لاين يتحدث بالبيانات الجديدة فورًا
-      } else {
-        saveBtn.disabled = false;
-        saveBtn.textContent = "Save";
-        errEl.textContent = "❌ " + (res.message || "Failed to save");
-        errEl.style.display = "block";
-      }
-    })
-    .catch(err => {
-      console.error("Error saving status edit:", err);
+  try {
+    const res = await ccpPostAgentStatusEdit_(ccpEditState.agentName, ccpEditState.originalTime, newTime, statusVal);
+    if (res.status !== "success") {
       saveBtn.disabled = false;
       saveBtn.textContent = "Save";
-      errEl.textContent = "❌ Network error. Please check your connection and try again.";
+      errEl.textContent = "❌ " + (res.message || "Failed to save");
       errEl.style.display = "block";
-    });
+      return;
+    }
+
+    // فيه "End time" - نضيف نقطة جديدة تانية (أول مرة، مفيش originalTime) ترجع الحالة أوتوماتيك
+    // (Away لو دي فجوة كانت بتتعبى، أو Available لو ده تصحيح لحالة شغل حقيقي نسي يغيّرها)
+    if (endTimeVal) {
+      saveBtn.textContent = "Saving end time...";
+      const autoRevertStatus = ccpEditState.isGap ? "Away" : "Available";
+      const endTime = `${dateVal} ${endTimeVal}:00`;
+      const res2 = await ccpPostAgentStatusEdit_(ccpEditState.agentName, "", endTime, autoRevertStatus);
+      if (res2.status !== "success") {
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Save";
+        errEl.textContent = "⚠️ Start time saved, but the automatic end point failed: " + (res2.message || "unknown error") + ". Please check the timeline.";
+        errEl.style.display = "block";
+        loadCcPulseReport(false); // نحدث التايم لاين برضو عشان يبان اللي اتحفظ فعلاً
+        return;
+      }
+    }
+
+    ccpCloseEditModal();
+    ccpShowEditToast_("✅ Saved — refreshing timeline...");
+    loadCcPulseReport(false); // إعادة تحميل التقرير عشان التايم لاين يتحدث بالبيانات الجديدة فورًا
+  } catch (err) {
+    console.error("Error saving status edit:", err);
+    saveBtn.disabled = false;
+    saveBtn.textContent = "Save";
+    errEl.textContent = "❌ Network error. Please check your connection and try again.";
+    errEl.style.display = "block";
+  }
 }
 
 // زرار "Undo" - بيمسح النقطة اللي المودال فاتح عليها دلوقتي خالص (مش تعديل، مسح فعلي من الشيت)
