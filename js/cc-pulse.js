@@ -883,9 +883,23 @@ function isDayJudgeable(dateStr, shiftWindow) {
 // مثلاً) - كانت بتحسبها "اشتغل دقايق قليلة بس" وتحط No Show غلط رغم إنه شغال فعليًا لساعات بعد كده. الحساب الصح
 // هو totalLoginSeconds (إجمالي الوقت الحقيقي في أي حالة غير Away، محسوب أصلاً وبيتبعت جاهز) - مش الفرق الزمني
 // بين أول وآخر Away، فمبقاش محتاجين endShift في الحساب خالص
+// ⚠️ ملحوظة تانية: كانت بتحكم بـ No Show أول ما الشيفت يبدأ (isDayJudgeable بتتأكد بس إن الشيفت بدأ)، فأي إيجنت
+// شغال عادي من أول الشيفت كان بيتحط عليه No Show غلط في نص الشيفت لسه - لأنه طبيعي إنه لسه ما اشتغلش نص مدة
+// الشيفت كلها. الصح: منحكمش بـ No Show إلا بعد ما نص مدة الشيفت نفسها يعدي (يعني حتى لو شغال 100% من غير ما
+// يقف لحظة، أقرب وقت ممكن يوصل فيه لنص المدة هو نص الشيفت بالظبط)
 function getAttendanceStatus(shiftWindow, totalLoginSeconds, dateStr, firstLogin, endShift) {
   if (!shiftWindow) return "off"; // مفيش شيفت متجدول في الروستر أصلاً
   if (dateStr && !isDayJudgeable(dateStr, shiftWindow)) return null; // لسه بدري (يوم مستقبلي أو الشيفت لسه ماوصلش معاده)
+
+  if (dateStr) {
+    const uae = getUAECurrentDate();
+    const todayStr = `${uae.year}-${uae.month}-${uae.day}`;
+    if (dateStr === todayStr) {
+      const nowMin = uae.hour24 * 60 + uae.minute;
+      const halfwayMin = (shiftWindow.startMin + shiftWindow.endMin) / 2;
+      if (nowMin < halfwayMin) return null; // لسه ماوصلناش نص الشيفت - مبكر نحكم بـ No Show
+    }
+  }
 
   if (!firstLogin) return "no-show"; // مجاش خالص طول اليوم (ولا مرة غيّر حالته من Away)
 
