@@ -7,11 +7,11 @@
 // 🌐 GOOGLE SHEETS INTEGRATION URL & BACKEND API URL
 // ============================================================
 const GOOGLE_SHEET_API_URL = "https://script.google.com/macros/s/AKfycbzhjZ7HOUzKzcmCMrzsIUQMnX9dsbS3_qrEM0-v696OjjlMX3A5wSJUkbs5BDEH7UyM/exec";
-const PYTHON_BACKEND_NOC_URL = "https://help-spc.onrender.com/generate-noc";
-const PYTHON_BACKEND_OWNER_NOC_URL = "https://help-spc.onrender.com/generate-owner-noc";
-const PYTHON_BACKEND_RENT_NOC_URL = "https://help-spc.onrender.com/generate-rent-noc";
-const PYTHON_BACKEND_MOVE_IN_URL = "https://help-spc.onrender.com/generate-move-in-clearance";
-const PYTHON_BACKEND_AGENT_STATUS_URL = "https://help-spc.onrender.com/api/agent-status";
+const PYTHON_BACKEND_NOC_URL = "https://help-spc-backup.onrender.com/generate-noc";
+const PYTHON_BACKEND_OWNER_NOC_URL = "https://help-spc-backup.onrender.com/generate-owner-noc";
+const PYTHON_BACKEND_RENT_NOC_URL = "https://help-spc-backup.onrender.com/generate-rent-noc";
+const PYTHON_BACKEND_MOVE_IN_URL = "https://help-spc-backup.onrender.com/generate-move-in-clearance";
+const PYTHON_BACKEND_AGENT_STATUS_URL = "https://help-spc-backup.onrender.com/api/agent-status";
 
 // ============================================================
 // ⏱️ AUTO-LOGOUT ON INACTIVITY (20 MINUTES)
