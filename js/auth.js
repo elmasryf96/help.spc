@@ -108,10 +108,12 @@ function handleLogin(event) {
 
         // اللوجن بقى سريع جدًا، وممكن يخلص قبل ما بيانات الموقع (towers/roster/
         // schedule/unitMapping) اللي بتتحمل مرة واحدة بس عند فتح الصفحة تكون
-        // وصلت - فبنستنى نفس الـ promise ده (من init.js) قبل ما نفتح الصفحة
-        // الرئيسية، عشان كروت زي "Active On Shift Right Now" متلاقيش الروستر
-        // لسه فاضي وتحط كل الإيجنتس في فريق واحد غلط
-        Promise.resolve(window.initialDataReadyPromise).finally(() => {
+        // وصلت - فبنستنى نفس الـ promise ده (من init.js) الأول عشان مانعملش
+        // طلبين مع بعض. بس بما إن الـ fetch الأول ده (window.initialDataReadyPromise)
+        // كان حصل قبل ما نعرف الـ sessionToken (يعني من غير توكن، وبعد إصلاح
+        // تسريب البيانات هيرجع فاضي من غير توكن صحيح) - لازم نعمل fetch جديد
+        // تاني دلوقتي بعد ما عرفنا التوكن عشان فعلاً نجيب الداتا الحقيقية
+        Promise.resolve(window.initialDataReadyPromise).then(() => fetchAllDataFromGoogleSheet()).finally(() => {
           updateUserProfileUI();
           resetInactivityTimer(); // تشغيل مؤقت الخمول عند تسجيل الدخول الناجح
           navigateTo('home-page');

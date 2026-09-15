@@ -363,6 +363,10 @@ function setCcPulseMode(mode) {
 
 function buildCcPulseDateParams() {
   const params = new URLSearchParams();
+  // 🔐 Apps Script's doGet بقى محتاج session token صحيح لأي حاجة غير
+  // checkForceLogout/todayStatusLog (شوف الشرح في Code.gs) - CC Pulse كله
+  // أدمن بس أصلاً، فالتوكن هيبقى موجود دايمًا هنا
+  params.set("token", localStorage.getItem("sessionToken") || "");
   params.set("mode", ccPulseMode);
   if (ccPulseMode === "day") {
     params.set("date", document.getElementById("ccpDayInput").value);
@@ -1704,7 +1708,8 @@ async function ccpShowOutboundUnansweredModal(agentName, mode, dateOrStart, endD
     action: "callLogDetail",
     name: agentName,
     direction: "Outbound",
-    result: "Unanswered"
+    result: "Unanswered",
+    token: localStorage.getItem("sessionToken") || "" // 🔐 لازم لـ doGet بعد إصلاح تسريب البيانات
   });
   if (mode === "day") {
     params.set("mode", "day");
@@ -1910,8 +1915,9 @@ async function loadMyDayCard(dateStr) {
     </div>`;
 
   try {
-    const statusParams = new URLSearchParams({ action: "agentStatusReport", mode: "day", date: targetDateStr, name: agentName });
-    const callsParams = new URLSearchParams({ action: "callLogReport", mode: "day", date: targetDateStr, name: agentName });
+    const ccpToken = localStorage.getItem("sessionToken") || ""; // 🔐 لازم لـ doGet بعد إصلاح تسريب البيانات
+    const statusParams = new URLSearchParams({ action: "agentStatusReport", mode: "day", date: targetDateStr, name: agentName, token: ccpToken });
+    const callsParams = new URLSearchParams({ action: "callLogReport", mode: "day", date: targetDateStr, name: agentName, token: ccpToken });
 
     const [statusRes, callsRes] = await Promise.all([
       fetch(`${GOOGLE_SHEET_API_URL}?${statusParams.toString()}`),

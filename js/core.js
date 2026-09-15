@@ -124,7 +124,13 @@ function parseMonthAndYear(val) {
 }
 
 function fetchAllDataFromGoogleSheet() {
-  const nocacheUrl = GOOGLE_SHEET_API_URL + "?t=" + new Date().getTime();
+  // 🔐 من غير session token صحيح، الـ Apps Script بقى بيرفض الطلب ومبيرجعش
+  // أي داتا حقيقية (شوف الشرح في Code.gs's doGet) - التوكن ده هو نفسه اللي
+  // بيترجع من اللوجن ومتخزن في localStorage. لو لسه مسجلش دخول (أو التوكن
+  // فاضي)، الطلب هيرجع رد error بسيط وكل الحقول (towers/roster/...) هتفضل
+  // فاضية زي ما هي - الصفحة مش هتتكسر، بس مش هتشوف أي داتا لحد ما يسجل دخول
+  const sessionToken = localStorage.getItem("sessionToken") || "";
+  const nocacheUrl = GOOGLE_SHEET_API_URL + "?t=" + new Date().getTime() + "&token=" + encodeURIComponent(sessionToken);
 
   return fetch(nocacheUrl, { 
     method: 'GET',
