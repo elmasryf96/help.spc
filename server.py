@@ -178,6 +178,90 @@ async def generate_move_in_clearance(data: MoveInClearanceRequest):
 
 
 # ============================================================
+# 🌐 بورتال الفوترة (billing.smartcollection.co) - تسجيل دخول بمتصفح حقيقي (Playwright)
+# محتاج تضيف الـ Environment Variables دي في Render:
+#   SC_USERNAME  -> يوزر بورتال الفوترة (زي faris.e@smartcollection.co)
+#   SC_PASSWORD  -> باسورد نفس الحساب
+#
+# ده اندبوينت مؤقت للتجربة بس (/debug/portal-login-test) - بنشيله بعد ما نتأكد
+# إن تسجيل الدخول شغال، قبل ما نكمل باقي فيتشر الـ Live Contract Dropdown
+# ============================================================
+
+SC_USERNAME = os.environ.get("SC_USERNAME", "")
+SC_PASSWORD = os.environ.get("SC_PASSWORD", "")
+PORTAL_BASE_URL = "https://billing.smartcollection.co"
+
+
+@app.get("/debug/portal-login-test")
+async def debug_portal_login_test():
+    """
+    بيفتح متصفح Chromium حقيقي (Playwright) في الخلفية على السيرفر، يسجل دخول فعلي
+    على بورتال الفوترة باستخدام SC_USERNAME/SC_PASSWORD، ويرجع لينا هل نجح ولا لأ -
+    من غير ما يطبع الباسورد أو أي بيانات حساسة في الرد أبداً.
+    """
+    if not SC_USERNAME or not SC_PASSWORD:
+        raise HTTPException(
+            status_code=500,
+            detail="لازم تضيف SC_USERNAME و SC_PASSWORD في Environment Variables على Render الأول",
+        )
+
+    from playwright.async_api import async_playwright
+
+    steps_done = []
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(
+                headless=True,
+                args=["--no-sandbox", "--disable-dev-shm-usage"],
+            )
+            steps_done.append("browser_launched")
+
+            page = await browser.new_page()
+            await page.goto(f"{PORTAL_BASE_URL}/Account/Login", wait_until="load", timeout=30000)
+            await page.wait_for_selector('input[name="Username"]', timeout=15000)
+            steps_done.append("login_page_loaded")
+
+            await page.fill('input[name="Username"]', SC_USERNAME)
+            await page.fill('input[name="Password"]', SC_PASSWORD)
+            steps_done.append("credentials_filled")
+
+            # بنحاول نضغط زرار الدخول لو موجود، ولو مفيش (زرار بـ JS بس) نجرب Enter
+            submit_btn = page.locator(
+                '#form-login button[type="submit"], #form-login input[type="submit"]'
+            )
+            if await submit_btn.count() > 0:
+                await submit_btn.first.click()
+            else:
+                await page.locator('input[name="Password"]').press("Enter")
+            steps_done.append("login_submitted")
+
+            try:
+                await page.wait_for_load_state("networkidle", timeout=15000)
+            except Exception:
+                pass  # مش مشكلة لو استنى أكتر من اللازم - هنشوف الـ URL النهائي على أي حال
+
+            final_url = page.url
+            cookies = await page.context.cookies()
+            cookie_names = [c["name"] for c in cookies]
+
+            await browser.close()
+
+            logged_in = "Account/Login" not in final_url
+
+            return {
+                "success": logged_in,
+                "final_url": final_url,
+                "cookie_names": cookie_names,
+                "steps_done": steps_done,
+            }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"فشلت تجربة تسجيل الدخول بعد خطوة: {steps_done} - الخطأ: {e}",
+        )
+
+
+# ============================================================
 # 📞 3CX LIVE AGENT STATUS
 # محتاج تضيف الـ Environment Variables دي في Render:
 #   THREECX_FQDN      -> smartcollection.3cx.ae:5001
