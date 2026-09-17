@@ -765,11 +765,21 @@ async def refresh_daily_totals_cache(client: httpx.AsyncClient):
 
         resp = await client.get(
             sheet_url,
-            params={"action": "allAgentsLoginTotals", "mode": "day", "date": today_str},
+            params={
+                "action": "allAgentsLoginTotals",
+                "mode": "day",
+                "date": today_str,
+                # سيكريت خاص بالسيرفر بس (server-to-server) - عشان الأكشن ده يعدي
+                # من غير ما يحتاج session token حقيقي (السيرفر مش متصفح مسجل
+                # دخول). نفس القيمة متخزنة كـ Script Property "SYNC_SECRET" في
+                # Code.gs، وكـ Environment Variable SYNC_SECRET هنا في Render.
+                "syncSecret": os.environ.get("SYNC_SECRET", ""),
+            },
             timeout=45,  # زودنا شوية (كانت 30) - شيت Call Log بقى أكبر بعد الباكفيل
         )
         data = resp.json()
         if data.get("status") != "success":
+            print(f"❌ allAgentsLoginTotals مرجعتش success: {data.get('message')}")
             return
 
         per_agent = {}
@@ -787,10 +797,17 @@ async def refresh_daily_totals_cache(client: httpx.AsyncClient):
         try:
             calls_resp = await client.get(
                 sheet_url,
-                params={"action": "callLogReport", "mode": "day", "date": today_str},
+                params={
+                    "action": "callLogReport",
+                    "mode": "day",
+                    "date": today_str,
+                    "syncSecret": os.environ.get("SYNC_SECRET", ""),
+                },
                 timeout=45,  # زودنا شوية (كانت 30) - شيت Call Log بقى أكبر بعد الباكفيل
             )
             calls_data = calls_resp.json()
+            if calls_data.get("status") != "success":
+                print(f"❌ callLogReport مرجعتش success: {calls_data.get('message')}")
             if calls_data.get("status") == "success":
                 for agent in calls_data.get("agents", []):
                     name = agent.get("agent")
