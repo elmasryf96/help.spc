@@ -16,6 +16,95 @@ function initNocPage() {
         dateInput.value = `${yyyy}-${mm}-${dd}`;
     }
     toggleNocFormType();
+    populateNocTowersDropdown();
+}
+
+// ============================================================
+// 🔴 LIVE CONTRACT DROPDOWN (بيجيب البيانات مباشرة من بورتال الفوترة عن طريق
+// السيرفر بتاعنا، مش من شيت متزامن - راجع /api/towers و /api/contracts في server.py)
+// ============================================================
+let nocContractsCache = [];
+
+function populateNocTowersDropdown() {
+    const sel = document.getElementById("nocTowerName");
+    if (!sel) return;
+
+    sel.innerHTML = "";
+    sel.appendChild(makeNocOption("", "-- Loading towers... --"));
+
+    fetch(PYTHON_BACKEND_TOWERS_URL)
+        .then(r => r.json())
+        .then(data => {
+            const towers = data.towers || [];
+            sel.innerHTML = "";
+            sel.appendChild(makeNocOption("", "-- Select Tower --"));
+            towers.forEach(t => sel.appendChild(makeNocOption(t, t)));
+        })
+        .catch(() => {
+            sel.innerHTML = "";
+            sel.appendChild(makeNocOption("", "-- Failed to load towers, refresh the page --"));
+        });
+}
+
+function loadContractsForTower() {
+    const towerSelect = document.getElementById("nocTowerName");
+    const tower = towerSelect ? towerSelect.value : "";
+    const picker = document.getElementById("nocContractPicker");
+    if (!picker) return;
+
+    nocContractsCache = [];
+    picker.innerHTML = "";
+
+    if (!tower) {
+        picker.appendChild(makeNocOption("", "-- Select tower first --"));
+        return;
+    }
+
+    picker.appendChild(makeNocOption("", "-- Loading contracts... --"));
+
+    fetch(`${PYTHON_BACKEND_CONTRACTS_URL}?tower=${encodeURIComponent(tower)}`)
+        .then(r => r.json())
+        .then(data => {
+            nocContractsCache = data.contracts || [];
+            picker.innerHTML = "";
+            picker.appendChild(makeNocOption(
+                "",
+                nocContractsCache.length ? "-- Select contract (optional) --" : "-- No contracts found for this tower --"
+            ));
+            nocContractsCache.forEach((c, i) => {
+                picker.appendChild(makeNocOption(
+                    String(i),
+                    `${c.customer_name} - ${c.contract_no} (Unit ${c.unit_no})`
+                ));
+            });
+        })
+        .catch(() => {
+            picker.innerHTML = "";
+            picker.appendChild(makeNocOption("", "-- Failed to load contracts --"));
+        });
+}
+
+function applyContractSelection() {
+    const picker = document.getElementById("nocContractPicker");
+    if (!picker || picker.value === "") return;
+
+    const contract = nocContractsCache[parseInt(picker.value, 10)];
+    if (!contract) return;
+
+    const nameField = document.getElementById("nocTenantName");
+    const contractField = document.getElementById("nocTenantContract");
+    const unitField = document.getElementById("nocUnitNo");
+
+    if (nameField) nameField.value = contract.customer_name;
+    if (contractField) contractField.value = contract.contract_no;
+    if (unitField) unitField.value = contract.unit_no;
+}
+
+function makeNocOption(value, text) {
+    const opt = document.createElement("option");
+    opt.value = value;
+    opt.textContent = text;
+    return opt;
 }
 
 function toggleNocFormType() {

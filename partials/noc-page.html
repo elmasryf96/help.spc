@@ -34,12 +34,21 @@
 
                             <div class="form-group">
                                 <label><i class="fa-solid fa-building"></i> Building / Tower Name:</label>
-                                <input type="text" id="nocTowerName" class="combo-input" placeholder="e.g. TORINO BY ORO24" required>
+                                <select id="nocTowerName" class="combo-input" required onchange="loadContractsForTower()">
+                                    <option value="">-- Loading towers... --</option>
+                                </select>
                             </div>
 
                             <div class="form-group">
                                 <label><i class="fa-solid fa-door-closed"></i> Unit / Apartment No.:</label>
                                 <input type="text" id="nocUnitNo" class="combo-input" placeholder="e.g. Unit B1-519" required>
+                            </div>
+
+                            <div class="form-group" style="grid-column: 1 / -1;">
+                                <label><i class="fa-solid fa-magnifying-glass"></i> Select Contract (optional - auto-fills name, contract no. & unit below):</label>
+                                <select id="nocContractPicker" class="combo-input" onchange="applyContractSelection()">
+                                    <option value="">-- Select tower first --</option>
+                                </select>
                             </div>
 
                             <div class="form-group" id="groupTenantContract">

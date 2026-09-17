@@ -355,6 +355,38 @@ async def api_contracts(tower: str):
     return {"tower": tower, "count": len(contracts), "contracts": contracts}
 
 
+_towers_cache = {"towers": None, "obtained_at": 0}
+TOWERS_CACHE_MAX_AGE_SECONDS = 60 * 60  # قايمة التاورات نادر جداً ما تتغير - نكاشها ساعة كاملة
+
+
+@app.get("/api/towers")
+async def api_towers():
+    """بيرجع قايمة كل التاورات (Property) زي ما هي في بورتال الفوترة - لملء Tower Dropdown."""
+    now = time.time()
+    if (
+        _towers_cache["towers"] is not None
+        and now - _towers_cache["obtained_at"] < TOWERS_CACHE_MAX_AGE_SECONDS
+    ):
+        return {"count": len(_towers_cache["towers"]), "towers": _towers_cache["towers"]}
+
+    from bs4 import BeautifulSoup
+
+    html = await fetch_customers_html("")  # من غير فلتر - برضو بيرجع قايمة التاورات كاملة في الفورم
+    soup = BeautifulSoup(html, "html.parser")
+    select_el = soup.select_one("#Search_Property")
+
+    towers = []
+    if select_el:
+        for opt in select_el.select("option"):
+            name = opt.get_text(strip=True)
+            if name and "select property" not in name.lower():
+                towers.append(name)
+
+    _towers_cache["towers"] = towers
+    _towers_cache["obtained_at"] = time.time()
+    return {"count": len(towers), "towers": towers}
+
+
 # ============================================================
 # 📞 3CX LIVE AGENT STATUS
 # محتاج تضيف الـ Environment Variables دي في Render:
