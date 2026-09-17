@@ -208,6 +208,8 @@ async def debug_portal_login_test():
     from playwright.async_api import async_playwright
 
     steps_done = []
+    login_post_info = None  # هنسجل هنا تفاصيل استجابة POST /Account/Login نفسها لو اتبعتت فعلاً
+
     try:
         async with async_playwright() as p:
             browser = await p.chromium.launch(
@@ -217,6 +219,22 @@ async def debug_portal_login_test():
             steps_done.append("browser_launched")
 
             page = await browser.new_page()
+
+            async def on_response(response):
+                nonlocal login_post_info
+                if "/Account/Login" in response.url and response.request.method == "POST":
+                    try:
+                        body_text = await response.text()
+                    except Exception:
+                        body_text = "<تعذر قراءة محتوى الرد>"
+                    login_post_info = {
+                        "status": response.status,
+                        "url": response.url,
+                        "body_snippet": body_text[:500],
+                    }
+
+            page.on("response", on_response)
+
             await page.goto(f"{PORTAL_BASE_URL}/Account/Login", wait_until="load", timeout=30000)
             await page.wait_for_selector('input[name="Username"]', timeout=15000)
             steps_done.append("login_page_loaded")
@@ -235,14 +253,29 @@ async def debug_portal_login_test():
                 await page.locator('input[name="Password"]').press("Enter")
             steps_done.append("login_submitted")
 
+            # بننتظر شوية وقت ثابت عشان نديله فرصة يبعت الـ POST ويستجيب،
+            # لأن networkidle لوحدها ممكن تستنى Ajax polling تاني وتوهمنا إن الصفحة "لسه مشغولة"
+            await page.wait_for_timeout(4000)
             try:
-                await page.wait_for_load_state("networkidle", timeout=15000)
+                await page.wait_for_load_state("networkidle", timeout=10000)
             except Exception:
-                pass  # مش مشكلة لو استنى أكتر من اللازم - هنشوف الـ URL النهائي على أي حال
+                pass  # مش مشكلة - هنشوف كل التفاصيل التانية على أي حال
 
             final_url = page.url
+            page_title = await page.title()
             cookies = await page.context.cookies()
             cookie_names = [c["name"] for c in cookies]
+
+            # بنجيب أي رسالة خطأ ظاهرة فعليًا على الصفحة (زي "Invalid username or password")
+            visible_error_text = ""
+            try:
+                error_el = page.locator(
+                    ".validation-summary-errors, .field-validation-error, .alert-danger, .text-danger"
+                )
+                if await error_el.count() > 0:
+                    visible_error_text = (await error_el.first.inner_text()).strip()
+            except Exception:
+                pass
 
             await browser.close()
 
@@ -251,8 +284,11 @@ async def debug_portal_login_test():
             return {
                 "success": logged_in,
                 "final_url": final_url,
+                "page_title": page_title,
                 "cookie_names": cookie_names,
                 "steps_done": steps_done,
+                "visible_error_text": visible_error_text,
+                "login_post_response": login_post_info,
             }
     except Exception as e:
         raise HTTPException(
