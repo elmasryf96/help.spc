@@ -437,6 +437,172 @@ async def debug_customers_page_test(tower: str = "Test_Tower"):
 
 
 # ============================================================
+# 📋 عقود البورتال (Live Contract Dropdown للـ NOC Generator)
+# بيستخدم نفس تسجيل الدخول بتاع Playwright، بس مرة واحدة بس ويحتفظ بالجلسة
+# (كوكي) في الذاكرة - أي استعلام بعد كده بيبقى طلب HTTP عادي وسريع، من غير
+# ما نفتح متصفح تاني إلا لما الجلسة تنتهي.
+# ============================================================
+
+_portal_session_cache = {"cookie": None, "obtained_at": 0}
+PORTAL_SESSION_MAX_AGE_SECONDS = 15 * 60  # نجدد الجلسة تلقائي كل 15 دقيقة كحد أقصى
+
+
+async def get_portal_session_cookie(force_refresh: bool = False) -> str:
+    now = time.time()
+    if (
+        not force_refresh
+        and _portal_session_cache["cookie"]
+        and now - _portal_session_cache["obtained_at"] < PORTAL_SESSION_MAX_AGE_SECONDS
+    ):
+        return _portal_session_cache["cookie"]
+
+    if not SC_USERNAME or not SC_PASSWORD:
+        raise HTTPException(
+            status_code=500,
+            detail="لازم تضيف SC_USERNAME و SC_PASSWORD في Environment Variables على Render",
+        )
+
+    from playwright.async_api import async_playwright
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(
+            headless=True,
+            args=["--no-sandbox", "--disable-dev-shm-usage"],
+        )
+        try:
+            page = await browser.new_page()
+            await page.goto(f"{PORTAL_BASE_URL}/Account/Login", wait_until="load", timeout=30000)
+            await page.wait_for_selector('input[name="Username"]', timeout=15000)
+            await page.fill('input[name="Username"]', SC_USERNAME)
+            await page.fill('input[name="Password"]', SC_PASSWORD)
+            submit_btn = page.locator(
+                '#form-login button[type="submit"], #form-login input[type="submit"]'
+            )
+            if await submit_btn.count() > 0:
+                await submit_btn.first.click()
+            else:
+                await page.locator('input[name="Password"]').press("Enter")
+            await page.wait_for_timeout(3000)
+
+            if "Account/Login" in page.url:
+                raise HTTPException(
+                    status_code=502,
+                    detail="فشل تسجيل الدخول على بورتال الفوترة (تأكد من SC_USERNAME/SC_PASSWORD في Render)",
+                )
+
+            cookies = await page.context.cookies()
+            session_cookie = next(
+                (c for c in cookies if c["name"] == ".AspNetCore.Session"), None
+            )
+            if not session_cookie:
+                raise HTTPException(
+                    status_code=502,
+                    detail="سجل دخول بس مفيش كوكي جلسة (.AspNetCore.Session) راجع من البورتال",
+                )
+
+            cookie_value = f'.AspNetCore.Session={session_cookie["value"]}'
+            _portal_session_cache["cookie"] = cookie_value
+            _portal_session_cache["obtained_at"] = time.time()
+            return cookie_value
+        finally:
+            await browser.close()
+
+
+async def fetch_customers_html(tower: str, retry: bool = True) -> str:
+    """بيجيب صفحة الـ Customers مفلترة بتاور معين، باستخدام الجلسة المحفوظة - من غير متصفح."""
+    cookie = await get_portal_session_cookie()
+    url = f"{PORTAL_BASE_URL}/AdminPortal/Customers"
+    async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
+        resp = await client.get(url, params={"Property": tower}, headers={"Cookie": cookie})
+    html = resp.text
+
+    session_expired = "Account/Login" in str(resp.url) or 'id="form-login"' in html
+    if session_expired:
+        if retry:
+            # الجلسة خلصت - نجدد الكوكي ونجرب تاني مرة واحدة بس
+            await get_portal_session_cookie(force_refresh=True)
+            return await fetch_customers_html(tower, retry=False)
+        raise HTTPException(status_code=502, detail="الجلسة مع بورتال الفوترة انتهت ومقدرناش نجددها")
+
+    return html
+
+
+def parse_contracts_from_html(html: str) -> list:
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html, "html.parser")
+    contracts = []
+
+    for widget in soup.select(".kt-widget--user-profile-3"):
+        name_link = widget.select_one(".kt-widget__username")
+        if not name_link:
+            continue
+
+        # الاسم والعقد بييجوا مع بعض في نفس اللينك: "الاسم <span> - رقم العقد</span>"
+        name_span = name_link.select_one("span")
+        contract_no = name_span.get_text(strip=True).lstrip("-").strip() if name_span else ""
+        full_text = name_link.get_text(" ", strip=True)
+        customer_name = full_text
+        if contract_no and customer_name.endswith(contract_no):
+            customer_name = customer_name[: -len(contract_no)].strip(" -")
+
+        edit_link = widget.select_one('a[href*="/Customers/Manage/"]')
+        customer_id = ""
+        if edit_link and edit_link.get("href"):
+            customer_id = edit_link["href"].rstrip("/").split("/")[-1]
+
+        labels = [lbl.get_text(strip=True) for lbl in widget.select("label")]
+
+        def value_after(marker):
+            for i, text in enumerate(labels):
+                if text.strip(":").lower() == marker.lower() and i + 1 < len(labels):
+                    return labels[i + 1]
+            return ""
+
+        property_name = value_after("Property")
+        unit_no = value_after("Property Unit No")
+
+        email_span = widget.select_one(".SendEmail")
+        email = (email_span.get("data-email", "") if email_span else "").strip()
+        sms_span = widget.select_one(".SendSMS")
+        phone = (sms_span.get("data-phone", "") if sms_span else "").strip()
+
+        outstanding = ""
+        for item in widget.select(".kt-widget__item"):
+            title_el = item.select_one(".kt-widget__title")
+            if title_el and title_el.get_text(strip=True) == "Outstanding":
+                value_el = item.select_one(".kt-widget__value")
+                outstanding = value_el.get_text(strip=True) if value_el else ""
+                break
+
+        contracts.append(
+            {
+                "customer_id": customer_id,
+                "customer_name": customer_name,
+                "contract_no": contract_no,
+                "property": property_name,
+                "unit_no": unit_no,
+                "email": email,
+                "phone": phone,
+                "outstanding": outstanding,
+            }
+        )
+
+    return contracts
+
+
+@app.get("/api/contracts")
+async def api_contracts(tower: str):
+    """
+    بيرجع كل عقود التاور المطلوب (مستأجرين وملاك مع بعض في ليستة واحدة) -
+    مستخدم لملء Contract Dropdown في صفحة الـ NOC Generator.
+    """
+    html = await fetch_customers_html(tower)
+    contracts = parse_contracts_from_html(html)
+    return {"tower": tower, "count": len(contracts), "contracts": contracts}
+
+
+# ============================================================
 # 📞 3CX LIVE AGENT STATUS
 # محتاج تضيف الـ Environment Variables دي في Render:
 #   THREECX_FQDN      -> smartcollection.3cx.ae:5001
