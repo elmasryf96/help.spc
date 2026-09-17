@@ -332,9 +332,21 @@ async def debug_customers_page_test(tower: str = "Test_Tower"):
                     ctype = response.headers.get("content-type", "")
                 except Exception:
                     ctype = ""
-                if "json" in ctype.lower() or any(
-                    k.lower() in url.lower() for k in ("GetList", "Search", "Customers", "List")
-                ):
+                try:
+                    resource_type = response.request.resource_type
+                except Exception:
+                    resource_type = ""
+                # بنسجل أي طلب xhr/fetch (زي اللي بيملى #RecordGrid)، أو أي حاجة JSON،
+                # أو أي حاجة في اليو-آر-إل بتلمح إنها بحث/ليست عقود
+                is_interesting = (
+                    resource_type in ("xhr", "fetch")
+                    or "json" in ctype.lower()
+                    or any(
+                        k.lower() in url.lower()
+                        for k in ("GetList", "Search", "Customers", "List", "RecordGrid")
+                    )
+                )
+                if is_interesting and "/Account/Login" not in url:
                     try:
                         body = await response.text()
                     except Exception:
@@ -344,6 +356,7 @@ async def debug_customers_page_test(tower: str = "Test_Tower"):
                             "url": url,
                             "status": response.status,
                             "content_type": ctype,
+                            "resource_type": resource_type,
                             "body_snippet": body[:800],
                         }
                     )
@@ -368,7 +381,15 @@ async def debug_customers_page_test(tower: str = "Test_Tower"):
             # نروح لصفحة الـ Customers ونفلتر بالتاور المطلوب
             customers_url = f"{PORTAL_BASE_URL}/AdminPortal/Customers?Property={tower}"
             await page.goto(customers_url, wait_until="load", timeout=30000)
-            await page.wait_for_timeout(3000)
+            try:
+                # بننتظر لحد ما #RecordGrid يتملى فعلاً بدل ما نستنى وقت ثابت بس
+                await page.wait_for_function(
+                    "document.querySelector('#RecordGrid') && document.querySelector('#RecordGrid').innerHTML.trim().length > 0",
+                    timeout=10000,
+                )
+            except Exception:
+                pass  # هنشوف بعدين لو فعلاً فاضي ولا لأ
+            await page.wait_for_timeout(1500)
             steps_done.append("customers_page_loaded")
 
             final_url = page.url
@@ -382,22 +403,17 @@ async def debug_customers_page_test(tower: str = "Test_Tower"):
 
             body_text_snippet = (await page.locator("body").inner_text())[:3000]
 
-            # مفيش <table> (النتايج شكلها كروت/divs) - بنجيب الـ HTML الخام حوالين أول كارت
-            # عشان نشوف أسماء الـ class/id الحقيقية ونقدر نبني عليها الـ parser
-            first_card_html_snippet = ""
-            first_card_marker = ""
-            for line in body_text_snippet.split("\n"):
-                line = line.strip()
-                if " - " in line and 3 < len(line) < 60:
-                    first_card_marker = line.split(" - ")[0].strip()
-                    break
-
-            if not table_html_snippet and first_card_marker:
-                full_html = await page.content()
-                idx = full_html.find(first_card_marker)
-                if idx != -1:
-                    start = max(0, idx - 1000)
-                    first_card_html_snippet = full_html[start:start + 9000]
+            # لقينا إن النتايج بتتحط جوه <div id="RecordGrid"></div> بعد ما الصفحة تحمل
+            # (فاضي في الـ HTML الأصلي، وبيتملى بعدين بالـ JS) - بنجيب محتواه مباشرة
+            record_grid_html = ""
+            record_grid_found = False
+            try:
+                grid_locator = page.locator("#RecordGrid")
+                if await grid_locator.count() > 0:
+                    record_grid_found = True
+                    record_grid_html = (await grid_locator.inner_html())[:12000]
+            except Exception as e:
+                record_grid_html = f"<فشل قراءة RecordGrid: {e}>"
 
             await browser.close()
 
@@ -407,8 +423,8 @@ async def debug_customers_page_test(tower: str = "Test_Tower"):
                 "page_title": page_title,
                 "table_count": table_count,
                 "table_html_snippet": table_html_snippet,
-                "first_card_marker": first_card_marker,
-                "first_card_html_snippet": first_card_html_snippet,
+                "record_grid_found": record_grid_found,
+                "record_grid_html_snippet": record_grid_html,
                 "body_text_snippet": body_text_snippet,
                 "json_like_responses": json_like_responses[:10],
                 "steps_done": steps_done,
