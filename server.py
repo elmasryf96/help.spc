@@ -403,17 +403,17 @@ async def debug_customers_page_test(tower: str = "Test_Tower"):
 
             body_text_snippet = (await page.locator("body").inner_text())[:3000]
 
-            # لقينا إن النتايج بتتحط جوه <div id="RecordGrid"></div> بعد ما الصفحة تحمل
-            # (فاضي في الـ HTML الأصلي، وبيتملى بعدين بالـ JS) - بنجيب محتواه مباشرة
+            # #RecordGrid طلع فاضي - يبقى الكروت مش جواه، هي في حتة تانية في الصفحة.
+            # بدل ما نخمن مكانها، بندور في الـ HTML الفعلي (بعد ما الـ JS خلص) على نص
+            # ثابت موجود في كل كارت (Received Security Deposit) عشان نمسك الـ HTML حواليه
+            full_html = await page.content()
+            anchor = "Received Security Deposit"
             record_grid_html = ""
-            record_grid_found = False
-            try:
-                grid_locator = page.locator("#RecordGrid")
-                if await grid_locator.count() > 0:
-                    record_grid_found = True
-                    record_grid_html = (await grid_locator.inner_html())[:12000]
-            except Exception as e:
-                record_grid_html = f"<فشل قراءة RecordGrid: {e}>"
+            record_grid_found = anchor in full_html
+            if record_grid_found:
+                idx = full_html.find(anchor)
+                start = max(0, idx - 1500)
+                record_grid_html = full_html[start:start + 9000]
 
             await browser.close()
 
@@ -423,8 +423,8 @@ async def debug_customers_page_test(tower: str = "Test_Tower"):
                 "page_title": page_title,
                 "table_count": table_count,
                 "table_html_snippet": table_html_snippet,
-                "record_grid_found": record_grid_found,
-                "record_grid_html_snippet": record_grid_html,
+                "cards_html_found": record_grid_found,
+                "cards_html_snippet": record_grid_html,
                 "body_text_snippet": body_text_snippet,
                 "json_like_responses": json_like_responses[:10],
                 "steps_done": steps_done,
