@@ -382,6 +382,23 @@ async def debug_customers_page_test(tower: str = "Test_Tower"):
 
             body_text_snippet = (await page.locator("body").inner_text())[:3000]
 
+            # مفيش <table> (النتايج شكلها كروت/divs) - بنجيب الـ HTML الخام حوالين أول كارت
+            # عشان نشوف أسماء الـ class/id الحقيقية ونقدر نبني عليها الـ parser
+            first_card_html_snippet = ""
+            first_card_marker = ""
+            for line in body_text_snippet.split("\n"):
+                line = line.strip()
+                if " - " in line and 3 < len(line) < 60:
+                    first_card_marker = line.split(" - ")[0].strip()
+                    break
+
+            if not table_html_snippet and first_card_marker:
+                full_html = await page.content()
+                idx = full_html.find(first_card_marker)
+                if idx != -1:
+                    start = max(0, idx - 1000)
+                    first_card_html_snippet = full_html[start:start + 9000]
+
             await browser.close()
 
             return {
@@ -390,6 +407,8 @@ async def debug_customers_page_test(tower: str = "Test_Tower"):
                 "page_title": page_title,
                 "table_count": table_count,
                 "table_html_snippet": table_html_snippet,
+                "first_card_marker": first_card_marker,
+                "first_card_html_snippet": first_card_html_snippet,
                 "body_text_snippet": body_text_snippet,
                 "json_like_responses": json_like_responses[:10],
                 "steps_done": steps_done,
