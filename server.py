@@ -297,6 +297,110 @@ async def debug_portal_login_test():
         )
 
 
+@app.get("/debug/customers-page-test")
+async def debug_customers_page_test(tower: str = "Test_Tower"):
+    """
+    اندبوينت مؤقت للاستكشاف بس: بيسجل دخول بنفس طريقة /debug/portal-login-test،
+    وبعدين يروح لصفحة الـ Customers ويفلتر بتاور معين، ويرجعلنا شكل الصفحة
+    (أول جدول لاقاه + أي ردود JSON شافها أثناء التحميل) عشان نعرف شكل البيانات
+    قبل ما نبني /api/contracts الحقيقي عليه.
+    """
+    if not SC_USERNAME or not SC_PASSWORD:
+        raise HTTPException(
+            status_code=500,
+            detail="لازم تضيف SC_USERNAME و SC_PASSWORD في Environment Variables على Render الأول",
+        )
+
+    from playwright.async_api import async_playwright
+
+    steps_done = []
+    json_like_responses = []
+
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(
+                headless=True,
+                args=["--no-sandbox", "--disable-dev-shm-usage"],
+            )
+            steps_done.append("browser_launched")
+
+            page = await browser.new_page()
+
+            async def on_response(response):
+                url = response.url
+                try:
+                    ctype = response.headers.get("content-type", "")
+                except Exception:
+                    ctype = ""
+                if "json" in ctype.lower() or any(
+                    k.lower() in url.lower() for k in ("GetList", "Search", "Customers", "List")
+                ):
+                    try:
+                        body = await response.text()
+                    except Exception:
+                        body = "<تعذر قراءة محتوى الرد>"
+                    json_like_responses.append(
+                        {
+                            "url": url,
+                            "status": response.status,
+                            "content_type": ctype,
+                            "body_snippet": body[:800],
+                        }
+                    )
+
+            page.on("response", on_response)
+
+            # تسجيل الدخول (نفس خطوات /debug/portal-login-test)
+            await page.goto(f"{PORTAL_BASE_URL}/Account/Login", wait_until="load", timeout=30000)
+            await page.wait_for_selector('input[name="Username"]', timeout=15000)
+            await page.fill('input[name="Username"]', SC_USERNAME)
+            await page.fill('input[name="Password"]', SC_PASSWORD)
+            submit_btn = page.locator(
+                '#form-login button[type="submit"], #form-login input[type="submit"]'
+            )
+            if await submit_btn.count() > 0:
+                await submit_btn.first.click()
+            else:
+                await page.locator('input[name="Password"]').press("Enter")
+            await page.wait_for_timeout(3000)
+            steps_done.append("logged_in")
+
+            # نروح لصفحة الـ Customers ونفلتر بالتاور المطلوب
+            customers_url = f"{PORTAL_BASE_URL}/AdminPortal/Customers?Property={tower}"
+            await page.goto(customers_url, wait_until="load", timeout=30000)
+            await page.wait_for_timeout(3000)
+            steps_done.append("customers_page_loaded")
+
+            final_url = page.url
+            page_title = await page.title()
+
+            table_html_snippet = ""
+            tables = page.locator("table")
+            table_count = await tables.count()
+            if table_count > 0:
+                table_html_snippet = (await tables.first.inner_html())[:6000]
+
+            body_text_snippet = (await page.locator("body").inner_text())[:3000]
+
+            await browser.close()
+
+            return {
+                "requested_url": customers_url,
+                "final_url": final_url,
+                "page_title": page_title,
+                "table_count": table_count,
+                "table_html_snippet": table_html_snippet,
+                "body_text_snippet": body_text_snippet,
+                "json_like_responses": json_like_responses[:10],
+                "steps_done": steps_done,
+            }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"فشلت التجربة بعد خطوة: {steps_done} - الخطأ: {e}",
+        )
+
+
 # ============================================================
 # 📞 3CX LIVE AGENT STATUS
 # محتاج تضيف الـ Environment Variables دي في Render:
