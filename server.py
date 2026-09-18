@@ -261,23 +261,60 @@ async def get_portal_session_cookie(force_refresh: bool = False) -> str:
             await browser.close()
 
 
-async def fetch_customers_html(tower: str, retry: bool = True) -> str:
-    """بيجيب صفحة الـ Customers مفلترة بتاور معين، باستخدام الجلسة المحفوظة - من غير متصفح."""
+async def portal_authenticated_request(
+    method: str, path: str, params: dict = None, data: dict = None, retry: bool = True
+) -> httpx.Response:
+    """
+    بيبعت طلب HTTP لأي صفحة/endpoint في بورتال الفوترة مستخدم الجلسة المحفوظة -
+    ولو لقى الجلسة منتهية بيجدد الكوكي ويجرب تاني مرة واحدة بس.
+    """
     cookie = await get_portal_session_cookie()
-    url = f"{PORTAL_BASE_URL}/AdminPortal/Customers"
+    url = f"{PORTAL_BASE_URL}{path}"
     async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
-        resp = await client.get(url, params={"Property": tower}, headers={"Cookie": cookie})
-    html = resp.text
+        if method == "POST":
+            resp = await client.post(url, data=data, headers={"Cookie": cookie})
+        else:
+            resp = await client.get(url, params=params, headers={"Cookie": cookie})
 
-    session_expired = "Account/Login" in str(resp.url) or 'id="form-login"' in html
+    session_expired = "Account/Login" in str(resp.url) or 'id="form-login"' in resp.text
     if session_expired:
         if retry:
-            # الجلسة خلصت - نجدد الكوكي ونجرب تاني مرة واحدة بس
             await get_portal_session_cookie(force_refresh=True)
-            return await fetch_customers_html(tower, retry=False)
+            return await portal_authenticated_request(method, path, params=params, data=data, retry=False)
         raise HTTPException(status_code=502, detail="الجلسة مع بورتال الفوترة انتهت ومقدرناش نجددها")
 
-    return html
+    return resp
+
+
+async def fetch_customers_html(tower: str, contract: str = "") -> str:
+    """بيجيب صفحة الـ Customers مفلترة بتاور (واختياريًا رقم عقد معين كمان)، من غير متصفح."""
+    params = {"Property": tower}
+    if contract:
+        params["Contract"] = contract
+    resp = await portal_authenticated_request("GET", "/AdminPortal/Customers", params=params)
+    return resp.text
+
+
+async def fetch_contract_numbers(property_id: str) -> list:
+    """
+    بيرجع كل أرقام العقود لتاور معين (property_id = الرقم الداخلي بتاعه) - بيستخدم
+    نفس الـ endpoint اللي البورتال نفسه بيستخدمه لملء قايمة "Contract No" القابلة
+    للبحث، فمفيش أي حد أقصى على عدد النتايج (عكس صفحة الـ Customers العادية).
+    """
+    resp = await portal_authenticated_request(
+        "POST", "/AdminPortal/Customers/GetContractsNo", data={"Id": property_id}
+    )
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(resp.text, "html.parser")
+    contracts = []
+    for opt in soup.select("option"):
+        value = (opt.get("value") or "").strip()
+        text = opt.get_text(strip=True)
+        if not value or not text or text == "--- Select ---":
+            continue
+        contracts.append({"id": value, "contract_no": text})
+    return contracts
 
 
 def parse_contracts_from_html(html: str) -> list:
@@ -361,7 +398,10 @@ TOWERS_CACHE_MAX_AGE_SECONDS = 60 * 60  # قايمة التاورات نادر �
 
 @app.get("/api/towers")
 async def api_towers():
-    """بيرجع قايمة كل التاورات (Property) زي ما هي في بورتال الفوترة - لملء Tower Dropdown."""
+    """
+    بيرجع قايمة كل التاورات (Property) زي ما هي في بورتال الفوترة - كل تاور معاه
+    الرقم الداخلي بتاعه (id) كمان، لازم عشان نطلب بيه أرقام العقود بعد كده.
+    """
     now = time.time()
     if (
         _towers_cache["towers"] is not None
@@ -378,108 +418,34 @@ async def api_towers():
     towers = []
     if select_el:
         for opt in select_el.select("option"):
+            property_id = (opt.get("value") or "").strip()
             name = opt.get_text(strip=True)
-            if name and "select property" not in name.lower():
-                towers.append(name)
+            if name and property_id and "select property" not in name.lower():
+                towers.append({"id": property_id, "name": name})
 
     _towers_cache["towers"] = towers
     _towers_cache["obtained_at"] = time.time()
     return {"count": len(towers), "towers": towers}
 
 
-@app.get("/debug/find-contract-search-endpoint")
-async def debug_find_contract_search_endpoint(tower: str = "Corniche Tower"):
-    """
-    اندبوينت مؤقت للاستكشاف بس: بيفتح صفحة Customers، يختار التاور من قايمة Property
-    (بالظبط زي ما بتعمل إنت بإيدك في البورتال)، ويسجل أي طلبات شبكة (XHR/fetch) حصلت
-    وقت الاختيار - عشان نلاقي الـ endpoint الحقيقي اللي بيملي قايمة "Contract No"
-    (اللي بتقدر تكتب فيها وتدور زي select2) من غير أي حد أقصى على عدد النتايج.
-    """
-    if not SC_USERNAME or not SC_PASSWORD:
-        raise HTTPException(
-            status_code=500,
-            detail="لازم تضيف SC_USERNAME و SC_PASSWORD في Environment Variables على Render",
-        )
+@app.get("/api/contract-numbers")
+async def api_contract_numbers(property_id: str):
+    """بيرجع كل أرقام العقود (من غير حد أقصى) لتاور معين، عشان قايمة البحث القابلة للكتابة فيها."""
+    contracts = await fetch_contract_numbers(property_id)
+    return {"property_id": property_id, "count": len(contracts), "contracts": contracts}
 
-    from playwright.async_api import async_playwright
 
-    steps_done = []
-    captured = []
-
-    try:
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(
-                headless=True,
-                args=["--no-sandbox", "--disable-dev-shm-usage"],
-            )
-            steps_done.append("browser_launched")
-            page = await browser.new_page()
-
-            async def on_response(response):
-                url = response.url
-                if "/Account/Login" in url:
-                    return
-                try:
-                    resource_type = response.request.resource_type
-                except Exception:
-                    resource_type = ""
-                if resource_type in ("xhr", "fetch"):
-                    try:
-                        body = await response.text()
-                    except Exception:
-                        body = "<تعذر قراءة محتوى الرد>"
-                    captured.append(
-                        {
-                            "url": url,
-                            "method": response.request.method,
-                            "status": response.status,
-                            "post_data": response.request.post_data,
-                            "body_snippet": body[:1500],
-                        }
-                    )
-
-            page.on("response", on_response)
-
-            await page.goto(f"{PORTAL_BASE_URL}/Account/Login", wait_until="load", timeout=30000)
-            await page.wait_for_selector('input[name="Username"]', timeout=15000)
-            await page.fill('input[name="Username"]', SC_USERNAME)
-            await page.fill('input[name="Password"]', SC_PASSWORD)
-            submit_btn = page.locator(
-                '#form-login button[type="submit"], #form-login input[type="submit"]'
-            )
-            if await submit_btn.count() > 0:
-                await submit_btn.first.click()
-            else:
-                await page.locator('input[name="Password"]').press("Enter")
-            await page.wait_for_timeout(3000)
-            steps_done.append("logged_in")
-
-            await page.goto(f"{PORTAL_BASE_URL}/AdminPortal/Customers", wait_until="load", timeout=30000)
-            await page.wait_for_selector("#Search_Property", timeout=15000)
-            steps_done.append("customers_page_loaded")
-
-            captured.clear()  # مسحنا أي طلبات حصلت وقت التحميل الأول - عايزين بس اللي بيحصل وقت الاختيار
-
-            await page.select_option("#Search_Property", label=tower, force=True)
-            steps_done.append(f"selected_property:{tower}")
-            await page.wait_for_timeout(3000)
-
-            contract_options = await page.locator("#Search_ContractNo option").all_inner_texts()
-
-            await browser.close()
-
-            return {
-                "tower": tower,
-                "steps_done": steps_done,
-                "captured_xhr_after_select": captured[:15],
-                "contract_dropdown_option_count": len(contract_options),
-                "contract_dropdown_sample": contract_options[:30],
-            }
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"فشل بعد خطوة: {steps_done} - الخطأ: {e}",
-        )
+@app.get("/api/contract-detail")
+async def api_contract_detail(tower: str, contract: str):
+    """بيرجع تفاصيل عقد واحد بس (اسم العميل، الوحدة، الإيميل...) - بيتستخدم بعد اختيار العقد من القايمة."""
+    html = await fetch_customers_html(tower, contract=contract)
+    contracts = parse_contracts_from_html(html)
+    match = next((c for c in contracts if c["contract_no"] == contract), None)
+    if not match and contracts:
+        match = contracts[0]
+    if not match:
+        raise HTTPException(status_code=404, detail="العقد ده مش لاقيينه - جرب تاني")
+    return match
 
 
 # ============================================================

@@ -13,7 +13,8 @@ const PYTHON_BACKEND_RENT_NOC_URL = "https://help-spc-backup.onrender.com/genera
 const PYTHON_BACKEND_MOVE_IN_URL = "https://help-spc-backup.onrender.com/generate-move-in-clearance";
 const PYTHON_BACKEND_AGENT_STATUS_URL = "https://help-spc-backup.onrender.com/api/agent-status";
 const PYTHON_BACKEND_TOWERS_URL = "https://help-spc-backup.onrender.com/api/towers";
-const PYTHON_BACKEND_CONTRACTS_URL = "https://help-spc-backup.onrender.com/api/contracts";
+const PYTHON_BACKEND_CONTRACT_NUMBERS_URL = "https://help-spc-backup.onrender.com/api/contract-numbers";
+const PYTHON_BACKEND_CONTRACT_DETAIL_URL = "https://help-spc-backup.onrender.com/api/contract-detail";
 
 // ============================================================
 // ⏱️ AUTO-LOGOUT ON INACTIVITY (20 MINUTES)

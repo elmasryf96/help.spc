@@ -20,77 +20,104 @@ function initNocPage() {
 }
 
 // ============================================================
-// 🔴 LIVE CONTRACT DROPDOWN (بيجيب البيانات مباشرة من بورتال الفوترة عن طريق
-// السيرفر بتاعنا، مش من شيت متزامن - راجع /api/towers و /api/contracts في server.py)
+// 🔴 LIVE CONTRACT SEARCH - بيستخدم نفس آلية البحث اللي البورتال نفسه بيستخدمها
+// (راجع /api/towers ، /api/contract-numbers ، /api/contract-detail في server.py)
+// Select2 بيدي تجربة "اكتب تلاقي" زي البورتال بالظبط، مش dropdown عادي
 // ============================================================
-let nocContractsCache = [];
+let nocTowersById = {};          // { "83": "Corniche Tower", ... }
+let nocContractDetailCache = {}; // عشان مانطلبش نفس تفاصيل العقد مرتين
+
+function nocSelect2Refresh($el, options) {
+    // بندمر أي select2 قديم قبل ما نغير الـ options ونعمله من جديد - أأمن طريقة
+    if ($el.data("select2")) $el.select2("destroy");
+    $el.html("");
+    options.forEach(o => $el.append(new Option(o.text, o.value, false, false)));
+    $el.select2({ width: "100%" });
+}
 
 function populateNocTowersDropdown() {
-    const sel = document.getElementById("nocTowerName");
-    if (!sel) return;
+    const $sel = $("#nocTowerName");
+    if (!$sel.length) return;
 
-    sel.innerHTML = "";
-    sel.appendChild(makeNocOption("", "-- Loading towers... --"));
+    nocSelect2Refresh($sel, [{ value: "", text: "-- Loading towers... --" }]);
 
     fetch(PYTHON_BACKEND_TOWERS_URL)
         .then(r => r.json())
         .then(data => {
             const towers = data.towers || [];
-            sel.innerHTML = "";
-            sel.appendChild(makeNocOption("", "-- Select Tower --"));
-            towers.forEach(t => sel.appendChild(makeNocOption(t, t)));
+            nocTowersById = {};
+            towers.forEach(t => { nocTowersById[t.id] = t.name; });
+
+            const options = [{ value: "", text: "-- Select Tower --" }]
+                .concat(towers.map(t => ({ value: t.id, text: t.name })));
+            nocSelect2Refresh($sel, options);
         })
         .catch(() => {
-            sel.innerHTML = "";
-            sel.appendChild(makeNocOption("", "-- Failed to load towers, refresh the page --"));
+            nocSelect2Refresh($sel, [{ value: "", text: "-- Failed to load towers, refresh the page --" }]);
         });
 }
 
 function loadContractsForTower() {
-    const towerSelect = document.getElementById("nocTowerName");
-    const tower = towerSelect ? towerSelect.value : "";
-    const picker = document.getElementById("nocContractPicker");
-    if (!picker) return;
+    const propertyId = $("#nocTowerName").val();
+    const $picker = $("#nocContractPicker");
+    if (!$picker.length) return;
 
-    nocContractsCache = [];
-    picker.innerHTML = "";
+    nocContractDetailCache = {};
 
-    if (!tower) {
-        picker.appendChild(makeNocOption("", "-- Select tower first --"));
+    if (!propertyId) {
+        nocSelect2Refresh($picker, [{ value: "", text: "-- Select tower first --" }]);
         return;
     }
 
-    picker.appendChild(makeNocOption("", "-- Loading contracts... --"));
+    nocSelect2Refresh($picker, [{ value: "", text: "-- Loading contracts... --" }]);
 
-    fetch(`${PYTHON_BACKEND_CONTRACTS_URL}?tower=${encodeURIComponent(tower)}`)
+    fetch(`${PYTHON_BACKEND_CONTRACT_NUMBERS_URL}?property_id=${encodeURIComponent(propertyId)}`)
         .then(r => r.json())
         .then(data => {
-            nocContractsCache = data.contracts || [];
-            picker.innerHTML = "";
-            picker.appendChild(makeNocOption(
-                "",
-                nocContractsCache.length ? "-- Select contract (optional) --" : "-- No contracts found for this tower --"
-            ));
-            nocContractsCache.forEach((c, i) => {
-                picker.appendChild(makeNocOption(
-                    String(i),
-                    `${c.customer_name} - ${c.contract_no} (Unit ${c.unit_no})`
-                ));
-            });
+            const contracts = data.contracts || [];
+            const options = [{
+                value: "",
+                text: contracts.length ? "-- Select contract (optional) --" : "-- No contracts found for this tower --"
+            }].concat(contracts.map(c => ({ value: c.contract_no, text: c.contract_no })));
+            nocSelect2Refresh($picker, options);
         })
         .catch(() => {
-            picker.innerHTML = "";
-            picker.appendChild(makeNocOption("", "-- Failed to load contracts --"));
+            nocSelect2Refresh($picker, [{ value: "", text: "-- Failed to load contracts --" }]);
         });
 }
 
 function applyContractSelection() {
-    const picker = document.getElementById("nocContractPicker");
-    if (!picker || picker.value === "") return;
+    const contractNo = $("#nocContractPicker").val();
+    const propertyId = $("#nocTowerName").val();
+    if (!contractNo || !propertyId) return;
 
-    const contract = nocContractsCache[parseInt(picker.value, 10)];
-    if (!contract) return;
+    const towerName = nocTowersById[propertyId];
+    if (!towerName) return;
 
+    const contractField = document.getElementById("nocTenantContract");
+    if (contractField) contractField.value = contractNo; // نملاها فورًا، مش لازم نستنى الباقي
+
+    const cacheKey = `${propertyId}::${contractNo}`;
+    if (nocContractDetailCache[cacheKey]) {
+        applyContractDetail(nocContractDetailCache[cacheKey]);
+        return;
+    }
+
+    fetch(`${PYTHON_BACKEND_CONTRACT_DETAIL_URL}?tower=${encodeURIComponent(towerName)}&contract=${encodeURIComponent(contractNo)}`)
+        .then(r => {
+            if (!r.ok) throw new Error("contract detail not found");
+            return r.json();
+        })
+        .then(detail => {
+            nocContractDetailCache[cacheKey] = detail;
+            applyContractDetail(detail);
+        })
+        .catch(() => {
+            // العقد اتملى برقمه بس على الأقل - باقي البيانات (الاسم/الوحدة) هتتكتب يدوي
+        });
+}
+
+function applyContractDetail(contract) {
     const nameField = document.getElementById("nocTenantName");
     const contractField = document.getElementById("nocTenantContract");
     const unitField = document.getElementById("nocUnitNo");
@@ -98,13 +125,6 @@ function applyContractSelection() {
     if (nameField) nameField.value = contract.customer_name;
     if (contractField) contractField.value = contract.contract_no;
     if (unitField) unitField.value = contract.unit_no;
-}
-
-function makeNocOption(value, text) {
-    const opt = document.createElement("option");
-    opt.value = value;
-    opt.textContent = text;
-    return opt;
 }
 
 function toggleNocFormType() {
