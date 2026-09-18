@@ -1,0 +1,113 @@
+<!-- Partial: break-queue-page.html - Break Queue system (added 2026-09-19) -->
+    <div id="break-queue-page" class="page hidden-page">
+        <div class="container">
+            <div data-include="partials/sub-page-header.html"></div>
+
+            <div class="system-title">☕ Break Queue</div>
+
+            <div class="calc-wrapper" style="grid-template-columns: 1fr; max-width: 750px; margin: 0 auto;">
+
+                <!-- 👑 ADMIN: CONCURRENT BREAK LIMIT (admin only - toggled via updateUIForRole) -->
+                <div class="calc-card" id="breakAdminControlsCard" style="display:none;">
+                    <h3><i class="fa-solid fa-user-shield"></i> Admin: Concurrent Break Limit</h3>
+                    <p style="font-size:13px; color:#64748b; margin-top:-6px;">
+                        Current limit: <strong id="breakCapCurrentLabel">1</strong> agent(s) allowed on break at the same time.
+                    </p>
+                    <div class="calc-form-grid">
+                        <div class="form-group">
+                            <label><i class="fa-solid fa-users"></i> New Limit (number of agents):</label>
+                            <input type="number" id="breakCapInput" class="combo-input" min="1" value="1">
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fa-solid fa-hourglass-half"></i> Revert after (minutes, optional):</label>
+                            <input type="number" id="breakCapDurationMinutes" class="combo-input" min="0" placeholder="0 = no time limit">
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:10px; margin-top:8px; flex-wrap:wrap;">
+                        <button type="button" class="btn-primary" onclick="applyBreakCapChange()">
+                            <i class="fa-solid fa-check"></i> Apply
+                        </button>
+                        <button type="button" class="admin-mini-btn" onclick="revertBreakCapToDefault()">
+                            <i class="fa-solid fa-rotate-left"></i> Reset to Default (1)
+                        </button>
+                    </div>
+                    <div id="breakCapExpiryNote" style="font-size:12px; color:#d97706; margin-top:8px; font-weight:700;"></div>
+                </div>
+
+                <!-- ☕ MY BREAK -->
+                <div class="calc-card">
+                    <h3><i class="fa-solid fa-mug-hot"></i> My Break</h3>
+                    <p style="font-size:13px; color:#64748b; margin-top:-6px;">
+                        Daily break budget remaining: <strong id="myBreakBudgetText">30:00</strong> / 30:00
+                    </p>
+
+                    <!-- Request form (no active/queued/ready record) -->
+                    <div id="breakRequestForm">
+                        <div class="calc-form-grid">
+                            <div class="form-group">
+                                <label><i class="fa-solid fa-clock"></i> Minutes:</label>
+                                <input type="number" id="breakReqMinutes" class="combo-input" min="0" value="5">
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fa-solid fa-stopwatch"></i> Seconds:</label>
+                                <input type="number" id="breakReqSeconds" class="combo-input" min="0" max="59" value="0">
+                            </div>
+                        </div>
+                        <button type="button" class="btn-primary" onclick="requestMyBreak()" style="width:100%; margin-top:8px;">
+                            <i class="fa-solid fa-hand"></i> Request Break
+                        </button>
+                    </div>
+
+                    <!-- Queued (waiting in line) -->
+                    <div id="breakQueuedStatus" class="hidden-page">
+                        <div style="text-align:center; padding:14px; background:#f8fafc; border-radius:10px;">
+                            <i class="fa-solid fa-hourglass-half" style="font-size:22px; color:#64748b;"></i>
+                            <div style="font-weight:800; margin-top:6px;">Waiting in queue - position #<span id="myQueuePosition">-</span></div>
+                            <div style="font-size:13px; color:#64748b;">Requested duration: <span id="myQueuedDuration">-</span></div>
+                        </div>
+                        <button type="button" class="admin-mini-btn" onclick="cancelMyBreak()" style="width:100%; margin-top:10px; color:#dc2626; border-color:#dc2626;">
+                            <i class="fa-solid fa-xmark"></i> Cancel Request
+                        </button>
+                    </div>
+
+                    <!-- Ready (it's your turn - must click Start manually) -->
+                    <div id="breakReadyStatus" class="hidden-page">
+                        <div style="text-align:center; padding:14px; background:#fffbeb; border-radius:10px;">
+                            <i class="fa-solid fa-bell" style="font-size:22px; color:#d97706;"></i>
+                            <div style="font-weight:800; margin-top:6px; color:#d97706;">It's your turn!</div>
+                            <div style="font-size:13px; color:#64748b;">Break duration: <span id="myReadyDuration">-</span></div>
+                        </div>
+                        <button type="button" class="btn-primary" onclick="startMyBreak()" style="width:100%; margin-top:10px;">
+                            <i class="fa-solid fa-play"></i> Start My Break Now
+                        </button>
+                        <button type="button" class="admin-mini-btn" onclick="cancelMyBreak()" style="width:100%; margin-top:8px; color:#dc2626; border-color:#dc2626;">
+                            <i class="fa-solid fa-xmark"></i> Cancel
+                        </button>
+                    </div>
+
+                    <!-- Active (currently on break) -->
+                    <div id="breakActiveStatus" class="hidden-page">
+                        <div style="text-align:center; padding:18px; background:#f0fdf4; border-radius:10px;">
+                            <i class="fa-solid fa-mug-hot" style="font-size:26px; color:#16a34a;"></i>
+                            <div id="myBreakTimerDisplay" style="font-size:34px; font-weight:900; color:#16a34a; margin-top:6px;">00:00</div>
+                            <div id="myBreakOverrunNote" style="display:none; color:#dc2626; font-weight:800; font-size:13px; margin-top:4px;">
+                                ⚠️ Overtime - please return from break
+                            </div>
+                        </div>
+                        <button type="button" class="btn-primary" onclick="endMyBreak()" style="width:100%; margin-top:10px;">
+                            <i class="fa-solid fa-right-to-bracket"></i> End Break / I'm Back
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 📋 LIVE QUEUE OVERVIEW -->
+                <div class="calc-card">
+                    <h3><i class="fa-solid fa-list-check"></i> Live Break Overview</h3>
+                    <div id="breakLiveOverview"></div>
+                </div>
+
+            </div>
+
+            <div id="break-queue-banner-container"></div>
+        </div>
+    </div>

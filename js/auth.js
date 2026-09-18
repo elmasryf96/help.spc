@@ -307,5 +307,7 @@ function updateUIForRole() {
   if (rosterAdminBtn) rosterAdminBtn.style.display = isAdmin() ? "inline-flex" : "none";
   const ccPulseMenuCard = document.getElementById("ccPulseMenuCard");
   if (ccPulseMenuCard) ccPulseMenuCard.style.display = isAdmin() ? "flex" : "none";
+  const breakAdminControlsCard = document.getElementById("breakAdminControlsCard");
+  if (breakAdminControlsCard) breakAdminControlsCard.style.display = isAdmin() ? "block" : "none";
   updateUserProfileUI();
 }

@@ -11,6 +11,7 @@ PAGE_ORDER = [
     "home-page.html",
     "cc-pulse-page.html",
     "noc-page.html",
+    "break-queue-page.html",
     "unit-mapping-page.html",
     "calculator-page.html",
     "towers-page.html",

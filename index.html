@@ -13,7 +13,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <link rel="stylesheet" href="./style.css?v=20260919.022041">
+    <link rel="stylesheet" href="./style.css?v=20260919.030058">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- 🔎 Select2 (searchable dropdowns, used by the NOC Contract picker) -->
@@ -147,6 +147,12 @@
                     <div class="menu-icon"><i class="fa-solid fa-file-pdf"></i></div>
                     <h3>NOC Generator</h3>
                     <div class="btn-primary">Generate NOC <i class="fa-solid fa-file-contract"></i></div>
+                </div>
+
+                <div class="menu-card" onclick="navigateTo('break-queue-page')">
+                    <div class="menu-icon"><i class="fa-solid fa-mug-hot"></i></div>
+                    <h3>Break Queue</h3>
+                    <div class="btn-primary">Manage Break <i class="fa-solid fa-mug-hot"></i></div>
                 </div>
 
                 <div class="menu-card" onclick="navigateTo('tech-page')">
@@ -425,6 +431,162 @@
             </div>
 
             <div id="noc-banner-container"></div>
+        </div>
+    </div>
+    <div id="break-queue-page" class="page hidden-page">
+        <div class="container">
+            <!-- بيتحط أعلى أي صفحة فرعية عشان يدي زرار رجوع للداشبورد + منيو البروفايل/تسجيل الخروج -->
+<div class="brand-header relative-header">
+    <div class="logo-container" onclick="navigateTo('home-page')" style="cursor: pointer;">
+        <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+            <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+            <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+            <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+            <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+            <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+        </svg>
+        <div class="logo-text">Smart <span>Collection</span></div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <button type="button" class="admin-mini-btn" onclick="navigateTo('home-page')" style="white-space: nowrap;">
+            <i class="fa-solid fa-house"></i> Dashboard
+        </button>
+
+        <!-- 👤 USER PROFILE DROPDOWN WRAPPER -->
+        <div class="user-menu-wrapper">
+            <div class="user-badge-card" onclick="toggleProfileDropdown(event)">
+                <div class="user-avatar-circle user-avatar-text">ST</div>
+                <span class="display-user-fullname" style="font-weight: 800; font-size: 13px; color: var(--dark-navy);">SPC Team</span>
+                <i class="fa-solid fa-chevron-down" style="font-size: 11px; color: #64748b;"></i>
+            </div>
+
+            <!-- 🔽 Dropdown List -->
+            <div class="profile-dropdown-menu" onclick="event.stopPropagation()">
+                <div class="dropdown-user-info">
+                    <div class="dropdown-user-fullname" style="font-weight: 800; font-size: 13.5px; color: var(--dark-navy);">-</div>
+                    <div class="dropdown-user-email" style="font-size: 11px; font-weight: 700; color: #d97706;">-</div>
+                </div>
+                <button class="dropdown-item" onclick="openChangePasswordModal(); hideProfileDropdown();">
+                    <i class="fa-solid fa-key" style="color: #d97706;"></i> Change Password
+                </button>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item danger-item" onclick="handleLogout()">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+            <div class="system-title">☕ Break Queue</div>
+
+            <div class="calc-wrapper" style="grid-template-columns: 1fr; max-width: 750px; margin: 0 auto;">
+
+                <!-- 👑 ADMIN: CONCURRENT BREAK LIMIT (admin only - toggled via updateUIForRole) -->
+                <div class="calc-card" id="breakAdminControlsCard" style="display:none;">
+                    <h3><i class="fa-solid fa-user-shield"></i> Admin: Concurrent Break Limit</h3>
+                    <p style="font-size:13px; color:#64748b; margin-top:-6px;">
+                        Current limit: <strong id="breakCapCurrentLabel">1</strong> agent(s) allowed on break at the same time.
+                    </p>
+                    <div class="calc-form-grid">
+                        <div class="form-group">
+                            <label><i class="fa-solid fa-users"></i> New Limit (number of agents):</label>
+                            <input type="number" id="breakCapInput" class="combo-input" min="1" value="1">
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fa-solid fa-hourglass-half"></i> Revert after (minutes, optional):</label>
+                            <input type="number" id="breakCapDurationMinutes" class="combo-input" min="0" placeholder="0 = no time limit">
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:10px; margin-top:8px; flex-wrap:wrap;">
+                        <button type="button" class="btn-primary" onclick="applyBreakCapChange()">
+                            <i class="fa-solid fa-check"></i> Apply
+                        </button>
+                        <button type="button" class="admin-mini-btn" onclick="revertBreakCapToDefault()">
+                            <i class="fa-solid fa-rotate-left"></i> Reset to Default (1)
+                        </button>
+                    </div>
+                    <div id="breakCapExpiryNote" style="font-size:12px; color:#d97706; margin-top:8px; font-weight:700;"></div>
+                </div>
+
+                <!-- ☕ MY BREAK -->
+                <div class="calc-card">
+                    <h3><i class="fa-solid fa-mug-hot"></i> My Break</h3>
+                    <p style="font-size:13px; color:#64748b; margin-top:-6px;">
+                        Daily break budget remaining: <strong id="myBreakBudgetText">30:00</strong> / 30:00
+                    </p>
+
+                    <!-- Request form (no active/queued/ready record) -->
+                    <div id="breakRequestForm">
+                        <div class="calc-form-grid">
+                            <div class="form-group">
+                                <label><i class="fa-solid fa-clock"></i> Minutes:</label>
+                                <input type="number" id="breakReqMinutes" class="combo-input" min="0" value="5">
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fa-solid fa-stopwatch"></i> Seconds:</label>
+                                <input type="number" id="breakReqSeconds" class="combo-input" min="0" max="59" value="0">
+                            </div>
+                        </div>
+                        <button type="button" class="btn-primary" onclick="requestMyBreak()" style="width:100%; margin-top:8px;">
+                            <i class="fa-solid fa-hand"></i> Request Break
+                        </button>
+                    </div>
+
+                    <!-- Queued (waiting in line) -->
+                    <div id="breakQueuedStatus" class="hidden-page">
+                        <div style="text-align:center; padding:14px; background:#f8fafc; border-radius:10px;">
+                            <i class="fa-solid fa-hourglass-half" style="font-size:22px; color:#64748b;"></i>
+                            <div style="font-weight:800; margin-top:6px;">Waiting in queue - position #<span id="myQueuePosition">-</span></div>
+                            <div style="font-size:13px; color:#64748b;">Requested duration: <span id="myQueuedDuration">-</span></div>
+                        </div>
+                        <button type="button" class="admin-mini-btn" onclick="cancelMyBreak()" style="width:100%; margin-top:10px; color:#dc2626; border-color:#dc2626;">
+                            <i class="fa-solid fa-xmark"></i> Cancel Request
+                        </button>
+                    </div>
+
+                    <!-- Ready (it's your turn - must click Start manually) -->
+                    <div id="breakReadyStatus" class="hidden-page">
+                        <div style="text-align:center; padding:14px; background:#fffbeb; border-radius:10px;">
+                            <i class="fa-solid fa-bell" style="font-size:22px; color:#d97706;"></i>
+                            <div style="font-weight:800; margin-top:6px; color:#d97706;">It's your turn!</div>
+                            <div style="font-size:13px; color:#64748b;">Break duration: <span id="myReadyDuration">-</span></div>
+                        </div>
+                        <button type="button" class="btn-primary" onclick="startMyBreak()" style="width:100%; margin-top:10px;">
+                            <i class="fa-solid fa-play"></i> Start My Break Now
+                        </button>
+                        <button type="button" class="admin-mini-btn" onclick="cancelMyBreak()" style="width:100%; margin-top:8px; color:#dc2626; border-color:#dc2626;">
+                            <i class="fa-solid fa-xmark"></i> Cancel
+                        </button>
+                    </div>
+
+                    <!-- Active (currently on break) -->
+                    <div id="breakActiveStatus" class="hidden-page">
+                        <div style="text-align:center; padding:18px; background:#f0fdf4; border-radius:10px;">
+                            <i class="fa-solid fa-mug-hot" style="font-size:26px; color:#16a34a;"></i>
+                            <div id="myBreakTimerDisplay" style="font-size:34px; font-weight:900; color:#16a34a; margin-top:6px;">00:00</div>
+                            <div id="myBreakOverrunNote" style="display:none; color:#dc2626; font-weight:800; font-size:13px; margin-top:4px;">
+                                ⚠️ Overtime - please return from break
+                            </div>
+                        </div>
+                        <button type="button" class="btn-primary" onclick="endMyBreak()" style="width:100%; margin-top:10px;">
+                            <i class="fa-solid fa-right-to-bracket"></i> End Break / I'm Back
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 📋 LIVE QUEUE OVERVIEW -->
+                <div class="calc-card">
+                    <h3><i class="fa-solid fa-list-check"></i> Live Break Overview</h3>
+                    <div id="breakLiveOverview"></div>
+                </div>
+
+            </div>
+
+            <div id="break-queue-banner-container"></div>
         </div>
     </div>
     <div id="unit-mapping-page" class="page hidden-page">
@@ -1273,17 +1435,18 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/js/select2.min.js"></script>
 
     <!-- 📜 Main Application Script -->
-    <script src="js/core.js?v=20260919.022041"></script>
-    <script src="js/auth.js?v=20260919.022041"></script>
-    <script src="js/noc.js?v=20260919.022041"></script>
-    <script src="js/navigation.js?v=20260919.022041"></script>
-    <script src="js/unit-mapping.js?v=20260919.022041"></script>
-    <script src="js/calculator.js?v=20260919.022041"></script>
-    <script src="js/towers.js?v=20260919.022041"></script>
-    <script src="js/tech-schedule.js?v=20260919.022041"></script>
-    <script src="js/roster.js?v=20260919.022041"></script>
-    <script src="js/admin.js?v=20260919.022041"></script>
-    <script src="js/cc-pulse.js?v=20260919.022041"></script>
-    <script src="js/init.js?v=20260919.022041"></script>
+    <script src="js/core.js?v=20260919.030058"></script>
+    <script src="js/auth.js?v=20260919.030058"></script>
+    <script src="js/noc.js?v=20260919.030058"></script>
+    <script src="js/break-queue.js?v=20260919.030058"></script>
+    <script src="js/navigation.js?v=20260919.030058"></script>
+    <script src="js/unit-mapping.js?v=20260919.030058"></script>
+    <script src="js/calculator.js?v=20260919.030058"></script>
+    <script src="js/towers.js?v=20260919.030058"></script>
+    <script src="js/tech-schedule.js?v=20260919.030058"></script>
+    <script src="js/roster.js?v=20260919.030058"></script>
+    <script src="js/admin.js?v=20260919.030058"></script>
+    <script src="js/cc-pulse.js?v=20260919.030058"></script>
+    <script src="js/init.js?v=20260919.030058"></script>
 </body>
 </html>
