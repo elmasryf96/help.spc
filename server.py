@@ -1396,6 +1396,8 @@ BREAK_DEFAULT_CAP = 1
 _break_cap_state = {"cap": BREAK_DEFAULT_CAP, "expires_at": None}
 _break_records = []  # [{id, agent, requested_seconds, status, queued_at, ready_at, started_at}]
 _break_budgets = {}  # { agent: {"date": "YYYY-MM-DD", "remaining_seconds": int} }
+_break_history = []  # [{agent, requested_seconds, actual_seconds, started_at, ended_at}] - completed breaks only, capped
+BREAK_HISTORY_MAX_ENTRIES = 500
 
 
 def _uae_now_ts() -> float:
@@ -1407,6 +1409,26 @@ def _uae_now_ts() -> float:
 def _uae_today_str() -> str:
     uae_dt = datetime.utcnow() + timedelta(hours=4)
     return uae_dt.strftime("%Y-%m-%d")
+
+
+def _uae_date_str_from_ts(ts: float) -> str:
+    uae_dt = datetime.utcfromtimestamp(ts) + timedelta(hours=4)
+    return uae_dt.strftime("%Y-%m-%d")
+
+
+def _uae_hhmm_to_epoch(hhmm: str) -> float:
+    """بيحول وقت زي '14:30' (بتوقيت الإمارات، 24 ساعة) لأقرب لحظة قادمة بيه -
+    لو الوقت ده فات النهاردة، بيحسبها بكرة تلقائي."""
+    hh_str, mm_str = hhmm.strip().split(":")
+    hh, mm = int(hh_str), int(mm_str)
+    if not (0 <= hh <= 23 and 0 <= mm <= 59):
+        raise ValueError("invalid time")
+    uae_now = datetime.utcnow() + timedelta(hours=4)
+    target_uae = uae_now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+    if target_uae <= uae_now:
+        target_uae += timedelta(days=1)
+    target_utc_naive = target_uae - timedelta(hours=4)
+    return calendar.timegm(target_utc_naive.timetuple())
 
 
 def _get_break_budget(agent: str) -> dict:
@@ -1469,7 +1491,7 @@ class BreakActionModel(BaseModel):
 
 class BreakSetCapModel(BaseModel):
     cap: int
-    duration_seconds: Optional[int] = None
+    revert_at_uae_time: Optional[str] = None  # "HH:MM" 24-hour, UAE local time - None = no auto-revert
 
 
 @app.get("/api/break/status")
@@ -1486,6 +1508,24 @@ async def api_break_status(agent: str):
         (_serialize_break_record(r) for r in _break_records if r["status"] == "queued"),
         key=lambda r: r["queued_at"],
     )
+
+    # 👑 بيانات إضافية للأدمن - كل بريك خلص النهاردة + استخدام كل ايجنت من
+    # رصيده اليومي (بنحسبها دايمًا، الفرونت بيخفيها لغير الأدمن)
+    today = _uae_today_str()
+    today_history = sorted(
+        (h for h in _break_history if _uae_date_str_from_ts(h["ended_at"]) == today),
+        key=lambda h: h["ended_at"],
+        reverse=True,
+    )
+    agent_budgets_today = [
+        {
+            "agent": a,
+            "used_seconds": BREAK_DAILY_BUDGET_SECONDS - b["remaining_seconds"],
+            "remaining_seconds": b["remaining_seconds"],
+        }
+        for a, b in _break_budgets.items() if b["date"] == today
+    ]
+
     return {
         "cap": _effective_break_cap(),
         "cap_expires_at": _break_cap_state["expires_at"],
@@ -1495,6 +1535,8 @@ async def api_break_status(agent: str):
         "my_record": _serialize_break_record(my_record) if my_record else None,
         "budget_remaining_seconds": budget["remaining_seconds"],
         "budget_total_seconds": BREAK_DAILY_BUDGET_SECONDS,
+        "history": today_history,
+        "agent_budgets": agent_budgets_today,
         "server_time": time.time(),
     }
 
@@ -1558,6 +1600,16 @@ async def api_break_end(data: BreakActionModel):
     budget = _get_break_budget(record["agent"])
     budget["remaining_seconds"] -= actual_seconds
 
+    _break_history.append({
+        "agent": record["agent"],
+        "requested_seconds": record["requested_seconds"],
+        "actual_seconds": actual_seconds,
+        "started_at": record["started_at"],
+        "ended_at": ended_at,
+    })
+    if len(_break_history) > BREAK_HISTORY_MAX_ENTRIES:
+        _break_history[:] = _break_history[-BREAK_HISTORY_MAX_ENTRIES:]
+
     _break_records[:] = [r for r in _break_records if r["id"] != data.id]
     _promote_break_queue()
 
@@ -1585,9 +1637,15 @@ async def api_break_cancel(data: BreakActionModel):
 async def api_break_set_cap(data: BreakSetCapModel):
     if data.cap < 1:
         raise HTTPException(status_code=400, detail="السقف لازم يكون 1 على الأقل")
+
+    expires_at = None
+    if data.revert_at_uae_time:
+        try:
+            expires_at = _uae_hhmm_to_epoch(data.revert_at_uae_time)
+        except Exception:
+            raise HTTPException(status_code=400, detail="صيغة الوقت غلط - لازم HH:MM")
+
     _break_cap_state["cap"] = data.cap
-    _break_cap_state["expires_at"] = (
-        time.time() + data.duration_seconds if data.duration_seconds else None
-    )
+    _break_cap_state["expires_at"] = expires_at
     _promote_break_queue()
     return {"ok": True, "cap": _break_cap_state["cap"], "cap_expires_at": _break_cap_state["expires_at"]}

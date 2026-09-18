@@ -117,6 +117,7 @@ function handleLogin(event) {
           updateUserProfileUI();
           resetInactivityTimer(); // تشغيل مؤقت الخمول عند تسجيل الدخول الناجح
           navigateTo('home-page');
+          initBreakQueueGlobal(); // ☕ يبدأ يشتغل في الخلفية طول ما هو مسجل دخول
         });
       } else {
         if (errorMsg) errorMsg.style.display = "block";
@@ -244,6 +245,7 @@ function handleLogout() {
   clearSearch();
   clearSchedSearch();
   clearMappingSearch();
+  if (typeof stopBreakQueuePolling === "function") stopBreakQueuePolling();
   navigateTo('login-page');
 }
 

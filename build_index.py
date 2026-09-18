@@ -11,7 +11,6 @@ PAGE_ORDER = [
     "home-page.html",
     "cc-pulse-page.html",
     "noc-page.html",
-    "break-queue-page.html",
     "unit-mapping-page.html",
     "calculator-page.html",
     "towers-page.html",
@@ -19,6 +18,7 @@ PAGE_ORDER = [
     "roster-page.html",
     "admin-page.html",
     "change-password-modal.html",
+    "break-queue-modal.html",
 ]
 
 HEAD_FILE = "head.html"   # <!DOCTYPE...> لحد أول <div id="login-page"...>

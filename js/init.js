@@ -26,6 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (loggedUser) {
       resetInactivityTimer(); // تفعيل المؤقت فور تحميل الصفحة لو كان مسجل دخول
       navigateTo('home-page');
+      initBreakQueueGlobal(); // ☕ يبدأ يشتغل في الخلفية طول ما هو مسجل دخول
     }
   });
 });

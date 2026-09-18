@@ -24,7 +24,6 @@ function navigateTo(pageId) {
 
   stopCcPulsePolling();
   stopMyDayCardPolling();
-  stopBreakQueuePolling();
 
   const targetPage = document.getElementById(pageId);
   if (targetPage) {
@@ -38,7 +37,6 @@ function navigateTo(pageId) {
       'unit-mapping-page': { id: 'unit-mapping-banner-container', feedback: false },
       'calculator-page': { id: 'calculator-banner-container', feedback: false },
       'noc-page': { id: 'noc-banner-container', feedback: false },
-      'break-queue-page': { id: 'break-queue-banner-container', feedback: false },
       'tech-page': { id: 'tech-banner-container', feedback: false },
       'roster-page': { id: 'roster-banner-container', feedback: false },
       'admin-page': { id: 'admin-banner-container', feedback: false }
@@ -62,9 +60,6 @@ function navigateTo(pageId) {
       initCalculatorPage();
     } else if (pageId === 'noc-page') {
       initNocPage();
-    } else if (pageId === 'break-queue-page') {
-      updateUIForRole();
-      initBreakQueuePage();
     } else if (pageId === 'tech-page') {
       renderScheduleCards();
     } else if (pageId === 'roster-page') {

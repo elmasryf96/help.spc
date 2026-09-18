@@ -50,6 +50,7 @@ function autoLogoutUser() {
   clearSearch();
   clearSchedSearch();
   clearMappingSearch();
+  if (typeof stopBreakQueuePolling === "function") stopBreakQueuePolling();
 
   // 3. التوجيه الفوري لشاشة تسجيل الدخول
   navigateTo('login-page');

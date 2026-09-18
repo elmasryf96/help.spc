@@ -1,6 +1,7 @@
 // ============================================================
 // ☕ BREAK QUEUE - دور بريك حقيقي جوه help.spc (مش كتابة يدوي في Teams)
 // نظام منفصل بالكامل عن CC Pulse/3CX - Added 2026-09-19
+// اتحول لبوب أب عالمي شغال في الخلفية دايمًا (مش صفحة لوحدها) - Redesigned 2026-09-19
 // ============================================================
 
 let _breakPollInterval = null;
@@ -21,6 +22,32 @@ function formatBreakMMSS(totalSeconds) {
   const mm = String(Math.floor(abs / 60)).padStart(2, "0");
   const ss = String(abs % 60).padStart(2, "0");
   return (neg ? "-" : "") + mm + ":" + ss;
+}
+
+// بيحول قيمة حقل مدة البريك (خانة واحدة بس) لعدد ثواني - بيقبل "5" (يعني 5
+// دقايق) أو "5:30" (يعني 5 دقايق و30 ثانية) أو "0:45" (45 ثانية بس)
+function parseBreakDurationInput(raw) {
+  const val = String(raw || "").trim();
+  if (!val) return 0;
+  if (val.includes(":")) {
+    const parts = val.split(":");
+    const m = parseInt(parts[0], 10) || 0;
+    const s = parseInt(parts[1], 10) || 0;
+    return (m * 60) + s;
+  }
+  const m = parseFloat(val);
+  if (isNaN(m)) return 0;
+  return Math.round(m * 60);
+}
+
+function formatUaeClockTime(epochSeconds) {
+  try {
+    return new Date(epochSeconds * 1000).toLocaleTimeString('en-GB', {
+      timeZone: 'Asia/Dubai', hour: '2-digit', minute: '2-digit'
+    });
+  } catch (e) {
+    return "-";
+  }
 }
 
 // ============================================================
@@ -68,15 +95,17 @@ function showBreakNotification(title, body) {
 }
 
 // ============================================================
-// 🧭 دخول/خروج الصفحة
+// 🌍 تشغيل عالمي في الخلفية - بيتنادى مرة واحدة بس بعد تسجيل الدخول (من
+// init.js ومن auth.js) وفضل شغال طول ما اليوزر مسجل دخول، بغض النظر هو
+// فاتح أنهي صفحة أو حتى لو البوب أب نفسه مقفول - عشان التنبيهات والعداد
+// يفضلوا شغالين في الخلفية زي ما فارس طلب بالظبط
 // ============================================================
-function initBreakQueuePage() {
+function initBreakQueueGlobal() {
   requestBreakNotificationPermission();
-  _breakNearEndAlerted = false;
-  _breakEndAlerted = false;
   refreshBreakStatus();
-  stopBreakQueuePolling();
-  _breakPollInterval = setInterval(refreshBreakStatus, 4000);
+  if (!_breakPollInterval) {
+    _breakPollInterval = setInterval(refreshBreakStatus, 4000);
+  }
 }
 
 function stopBreakQueuePolling() {
@@ -85,6 +114,9 @@ function stopBreakQueuePolling() {
     _breakPollInterval = null;
   }
   stopBreakLocalTick();
+  _breakLastKnownStatus = null;
+  _breakNearEndAlerted = false;
+  _breakEndAlerted = false;
 }
 
 function stopBreakLocalTick() {
@@ -92,6 +124,22 @@ function stopBreakLocalTick() {
     clearInterval(_breakTickInterval);
     _breakTickInterval = null;
   }
+}
+
+// ============================================================
+// 🪟 فتح/قفل البوب أب - البيانات بتتحدث في الخلفية بغض النظر هو مفتوح
+// ولا لأ، فلما يتفتح بيبقى شايف آخر حالة على طول
+// ============================================================
+function openBreakQueueModal() {
+  const modal = document.getElementById("breakQueueModal");
+  if (modal) modal.style.display = "flex";
+  updateUIForRole();
+  refreshBreakStatus();
+}
+
+function closeBreakQueueModal() {
+  const modal = document.getElementById("breakQueueModal");
+  if (modal) modal.style.display = "none";
 }
 
 // ============================================================
@@ -106,10 +154,13 @@ function refreshBreakStatus() {
     .then(data => {
       _breakServerTimeOffsetMs = (data.server_time * 1000) - Date.now();
       window._lastBreakStatusData = data;
+      if (typeof updateUIForRole === "function") updateUIForRole();
       renderBreakAdminPanel(data);
       renderBreakLiveOverview(data);
+      renderBreakAdminHistory(data);
       renderMyBreakBudget(data);
       renderMyBreakState(data);
+      updateBreakNavButtonLabel(data);
     })
     .catch(err => console.warn("Break status fetch failed:", err));
 }
@@ -117,6 +168,35 @@ function refreshBreakStatus() {
 function renderMyBreakBudget(data) {
   const el = document.getElementById("myBreakBudgetText");
   if (el) el.textContent = formatBreakMMSS(data.budget_remaining_seconds);
+}
+
+// ============================================================
+// 🔘 تحديث زرار "My Break" اللي جمب البروفايل - بيبان عليه لايف
+// الحالة الحالية حتى لو البوب أب مقفول (عداد شغال/جاي دورك/مكانك في الطابور)
+// ============================================================
+function updateBreakNavButtonLabel(data) {
+  document.querySelectorAll(".myBreakNavBtnLabel").forEach(label => {
+    const record = data.my_record;
+    if (!record) {
+      label.textContent = "My Break";
+      label.style.color = "";
+      return;
+    }
+    if (record.status === "queued") {
+      const idx = (data.queue || []).findIndex(r => r.id === record.id);
+      label.textContent = `Queued #${idx >= 0 ? (idx + 1) : "-"}`;
+      label.style.color = "#64748b";
+    } else if (record.status === "ready") {
+      label.textContent = "Ready!";
+      label.style.color = "#d97706";
+    } else if (record.status === "active") {
+      const nowServerMs = Date.now() + _breakServerTimeOffsetMs;
+      const elapsedSeconds = (nowServerMs - (record.started_at * 1000)) / 1000;
+      const remaining = record.requested_seconds - elapsedSeconds;
+      label.textContent = formatBreakMMSS(remaining);
+      label.style.color = remaining <= 0 ? "#dc2626" : "#16a34a";
+    }
+  });
 }
 
 function renderBreakLiveOverview(data) {
@@ -159,20 +239,77 @@ function renderBreakLiveOverview(data) {
 
 function renderBreakAdminPanel(data) {
   const card = document.getElementById("breakAdminControlsCard");
-  if (!card) return;
+  if (card) card.style.display = (typeof isAdmin === "function" && isAdmin()) ? "block" : "none";
+
   const label = document.getElementById("breakCapCurrentLabel");
   if (label) label.textContent = data.cap;
 
   const note = document.getElementById("breakCapExpiryNote");
   if (note) {
     if (data.cap_expires_at) {
-      const remainingMs = (data.cap_expires_at * 1000) - (Date.now() + _breakServerTimeOffsetMs);
-      const remainingMin = Math.max(0, Math.ceil(remainingMs / 60000));
-      note.textContent = `⏱️ Will revert to ${1} in about ${remainingMin} minute(s).`;
+      note.textContent = `⏱️ Will revert to 1 at ${formatUaeClockTime(data.cap_expires_at)} (UAE time).`;
     } else if (data.cap !== 1) {
       note.textContent = `♾️ No time limit set - stays at ${data.cap} until manually reset.`;
     } else {
       note.textContent = "";
+    }
+  }
+}
+
+// ============================================================
+// 👑 (أدمن بس) تفاصيل بريك كل واحد النهاردة - قد ايه استخدم من رصيده،
+// وكل بريك خلص إمتى بدأ وإمتى انتهى
+// ============================================================
+function renderBreakAdminHistory(data) {
+  const historyCard = document.getElementById("breakAdminHistoryCard");
+  const amAdmin = (typeof isAdmin === "function" && isAdmin());
+  if (historyCard) historyCard.style.display = amAdmin ? "block" : "none";
+  if (!amAdmin) return;
+
+  const summaryEl = document.getElementById("breakAdminAgentSummary");
+  if (summaryEl) {
+    const budgets = data.agent_budgets || [];
+    if (budgets.length === 0) {
+      summaryEl.innerHTML = `<div style="color:#64748b; font-size:12.5px;">No one has taken a break yet today.</div>`;
+    } else {
+      let html = `<table style="width:100%; border-collapse:collapse; font-size:12.5px;">
+        <thead><tr style="text-align:left; border-bottom:2px solid #e5e7eb;">
+          <th style="padding:5px;">Agent</th><th style="padding:5px;">Used Today</th><th style="padding:5px;">Remaining</th>
+        </tr></thead><tbody>`;
+      budgets.forEach(b => {
+        html += `<tr style="border-bottom:1px solid #f1f5f9;">
+          <td style="padding:5px;"><strong>${b.agent}</strong></td>
+          <td style="padding:5px;">${formatBreakMMSS(b.used_seconds)}</td>
+          <td style="padding:5px;">${formatBreakMMSS(b.remaining_seconds)}</td>
+        </tr>`;
+      });
+      html += `</tbody></table>`;
+      summaryEl.innerHTML = html;
+    }
+  }
+
+  const tableEl = document.getElementById("breakAdminHistoryTable");
+  if (tableEl) {
+    const history = data.history || [];
+    if (history.length === 0) {
+      tableEl.innerHTML = `<div style="color:#64748b; font-size:12.5px;">No completed breaks yet today.</div>`;
+    } else {
+      let html = `<table style="width:100%; border-collapse:collapse; font-size:12.5px;">
+        <thead><tr style="text-align:left; border-bottom:2px solid #e5e7eb;">
+          <th style="padding:5px;">Agent</th><th style="padding:5px;">Requested</th><th style="padding:5px;">Used</th><th style="padding:5px;">Started</th><th style="padding:5px;">Ended</th>
+        </tr></thead><tbody>`;
+      history.forEach(h => {
+        const overBudget = h.actual_seconds > h.requested_seconds;
+        html += `<tr style="border-bottom:1px solid #f1f5f9;">
+          <td style="padding:5px;"><strong>${h.agent}</strong></td>
+          <td style="padding:5px;">${formatBreakMMSS(h.requested_seconds)}</td>
+          <td style="padding:5px; ${overBudget ? 'color:#dc2626; font-weight:800;' : ''}">${formatBreakMMSS(h.actual_seconds)}</td>
+          <td style="padding:5px;">${formatUaeClockTime(h.started_at)}</td>
+          <td style="padding:5px;">${formatUaeClockTime(h.ended_at)}</td>
+        </tr>`;
+      });
+      html += `</tbody></table>`;
+      tableEl.innerHTML = html;
     }
   }
 }
@@ -187,7 +324,8 @@ function renderMyBreakState(data) {
   const record = data.my_record;
   const newStatus = record ? record.status : null;
 
-  // 🔔 اكتشاف التحول لحالة "ready" (جاله دوره) - نطلع تنبيه مرة واحدة بس
+  // 🔔 اكتشاف التحول لحالة "ready" (جاله دوره) - نطلع تنبيه مرة واحدة بس -
+  // ده بيشتغل حتى لو البوب أب مقفول لأن الـ poll شغال دايمًا في الخلفية
   if (newStatus === "ready" && _breakLastKnownStatus !== "ready") {
     showBreakNotification("☕ It's your turn!", "You can start your break now.");
   }
@@ -241,6 +379,11 @@ function tickMyBreakTimer() {
   const overrunNote = document.getElementById("myBreakOverrunNote");
   if (display) display.textContent = formatBreakMMSS(remaining);
 
+  document.querySelectorAll(".myBreakNavBtnLabel").forEach(label => {
+    label.textContent = formatBreakMMSS(remaining);
+    label.style.color = remaining <= 0 ? "#dc2626" : "#16a34a";
+  });
+
   if (remaining <= 0) {
     if (overrunNote) overrunNote.style.display = "block";
     if (!_breakEndAlerted) {
@@ -261,12 +404,10 @@ function tickMyBreakTimer() {
 // ============================================================
 function requestMyBreak() {
   const agent = getMyAgentName();
-  const minutes = parseInt(document.getElementById("breakReqMinutes")?.value || "0", 10) || 0;
-  const seconds = parseInt(document.getElementById("breakReqSeconds")?.value || "0", 10) || 0;
-  const totalSeconds = (minutes * 60) + seconds;
+  const totalSeconds = parseBreakDurationInput(document.getElementById("breakReqDuration")?.value);
 
   if (totalSeconds <= 0) {
-    alert("⚠️ Please enter a break duration greater than 0.");
+    alert("⚠️ Please enter a valid break duration (e.g. 5 or 5:30).");
     return;
   }
 
@@ -354,17 +495,17 @@ function cancelMyBreak() {
 }
 
 // ============================================================
-// 👑 تحكم الأدمن في السقف
+// 👑 تحكم الأدمن في السقف - بيختار وقت الرجوع للـ default بتوقيت الإمارات
+// (ساعة:دقيقة) بدل ما يحدد عدد دقايق يعدها
 // ============================================================
 function applyBreakCapChange() {
   const cap = parseInt(document.getElementById("breakCapInput")?.value || "1", 10) || 1;
-  const durationMinutes = parseInt(document.getElementById("breakCapDurationMinutes")?.value || "0", 10) || 0;
-  const duration_seconds = durationMinutes > 0 ? durationMinutes * 60 : null;
+  const revertTime = document.getElementById("breakCapRevertTime")?.value || null; // "HH:MM" أو فاضي
 
   fetch(PYTHON_BACKEND_BREAK_SET_CAP_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ cap, duration_seconds })
+    body: JSON.stringify({ cap, revert_at_uae_time: revertTime || null })
   })
     .then(async r => {
       if (!r.ok) {
@@ -381,7 +522,7 @@ function revertBreakCapToDefault() {
   fetch(PYTHON_BACKEND_BREAK_SET_CAP_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ cap: 1, duration_seconds: null })
+    body: JSON.stringify({ cap: 1, revert_at_uae_time: null })
   })
     .then(() => refreshBreakStatus())
     .catch(err => alert(`❌ ${err.message}`));
