@@ -387,6 +387,101 @@ async def api_towers():
     return {"count": len(towers), "towers": towers}
 
 
+@app.get("/debug/find-contract-search-endpoint")
+async def debug_find_contract_search_endpoint(tower: str = "Corniche Tower"):
+    """
+    اندبوينت مؤقت للاستكشاف بس: بيفتح صفحة Customers، يختار التاور من قايمة Property
+    (بالظبط زي ما بتعمل إنت بإيدك في البورتال)، ويسجل أي طلبات شبكة (XHR/fetch) حصلت
+    وقت الاختيار - عشان نلاقي الـ endpoint الحقيقي اللي بيملي قايمة "Contract No"
+    (اللي بتقدر تكتب فيها وتدور زي select2) من غير أي حد أقصى على عدد النتايج.
+    """
+    if not SC_USERNAME or not SC_PASSWORD:
+        raise HTTPException(
+            status_code=500,
+            detail="لازم تضيف SC_USERNAME و SC_PASSWORD في Environment Variables على Render",
+        )
+
+    from playwright.async_api import async_playwright
+
+    steps_done = []
+    captured = []
+
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(
+                headless=True,
+                args=["--no-sandbox", "--disable-dev-shm-usage"],
+            )
+            steps_done.append("browser_launched")
+            page = await browser.new_page()
+
+            async def on_response(response):
+                url = response.url
+                if "/Account/Login" in url:
+                    return
+                try:
+                    resource_type = response.request.resource_type
+                except Exception:
+                    resource_type = ""
+                if resource_type in ("xhr", "fetch"):
+                    try:
+                        body = await response.text()
+                    except Exception:
+                        body = "<تعذر قراءة محتوى الرد>"
+                    captured.append(
+                        {
+                            "url": url,
+                            "method": response.request.method,
+                            "status": response.status,
+                            "post_data": response.request.post_data,
+                            "body_snippet": body[:1500],
+                        }
+                    )
+
+            page.on("response", on_response)
+
+            await page.goto(f"{PORTAL_BASE_URL}/Account/Login", wait_until="load", timeout=30000)
+            await page.wait_for_selector('input[name="Username"]', timeout=15000)
+            await page.fill('input[name="Username"]', SC_USERNAME)
+            await page.fill('input[name="Password"]', SC_PASSWORD)
+            submit_btn = page.locator(
+                '#form-login button[type="submit"], #form-login input[type="submit"]'
+            )
+            if await submit_btn.count() > 0:
+                await submit_btn.first.click()
+            else:
+                await page.locator('input[name="Password"]').press("Enter")
+            await page.wait_for_timeout(3000)
+            steps_done.append("logged_in")
+
+            await page.goto(f"{PORTAL_BASE_URL}/AdminPortal/Customers", wait_until="load", timeout=30000)
+            await page.wait_for_selector("#Search_Property", timeout=15000)
+            steps_done.append("customers_page_loaded")
+
+            captured.clear()  # مسحنا أي طلبات حصلت وقت التحميل الأول - عايزين بس اللي بيحصل وقت الاختيار
+
+            await page.select_option("#Search_Property", label=tower, force=True)
+            steps_done.append(f"selected_property:{tower}")
+            await page.wait_for_timeout(3000)
+
+            contract_options = await page.locator("#Search_ContractNo option").all_inner_texts()
+
+            await browser.close()
+
+            return {
+                "tower": tower,
+                "steps_done": steps_done,
+                "captured_xhr_after_select": captured[:15],
+                "contract_dropdown_option_count": len(contract_options),
+                "contract_dropdown_sample": contract_options[:30],
+            }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"فشل بعد خطوة: {steps_done} - الخطأ: {e}",
+        )
+
+
 # ============================================================
 # 📞 3CX LIVE AGENT STATUS
 # محتاج تضيف الـ Environment Variables دي في Render:
