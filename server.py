@@ -393,7 +393,7 @@ async def api_contracts(tower: str):
 
 
 _towers_cache = {"towers": None, "obtained_at": 0}
-TOWERS_CACHE_MAX_AGE_SECONDS = 60 * 60  # قايمة التاورات نادر جداً ما تتغير - نكاشها ساعة كاملة
+TOWERS_CACHE_MAX_AGE_SECONDS = 15 * 60  # قايمة التاورات نادر جداً ما تتغير - 15 دقيقة توازن بين السرعة وسرعة ظهور برج جديد
 
 
 async def _fetch_towers_from_portal() -> list:
