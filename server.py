@@ -396,19 +396,9 @@ _towers_cache = {"towers": None, "obtained_at": 0}
 TOWERS_CACHE_MAX_AGE_SECONDS = 60 * 60  # قايمة التاورات نادر جداً ما تتغير - نكاشها ساعة كاملة
 
 
-@app.get("/api/towers")
-async def api_towers():
-    """
-    بيرجع قايمة كل التاورات (Property) زي ما هي في بورتال الفوترة - كل تاور معاه
-    الرقم الداخلي بتاعه (id) كمان، لازم عشان نطلب بيه أرقام العقود بعد كده.
-    """
-    now = time.time()
-    if (
-        _towers_cache["towers"] is not None
-        and now - _towers_cache["obtained_at"] < TOWERS_CACHE_MAX_AGE_SECONDS
-    ):
-        return {"count": len(_towers_cache["towers"]), "towers": _towers_cache["towers"]}
-
+async def _fetch_towers_from_portal() -> list:
+    """المنطق الفعلي لجلب قايمة الأبراج من البورتال - مستخدم من الـ endpoint نفسه
+    وكمان من background warm-up loop تحت، عشان منكررش نفس الكود مرتين."""
     from bs4 import BeautifulSoup
 
     html = await fetch_customers_html("")  # من غير فلتر - برضو بيرجع قايمة التاورات كاملة في الفورم
@@ -422,10 +412,52 @@ async def api_towers():
             name = opt.get_text(strip=True)
             if name and property_id and "select property" not in name.lower():
                 towers.append({"id": property_id, "name": name})
+    return towers
 
-    _towers_cache["towers"] = towers
-    _towers_cache["obtained_at"] = time.time()
-    return {"count": len(towers), "towers": towers}
+
+async def _refresh_towers_cache_if_stale():
+    now = time.time()
+    if (
+        _towers_cache["towers"] is None
+        or now - _towers_cache["obtained_at"] >= TOWERS_CACHE_MAX_AGE_SECONDS
+    ):
+        _towers_cache["towers"] = await _fetch_towers_from_portal()
+        _towers_cache["obtained_at"] = time.time()
+
+
+@app.get("/api/towers")
+async def api_towers():
+    """
+    بيرجع قايمة كل التاورات (Property) زي ما هي في بورتال الفوترة - كل تاور معاه
+    الرقم الداخلي بتاعه (id) كمان، لازم عشان نطلب بيه أرقام العقود بعد كده.
+    """
+    await _refresh_towers_cache_if_stale()
+    return {"count": len(_towers_cache["towers"]), "towers": _towers_cache["towers"]}
+
+
+# ============================================================
+# 🔥 Background Warm-Up Loop - بيشتغل طول الوقت من لحظة ما السيرفر يبدأ، وبيجدد
+# جلسة البورتال وقايمة الأبراج بانتظام (كل 5 دقايق) قبل ما تنتهي صلاحيتهم.
+# من غيره، أول طلب بعد أي deploy أو بعد فترة استخدام تعدت 15 دقيقة كان بيضطر
+# يسجل دخول كامل بمتصفح Playwright (كذا ثانية) - وده اللي كان بيحصل بالظبط لما
+# التاورز أحيانًا بتطلع فورًا وأحيانًا بتاخد شوية وهي "بتعمل لودينج".
+# ============================================================
+
+
+async def _keep_portal_warm_loop():
+    while True:
+        try:
+            await get_portal_session_cookie()  # بيجدد بس لو قرب ينتهي - مش هيعمل لوجين كل مرة
+            await _refresh_towers_cache_if_stale()
+        except Exception as e:
+            print(f"⚠️ Portal warm-up loop error (هيحاول تاني بعد 5 دقايق): {e}")
+        await asyncio.sleep(5 * 60)  # كل 5 دقايق - أقل بكتير من مدة صلاحية جلسة البورتال (15 دقيقة)
+
+
+@app.on_event("startup")
+async def _start_background_tasks():
+    if SC_USERNAME and SC_PASSWORD:
+        asyncio.create_task(_keep_portal_warm_loop())
 
 
 @app.get("/api/contract-numbers")
