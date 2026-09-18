@@ -13,7 +13,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <link rel="stylesheet" href="./style.css?v=20260918.041716">
+    <link rel="stylesheet" href="./style.css?v=20260918.043012">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- 🔎 Select2 (searchable dropdowns, used by the NOC Contract picker) -->
@@ -321,10 +321,10 @@
             <div class="calc-wrapper" style="grid-template-columns: 1fr; max-width: 750px; margin: 0 auto;">
                 <div class="calc-card">
                     <h3><i class="fa-solid fa-file-contract"></i> Issue NOC Certificate</h3>
-                    
+
                     <form id="nocForm" onsubmit="event.preventDefault(); handleNocSubmission();">
                         <div class="calc-form-grid">
-                            
+
                             <!-- 🔘 NOC TYPE SELECTOR -->
                             <div class="form-group" style="grid-column: 1 / -1; margin-bottom: 10px;">
                                 <label for="nocTypeSelect"><i class="fa-solid fa-layer-group"></i> NOC Type:</label>
@@ -340,11 +340,6 @@
                                 <i class="fa-solid fa-user-check" style="color: #d97706;"></i> 1. Tenant & Property Details
                             </div>
 
-                            <div class="form-group" id="groupTenantName">
-                                <label id="labelTenantName"><i class="fa-solid fa-user"></i> Tenant Consumer Name:</label>
-                                <input type="text" id="nocTenantName" class="combo-input" placeholder="e.g. Timur Yeginzhanov">
-                            </div>
-
                             <div class="form-group">
                                 <label><i class="fa-solid fa-building"></i> Building / Tower Name:</label>
                                 <select id="nocTowerName" class="combo-input" required onchange="loadContractsForTower()">
@@ -353,15 +348,20 @@
                             </div>
 
                             <div class="form-group">
-                                <label><i class="fa-solid fa-door-closed"></i> Unit / Apartment No.:</label>
-                                <input type="text" id="nocUnitNo" class="combo-input" placeholder="e.g. Unit B1-519" required>
-                            </div>
-
-                            <div class="form-group" style="grid-column: 1 / -1;">
                                 <label><i class="fa-solid fa-magnifying-glass"></i> Select Contract (optional - auto-fills name, contract no. & unit below):</label>
                                 <select id="nocContractPicker" class="combo-input" onchange="applyContractSelection()">
                                     <option value="">-- Select tower first --</option>
                                 </select>
+                            </div>
+
+                            <div class="form-group" id="groupTenantName">
+                                <label id="labelTenantName"><i class="fa-solid fa-user"></i> Tenant Consumer Name:</label>
+                                <input type="text" id="nocTenantName" class="combo-input" placeholder="e.g. Timur Yeginzhanov">
+                            </div>
+
+                            <div class="form-group">
+                                <label><i class="fa-solid fa-door-closed"></i> Unit / Apartment No.:</label>
+                                <input type="text" id="nocUnitNo" class="combo-input" placeholder="e.g. Unit B1-519" required>
                             </div>
 
                             <div class="form-group" id="groupTenantContract">
@@ -404,9 +404,14 @@
                                 <input type="text" id="nocOwnerContract" class="combo-input" placeholder="e.g. N/A or Owner Contract No.">
                             </div>
 
-                            <button type="submit" id="btnNocSubmit" class="btn-primary" style="margin-top: 15px; padding: 12px; font-size: 15px; grid-column: 1 / -1;">
-                                🚀 Generate & Download NOC PDF
-                            </button>
+                            <div style="display: flex; gap: 10px; margin-top: 15px; grid-column: 1 / -1;">
+                                <button type="button" id="btnNocReset" onclick="resetNocForm()" class="ccp-edit-btn-secondary" style="flex: 0 0 130px; font-size: 15px;">
+                                    <i class="fa-solid fa-rotate-left"></i> Reset
+                                </button>
+                                <button type="submit" id="btnNocSubmit" class="btn-primary" style="padding: 12px; font-size: 15px; flex: 1;">
+                                    🚀 Generate & Download NOC PDF
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -1261,17 +1266,17 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/js/select2.min.js"></script>
 
     <!-- 📜 Main Application Script -->
-    <script src="js/core.js?v=20260918.041716"></script>
-    <script src="js/auth.js?v=20260918.041716"></script>
-    <script src="js/noc.js?v=20260918.041716"></script>
-    <script src="js/navigation.js?v=20260918.041716"></script>
-    <script src="js/unit-mapping.js?v=20260918.041716"></script>
-    <script src="js/calculator.js?v=20260918.041716"></script>
-    <script src="js/towers.js?v=20260918.041716"></script>
-    <script src="js/tech-schedule.js?v=20260918.041716"></script>
-    <script src="js/roster.js?v=20260918.041716"></script>
-    <script src="js/admin.js?v=20260918.041716"></script>
-    <script src="js/cc-pulse.js?v=20260918.041716"></script>
-    <script src="js/init.js?v=20260918.041716"></script>
+    <script src="js/core.js?v=20260918.043012"></script>
+    <script src="js/auth.js?v=20260918.043012"></script>
+    <script src="js/noc.js?v=20260918.043012"></script>
+    <script src="js/navigation.js?v=20260918.043012"></script>
+    <script src="js/unit-mapping.js?v=20260918.043012"></script>
+    <script src="js/calculator.js?v=20260918.043012"></script>
+    <script src="js/towers.js?v=20260918.043012"></script>
+    <script src="js/tech-schedule.js?v=20260918.043012"></script>
+    <script src="js/roster.js?v=20260918.043012"></script>
+    <script src="js/admin.js?v=20260918.043012"></script>
+    <script src="js/cc-pulse.js?v=20260918.043012"></script>
+    <script src="js/init.js?v=20260918.043012"></script>
 </body>
 </html>

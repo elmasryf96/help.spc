@@ -127,6 +127,44 @@ function applyContractDetail(contract) {
     if (unitField) unitField.value = contract.unit_no;
 }
 
+// نوكرول: خانة nocTowerName بقت select قيمتها الـ property id مش اسم التاور -
+// فلازم نرجع الاسم من نفس الماب اللي بنعمرها في populateNocTowersDropdown
+// قبل ما نبعته في الـ payload (وإلا هيتبعت الرقم بدل الاسم في الـ PDF نفسه)
+function getSelectedTowerName() {
+    const propertyId = document.getElementById("nocTowerName").value;
+    return nocTowersById[propertyId] || "";
+}
+
+// 🔄 مسح الفورم بالكامل: كل الحقول المكتوبة + رجوع الدروب داون بتاع التاور والعقد
+// للوضع الافتراضي (من غير ما نعيد تحميل قائمة الأبراج من السيرفر تاني)
+function resetNocForm() {
+    const typeSelect = document.getElementById("nocTypeSelect");
+    if (typeSelect) typeSelect.value = "tenant";
+    toggleNocFormType();
+
+    ["nocTenantName", "nocUnitNo", "nocTenantContract", "nocOwnerName", "nocOwnerContract", "moveInSpcAccount"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
+    });
+
+    const accountType = document.getElementById("moveInAccountType");
+    if (accountType) accountType.value = "TENANT";
+
+    const dateInput = document.getElementById("nocDate");
+    if (dateInput) {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        dateInput.value = `${yyyy}-${mm}-${dd}`;
+    }
+
+    // بيرجع اختيار البرج لـ "-- Select Tower --" وده بيتريجر loadContractsForTower()
+    // اللي بترجع خانة العقد لـ "-- Select tower first --" ومسح الكاش تلقائي
+    const $tower = $("#nocTowerName");
+    if ($tower.length) $tower.val("").trigger("change");
+}
+
 function toggleNocFormType() {
     const typeSelect = document.getElementById("nocTypeSelect");
     if (!typeSelect) return;
@@ -227,7 +265,7 @@ function handleNocSubmission() {
         payload = {
             account_holder_name: document.getElementById("nocTenantName").value.trim() || "N/A",
             account_type: document.getElementById("moveInAccountType").value,
-            tower_name: document.getElementById("nocTowerName").value.trim() || "N/A",
+            tower_name: getSelectedTowerName().trim() || "N/A",
             unit_no: document.getElementById("nocUnitNo").value.trim() || "N/A",
             spc_account_no: document.getElementById("moveInSpcAccount").value.trim() || "N/A",
             noc_date: document.getElementById("nocDate").value
@@ -248,7 +286,7 @@ function handleNocSubmission() {
         payload = {
             owner_name: document.getElementById("nocTenantName").value.trim() || "N/A",
             owner_contract: document.getElementById("nocTenantContract").value.trim() || "N/A",
-            tower_name: document.getElementById("nocTowerName").value.trim() || "N/A",
+            tower_name: getSelectedTowerName().trim() || "N/A",
             unit_no: document.getElementById("nocUnitNo").value.trim() || "N/A",
             noc_date: document.getElementById("nocDate").value
         };
@@ -270,7 +308,7 @@ function handleNocSubmission() {
             owner_contract: document.getElementById("nocTenantContract").value.trim() || "N/A",
             new_owner_name: document.getElementById("nocOwnerName").value.trim() || "N/A",
             new_owner_contract: document.getElementById("nocOwnerContract").value.trim() || "N/A",
-            tower_name: document.getElementById("nocTowerName").value.trim() || "N/A",
+            tower_name: getSelectedTowerName().trim() || "N/A",
             unit_no: document.getElementById("nocUnitNo").value.trim() || "N/A",
             noc_date: document.getElementById("nocDate").value
         };
@@ -288,7 +326,7 @@ function handleNocSubmission() {
     } else {
         payload = {
             tenant_name: document.getElementById("nocTenantName").value.trim() || "N/A",
-            tower_name: document.getElementById("nocTowerName").value.trim() || "N/A",
+            tower_name: getSelectedTowerName().trim() || "N/A",
             unit_no: document.getElementById("nocUnitNo").value.trim() || "N/A",
             tenant_contract: document.getElementById("nocTenantContract").value.trim() || "N/A",
             noc_date: document.getElementById("nocDate").value,
