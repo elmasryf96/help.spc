@@ -270,7 +270,10 @@ function toggleNocFormType() {
         if (section2Title) section2Title.style.display = "block";
         if (groupOwnerName) groupOwnerName.style.display = "block";
         if (groupOwnerContract) groupOwnerContract.style.display = "block";
-        if (groupOwnerContractPicker) groupOwnerContractPicker.style.display = "block";
+        // في Owner NOC، "المالك الجديد" لسه معندوش عقد مسجل في النظام - فارس بيكتب
+        // الاسم والرقم بإيده يدوي، فمفيش داعي لخانة اختيار عقد هنا (بعكس Tenant NOC
+        // اللي فيها "Owner Details" بتاعة مالك موجود بالفعل وليه عقد نقدر نختاره)
+        if (groupOwnerContractPicker) groupOwnerContractPicker.style.display = "none";
 
         if (groupTenantName) groupTenantName.style.display = "block";
         if (groupTenantContract) groupTenantContract.style.display = "block";
