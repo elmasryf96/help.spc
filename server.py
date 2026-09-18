@@ -1375,44 +1375,43 @@ async def start_queue_call_logger_watcher():
 
 # ============================================================
 # ☕ Break Queue - دور بريك حقيقي جوه help.spc بدل الكتابة اليدوية في Teams
-# نظام منفصل بالكامل عن 3CX/CC Pulse. كل حاجة في الذاكرة (in-memory) - أي
-# ريستارت للسيرفر بيمسح الطابور والبريكات الشغالة دلوقتي وكمان رصيد الـ30
-# دقيقة اليومي (بيترجع 1800 لوحده تاني) - ده قرار متعمد ومتفق عليه مع فارس
-# عشان الطابور ده لازم يكون سريع وفوري، وبيوفر تعقيد مزامنته مع Google Sheets.
 #
-# منطق الأدوار:
-#   queued -> ready (لما مكان يفضى حسب السقف)  -> active (لما هو يدوس Start
-#   بنفسه، مش تلقائي) -> done (لما يخلص/يلغي - وقتها بيتشال من الذاكرة خالص
-#   وبنخصم الوقت الفعلي بس من رصيده اليومي)
+# الطابور نفسه (queued -> ready) بيتسجل في الذاكرة عشان يبقى سريع وفوري،
+# لكن بداية/نهاية البريك الفعلية بتتحدد تلقائي من حالة الإيجنت الحقيقية على
+# 3CX (نفس المراقبة اللي شغالة بالفعل فوق - agent_status_watcher - وبتسجل
+# كل تغيير في شيت AgentStatusLog). يعني:
 #
-# لو حد كان "ready" (جاله دوره) وبعدين الأدمن قلل السقف، مبنشيلوش من "ready" -
-# هو محتفظ بمكانه المحجوز، بس أي ترقية جديدة من "queued" بتتوقف لحد ما
-# العدد الشغال (ready+active) ينزل تحت السقف الجديد تاني.
+#   queued -> ready (لما مكان يفضى حسب السقف، بيتبعتله تنبيه) -> active
+#   (تلقائي أول ما هو فعليًا يغيّر حالته لـ "Break" على 3CX) -> بيتشال من
+#   الطابور تلقائي أول ما يرجع لأي حالة تانية غير Break - من غير أي زرار
+#   Start/End يدوي خالص.
+#
+# رصيد الـ30 دقيقة اليومي بردو مش عداد منفصل بنمسكه إحنا - بيتحسب من نفس
+# الرقم الحقيقي (todaysBreakSeconds) اللي شيت AgentStatusLog بيحسبه فعليًا
+# لكل إيجنت (_daily_totals_cache، بيتحدث كل 20 ثانية من نفس الشيت). فمفيش
+# أي احتمال يحصل فرق بين اللي في السيستم واللي حصل فعلاً على 3CX، وبيفضل
+# صح حتى بعد أي Deploy/Restart لأنه أصلاً متسجل في الشيت مش في الذاكرة.
+#
+# لو حصل خطأ في البيانات نفسها (3CX سجل حاجة غلط)، بيتصلح من نفس مكان
+# تعديل الـ Timeline الموجود بالفعل في CC Pulse (أدمن) - وهيتصحح تلقائي في
+# كل حاجة تانية معاها بما فيها رصيد البريك، من غير أي حاجة تانية نعملها هنا.
+#
+# لو حد كان "ready" (جاله دوره) وبعدين الأدمن قلل السقف، مبنشيلوش من
+# "ready" - هو محتفظ بمكانه المحجوز، بس أي ترقية جديدة من "queued" بتتوقف
+# لحد ما العدد الشغال (ready + اللي فعلاً على Break دلوقتي) ينزل تحت السقف
+# الجديد تاني.
 # ============================================================
 
 BREAK_DAILY_BUDGET_SECONDS = 30 * 60
 BREAK_DEFAULT_CAP = 1
+BREAK_STATUS_NAME = "Break"  # اسم البروفايل على 3CX اللي بيدل على إن الإيجنت فعليًا واقف بريك
 
 _break_cap_state = {"cap": BREAK_DEFAULT_CAP, "expires_at": None}
 _break_records = []  # [{id, agent, requested_seconds, status, queued_at, ready_at, started_at}]
-_break_budgets = {}  # { agent: {"date": "YYYY-MM-DD", "remaining_seconds": int} }
-_break_history = []  # [{agent, requested_seconds, actual_seconds, started_at, ended_at}] - completed breaks only, capped
-BREAK_HISTORY_MAX_ENTRIES = 500
-
-
-def _uae_now_ts() -> float:
-    # الإمارات UTC+4 طول السنة (مفيش توقيت صيفي) - بنحسبها يدوي عشان منعتمدش
-    # على مكتبة tzdata ممكن متكونش متثبتة في الـ Docker image
-    return time.time()
 
 
 def _uae_today_str() -> str:
     uae_dt = datetime.utcnow() + timedelta(hours=4)
-    return uae_dt.strftime("%Y-%m-%d")
-
-
-def _uae_date_str_from_ts(ts: float) -> str:
-    uae_dt = datetime.utcfromtimestamp(ts) + timedelta(hours=4)
     return uae_dt.strftime("%Y-%m-%d")
 
 
@@ -1431,13 +1430,25 @@ def _uae_hhmm_to_epoch(hhmm: str) -> float:
     return calendar.timegm(target_utc_naive.timetuple())
 
 
-def _get_break_budget(agent: str) -> dict:
-    today = _uae_today_str()
-    b = _break_budgets.get(agent)
-    if not b or b["date"] != today:
-        b = {"date": today, "remaining_seconds": BREAK_DAILY_BUDGET_SECONDS}
-        _break_budgets[agent] = b
-    return b
+def _agents_on_break_now() -> set:
+    """مجموعة أسماء الإيجنتس اللي حالتهم الحقيقية على 3CX دلوقتي = Break -
+    مصدرها _last_known_status اللي بتتحدث كل 10 ثواني (agent_status_watcher
+    فوق) وبترجع صح حتى بعد Restart بفضل hydrate_status_from_sheet()."""
+    names = set()
+    for number, status in _last_known_status.items():
+        if status == BREAK_STATUS_NAME:
+            name = AGENT_MAP.get(number)
+            if name:
+                names.add(name)
+    return names
+
+
+def _get_break_remaining_seconds(agent: str) -> int:
+    """رصيد النهاردة المتبقي - من نفس الرقم الحقيقي (todaysBreakSeconds)
+    اللي بيتحسب لكل إيجنت من شيت AgentStatusLog (_daily_totals_cache) -
+    مش عداد منفصل، فمفيش أي فرق ممكن يحصل مع اللي حصل فعليًا على 3CX."""
+    used = (_daily_totals_cache.get("perAgent", {}).get(agent, {}) or {}).get("breakSeconds", 0) or 0
+    return max(0, int(BREAK_DAILY_BUDGET_SECONDS - used))
 
 
 def _effective_break_cap() -> int:
@@ -1448,13 +1459,33 @@ def _effective_break_cap() -> int:
     return _break_cap_state["cap"]
 
 
+def _sync_break_records_with_real_status():
+    """بيراجع كل الطلبات 'ready' و'active' على حالة 3CX الحقيقية:
+    - 'ready' وحالته الحقيقية بقت Break -> يترقّى تلقائي لـ 'active'
+    - 'active' وحالته الحقيقية مبقتش Break -> خلص بريكه فعليًا، بيتشال
+      خالص من الطابور (وقته الحقيقي اتسجل خلاص في شيت AgentStatusLog)"""
+    real_names = _agents_on_break_now()
+    for r in _break_records:
+        if r["status"] == "ready" and r["agent"] in real_names:
+            r["status"] = "active"
+            r["started_at"] = time.time()
+
+    _break_records[:] = [
+        r for r in _break_records
+        if not (r["status"] == "active" and r["agent"] not in real_names)
+    ]
+
+
 def _break_occupied_count() -> int:
-    return sum(1 for r in _break_records if r["status"] in ("ready", "active"))
+    real_names = _agents_on_break_now()
+    ready_names = {r["agent"] for r in _break_records if r["status"] == "ready"}
+    return len(real_names | ready_names)
 
 
 def _promote_break_queue():
     """بيرقّي أقدم الطلبات 'queued' لحالة 'ready' طول ما فيه أماكن فاضية حسب
     السقف الحالي - بيحافظ على ترتيب الأقدمية (FIFO)."""
+    _sync_break_records_with_real_status()
     cap = _effective_break_cap()
     queued = sorted(
         (r for r in _break_records if r["status"] == "queued"),
@@ -1497,7 +1528,7 @@ class BreakSetCapModel(BaseModel):
 @app.get("/api/break/status")
 async def api_break_status(agent: str):
     _promote_break_queue()
-    budget = _get_break_budget(agent)
+
     my_record = next(
         (r for r in _break_records if r["agent"] == agent and r["status"] in ("queued", "ready", "active")),
         None,
@@ -1509,23 +1540,6 @@ async def api_break_status(agent: str):
         key=lambda r: r["queued_at"],
     )
 
-    # 👑 بيانات إضافية للأدمن - كل بريك خلص النهاردة + استخدام كل ايجنت من
-    # رصيده اليومي (بنحسبها دايمًا، الفرونت بيخفيها لغير الأدمن)
-    today = _uae_today_str()
-    today_history = sorted(
-        (h for h in _break_history if _uae_date_str_from_ts(h["ended_at"]) == today),
-        key=lambda h: h["ended_at"],
-        reverse=True,
-    )
-    agent_budgets_today = [
-        {
-            "agent": a,
-            "used_seconds": BREAK_DAILY_BUDGET_SECONDS - b["remaining_seconds"],
-            "remaining_seconds": b["remaining_seconds"],
-        }
-        for a, b in _break_budgets.items() if b["date"] == today
-    ]
-
     return {
         "cap": _effective_break_cap(),
         "cap_expires_at": _break_cap_state["expires_at"],
@@ -1533,10 +1547,8 @@ async def api_break_status(agent: str):
         "ready": ready,
         "queue": queued,
         "my_record": _serialize_break_record(my_record) if my_record else None,
-        "budget_remaining_seconds": budget["remaining_seconds"],
+        "budget_remaining_seconds": _get_break_remaining_seconds(agent),
         "budget_total_seconds": BREAK_DAILY_BUDGET_SECONDS,
-        "history": today_history,
-        "agent_budgets": agent_budgets_today,
         "server_time": time.time(),
     }
 
@@ -1549,6 +1561,8 @@ async def api_break_request(data: BreakRequestModel):
     if data.requested_seconds <= 0:
         raise HTTPException(status_code=400, detail="لازم تحدد مدة أكبر من صفر")
 
+    _sync_break_records_with_real_status()
+
     existing = next(
         (r for r in _break_records if r["agent"] == agent and r["status"] in ("queued", "ready", "active")),
         None,
@@ -1556,8 +1570,7 @@ async def api_break_request(data: BreakRequestModel):
     if existing:
         raise HTTPException(status_code=409, detail="عندك طلب بريك شغال بالفعل")
 
-    budget = _get_break_budget(agent)
-    if budget["remaining_seconds"] <= 0:
+    if _get_break_remaining_seconds(agent) <= 0:
         raise HTTPException(status_code=409, detail="خلص رصيد البريك بتاعك النهاردة (30 دقيقة)")
 
     record = {
@@ -1574,59 +1587,13 @@ async def api_break_request(data: BreakRequestModel):
     return {"ok": True, "record": _serialize_break_record(record)}
 
 
-@app.post("/api/break/start")
-async def api_break_start(data: BreakActionModel):
-    record = next((r for r in _break_records if r["id"] == data.id and r["agent"] == data.agent), None)
-    if not record:
-        raise HTTPException(status_code=404, detail="مفيش طلب بريك بالمواصفات دي")
-    if record["status"] != "ready":
-        raise HTTPException(status_code=409, detail="لسه مش دورك أو البريك اتبدأ بالفعل")
-    record["status"] = "active"
-    record["started_at"] = time.time()
-    return {"ok": True, "record": _serialize_break_record(record)}
-
-
-@app.post("/api/break/end")
-async def api_break_end(data: BreakActionModel):
-    record = next((r for r in _break_records if r["id"] == data.id and r["agent"] == data.agent), None)
-    if not record:
-        raise HTTPException(status_code=404, detail="مفيش طلب بريك بالمواصفات دي")
-    if record["status"] != "active":
-        raise HTTPException(status_code=409, detail="البريك ده مش شغال دلوقتي")
-
-    ended_at = time.time()
-    actual_seconds = max(0, int(ended_at - record["started_at"]))
-
-    budget = _get_break_budget(record["agent"])
-    budget["remaining_seconds"] -= actual_seconds
-
-    _break_history.append({
-        "agent": record["agent"],
-        "requested_seconds": record["requested_seconds"],
-        "actual_seconds": actual_seconds,
-        "started_at": record["started_at"],
-        "ended_at": ended_at,
-    })
-    if len(_break_history) > BREAK_HISTORY_MAX_ENTRIES:
-        _break_history[:] = _break_history[-BREAK_HISTORY_MAX_ENTRIES:]
-
-    _break_records[:] = [r for r in _break_records if r["id"] != data.id]
-    _promote_break_queue()
-
-    return {
-        "ok": True,
-        "actual_seconds": actual_seconds,
-        "budget_remaining_seconds": budget["remaining_seconds"],
-    }
-
-
 @app.post("/api/break/cancel")
 async def api_break_cancel(data: BreakActionModel):
     record = next((r for r in _break_records if r["id"] == data.id and r["agent"] == data.agent), None)
     if not record:
         raise HTTPException(status_code=404, detail="مفيش طلب بريك بالمواصفات دي")
     if record["status"] not in ("queued", "ready"):
-        raise HTTPException(status_code=409, detail="البريك ده مينفعش يتلغي دلوقتي - شغال بالفعل")
+        raise HTTPException(status_code=409, detail="البريك ده مبقاش ينفع يتلغي - إما شغال فعليًا أو خلص")
 
     _break_records[:] = [r for r in _break_records if r["id"] != data.id]
     _promote_break_queue()

@@ -66,22 +66,22 @@
                     </button>
                 </div>
 
-                <!-- Ready (it's your turn - must click Start manually) -->
+                <!-- Ready (it's your turn - break starts automatically once you switch your 3CX status to Break) -->
                 <div id="breakReadyStatus" class="hidden-page">
                     <div style="text-align:center; padding:14px; background:#fffbeb; border-radius:10px;">
                         <i class="fa-solid fa-bell" style="font-size:22px; color:#d97706;"></i>
                         <div style="font-weight:800; margin-top:6px; color:#d97706;">It's your turn!</div>
                         <div style="font-size:13px; color:#64748b;">Break duration: <span id="myReadyDuration">-</span></div>
+                        <div style="font-size:12.5px; color:#64748b; margin-top:8px;">
+                            <i class="fa-solid fa-phone"></i> Switch your 3CX status to <strong>Break</strong> now - the timer starts automatically.
+                        </div>
                     </div>
-                    <button type="button" class="btn-primary" onclick="startMyBreak()" style="width:100%; margin-top:10px;">
-                        <i class="fa-solid fa-play"></i> Start My Break Now
-                    </button>
-                    <button type="button" class="admin-mini-btn" onclick="cancelMyBreak()" style="width:100%; margin-top:8px; color:#dc2626; border-color:#dc2626;">
+                    <button type="button" class="admin-mini-btn" onclick="cancelMyBreak()" style="width:100%; margin-top:10px; color:#dc2626; border-color:#dc2626;">
                         <i class="fa-solid fa-xmark"></i> Cancel
                     </button>
                 </div>
 
-                <!-- Active (currently on break) -->
+                <!-- Active (currently on break, auto-detected from real 3CX status) -->
                 <div id="breakActiveStatus" class="hidden-page">
                     <div style="text-align:center; padding:18px; background:#f0fdf4; border-radius:10px;">
                         <i class="fa-solid fa-mug-hot" style="font-size:26px; color:#16a34a;"></i>
@@ -89,24 +89,17 @@
                         <div id="myBreakOverrunNote" style="display:none; color:#dc2626; font-weight:800; font-size:13px; margin-top:4px;">
                             ⚠️ Overtime - please return from break
                         </div>
+                        <div style="font-size:12.5px; color:#64748b; margin-top:8px;">
+                            <i class="fa-solid fa-phone"></i> Switch your 3CX status back when you return - it ends automatically.
+                        </div>
                     </div>
-                    <button type="button" class="btn-primary" onclick="endMyBreak()" style="width:100%; margin-top:10px;">
-                        <i class="fa-solid fa-right-to-bracket"></i> End Break / I'm Back
-                    </button>
                 </div>
             </div>
 
             <!-- 📋 LIVE QUEUE OVERVIEW -->
-            <div class="calc-card" style="margin-bottom:14px;">
+            <div class="calc-card">
                 <h3><i class="fa-solid fa-list-check"></i> Live Break Overview</h3>
                 <div id="breakLiveOverview"></div>
-            </div>
-
-            <!-- 👑 ADMIN: TODAY'S BREAKS (admin only) -->
-            <div class="calc-card" id="breakAdminHistoryCard" style="display:none;">
-                <h3><i class="fa-solid fa-clock-rotate-left"></i> Today's Breaks (Admin View)</h3>
-                <div id="breakAdminAgentSummary" style="margin-bottom:12px;"></div>
-                <div id="breakAdminHistoryTable" style="overflow-x:auto;"></div>
             </div>
 
         </div>

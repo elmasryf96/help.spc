@@ -1,13 +1,18 @@
 // ============================================================
 // ☕ BREAK QUEUE - دور بريك حقيقي جوه help.spc (مش كتابة يدوي في Teams)
-// نظام منفصل بالكامل عن CC Pulse/3CX - Added 2026-09-19
-// اتحول لبوب أب عالمي شغال في الخلفية دايمًا (مش صفحة لوحدها) - Redesigned 2026-09-19
+// بوب أب عالمي شغال في الخلفية دايمًا - Added 2026-09-19, Redesigned 2026-09-19
+//
+// بداية/نهاية البريك الفعلية بتتحدد تلقائي من حالة الإيجنت الحقيقية على
+// 3CX (مش زرار Start/End يدوي) - أول ما تغيّر حالتك لـ "Break" على 3CX
+// النظام بيعتبرك بدأت بريكك تلقائي، وأول ما ترجع لأي حالة تانية بيعتبرك
+// خلصت تلقائي. رصيد الـ30 دقيقة بردو بيتحسب من نفس البيانات الحقيقية
+// (مش عداد منفصل) - فمفيش أي فرق ممكن يحصل مع اللي حصل فعليًا على 3CX.
 // ============================================================
 
 let _breakPollInterval = null;
 let _breakTickInterval = null;
 let _breakServerTimeOffsetMs = 0; // فرق توقيت السيرفر عن الجهاز - بيتحسب مع كل poll
-let _breakLastKnownStatus = null; // آخر status معروف للطلب بتاعي - عشان نكتشف لما يتغير (مثلاً queued -> ready) ونطلع تنبيه مرة واحدة بس
+let _breakLastKnownStatus = null; // آخر status معروف للطلب بتاعي - عشان نكتشف لما يتغير (مثلاً queued -> ready -> active) ونطلع تنبيه مرة واحدة بس
 let _breakNearEndAlerted = false;
 let _breakEndAlerted = false;
 const BREAK_NEAR_END_WARNING_SECONDS = 15;
@@ -157,7 +162,6 @@ function refreshBreakStatus() {
       if (typeof updateUIForRole === "function") updateUIForRole();
       renderBreakAdminPanel(data);
       renderBreakLiveOverview(data);
-      renderBreakAdminHistory(data);
       renderMyBreakBudget(data);
       renderMyBreakState(data);
       updateBreakNavButtonLabel(data);
@@ -256,64 +260,6 @@ function renderBreakAdminPanel(data) {
   }
 }
 
-// ============================================================
-// 👑 (أدمن بس) تفاصيل بريك كل واحد النهاردة - قد ايه استخدم من رصيده،
-// وكل بريك خلص إمتى بدأ وإمتى انتهى
-// ============================================================
-function renderBreakAdminHistory(data) {
-  const historyCard = document.getElementById("breakAdminHistoryCard");
-  const amAdmin = (typeof isAdmin === "function" && isAdmin());
-  if (historyCard) historyCard.style.display = amAdmin ? "block" : "none";
-  if (!amAdmin) return;
-
-  const summaryEl = document.getElementById("breakAdminAgentSummary");
-  if (summaryEl) {
-    const budgets = data.agent_budgets || [];
-    if (budgets.length === 0) {
-      summaryEl.innerHTML = `<div style="color:#64748b; font-size:12.5px;">No one has taken a break yet today.</div>`;
-    } else {
-      let html = `<table style="width:100%; border-collapse:collapse; font-size:12.5px;">
-        <thead><tr style="text-align:left; border-bottom:2px solid #e5e7eb;">
-          <th style="padding:5px;">Agent</th><th style="padding:5px;">Used Today</th><th style="padding:5px;">Remaining</th>
-        </tr></thead><tbody>`;
-      budgets.forEach(b => {
-        html += `<tr style="border-bottom:1px solid #f1f5f9;">
-          <td style="padding:5px;"><strong>${b.agent}</strong></td>
-          <td style="padding:5px;">${formatBreakMMSS(b.used_seconds)}</td>
-          <td style="padding:5px;">${formatBreakMMSS(b.remaining_seconds)}</td>
-        </tr>`;
-      });
-      html += `</tbody></table>`;
-      summaryEl.innerHTML = html;
-    }
-  }
-
-  const tableEl = document.getElementById("breakAdminHistoryTable");
-  if (tableEl) {
-    const history = data.history || [];
-    if (history.length === 0) {
-      tableEl.innerHTML = `<div style="color:#64748b; font-size:12.5px;">No completed breaks yet today.</div>`;
-    } else {
-      let html = `<table style="width:100%; border-collapse:collapse; font-size:12.5px;">
-        <thead><tr style="text-align:left; border-bottom:2px solid #e5e7eb;">
-          <th style="padding:5px;">Agent</th><th style="padding:5px;">Requested</th><th style="padding:5px;">Used</th><th style="padding:5px;">Started</th><th style="padding:5px;">Ended</th>
-        </tr></thead><tbody>`;
-      history.forEach(h => {
-        const overBudget = h.actual_seconds > h.requested_seconds;
-        html += `<tr style="border-bottom:1px solid #f1f5f9;">
-          <td style="padding:5px;"><strong>${h.agent}</strong></td>
-          <td style="padding:5px;">${formatBreakMMSS(h.requested_seconds)}</td>
-          <td style="padding:5px; ${overBudget ? 'color:#dc2626; font-weight:800;' : ''}">${formatBreakMMSS(h.actual_seconds)}</td>
-          <td style="padding:5px;">${formatUaeClockTime(h.started_at)}</td>
-          <td style="padding:5px;">${formatUaeClockTime(h.ended_at)}</td>
-        </tr>`;
-      });
-      html += `</tbody></table>`;
-      tableEl.innerHTML = html;
-    }
-  }
-}
-
 function renderMyBreakState(data) {
   const formDiv = document.getElementById("breakRequestForm");
   const queuedDiv = document.getElementById("breakQueuedStatus");
@@ -327,13 +273,12 @@ function renderMyBreakState(data) {
   // 🔔 اكتشاف التحول لحالة "ready" (جاله دوره) - نطلع تنبيه مرة واحدة بس -
   // ده بيشتغل حتى لو البوب أب مقفول لأن الـ poll شغال دايمًا في الخلفية
   if (newStatus === "ready" && _breakLastKnownStatus !== "ready") {
-    showBreakNotification("☕ It's your turn!", "You can start your break now.");
+    showBreakNotification("☕ It's your turn!", "Switch your 3CX status to Break now to start.");
   }
   _breakLastKnownStatus = newStatus;
 
   if (!record) {
     if (formDiv) formDiv.classList.remove("hidden-page");
-    window._myReadyRecordId = null;
     stopBreakLocalTick();
     return;
   }
@@ -347,18 +292,15 @@ function renderMyBreakState(data) {
       posEl.textContent = idx >= 0 ? (idx + 1) : "-";
     }
     if (durEl) durEl.textContent = formatBreakMMSS(record.requested_seconds);
-    window._myReadyRecordId = null;
     stopBreakLocalTick();
   } else if (record.status === "ready") {
     if (readyDiv) readyDiv.classList.remove("hidden-page");
     const durEl = document.getElementById("myReadyDuration");
     if (durEl) durEl.textContent = formatBreakMMSS(record.requested_seconds);
-    window._myReadyRecordId = record.id;
     stopBreakLocalTick();
   } else if (record.status === "active") {
     if (activeDiv) activeDiv.classList.remove("hidden-page");
     window._activeBreakRecord = record;
-    window._myReadyRecordId = null;
     if (!_breakTickInterval) {
       _breakNearEndAlerted = false;
       _breakEndAlerted = false;
@@ -400,7 +342,8 @@ function tickMyBreakTimer() {
 }
 
 // ============================================================
-// 🎬 أكشنز المستخدم
+// 🎬 أكشنز المستخدم - Request/Cancel بس. مفيش Start/End يدوي خالص: بداية
+// ونهاية البريك الفعلية بتتحدد تلقائي من حالتك الحقيقية على 3CX
 // ============================================================
 function requestMyBreak() {
   const agent = getMyAgentName();
@@ -424,52 +367,6 @@ function requestMyBreak() {
       return r.json();
     })
     .then(() => refreshBreakStatus())
-    .catch(err => alert(`❌ ${err.message}`));
-}
-
-function startMyBreak() {
-  const agent = getMyAgentName();
-  if (!window._myReadyRecordId) {
-    alert("⚠️ No ready break found. Please refresh and try again.");
-    return;
-  }
-  fetch(PYTHON_BACKEND_BREAK_START_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ agent, id: window._myReadyRecordId })
-  })
-    .then(async r => {
-      if (!r.ok) {
-        const err = await r.json().catch(() => ({}));
-        throw new Error(err.detail || "Failed to start break");
-      }
-      return r.json();
-    })
-    .then(() => refreshBreakStatus())
-    .catch(err => alert(`❌ ${err.message}`));
-}
-
-function endMyBreak() {
-  const agent = getMyAgentName();
-  const record = window._activeBreakRecord;
-  if (!record) return;
-  fetch(PYTHON_BACKEND_BREAK_END_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ agent, id: record.id })
-  })
-    .then(async r => {
-      if (!r.ok) {
-        const err = await r.json().catch(() => ({}));
-        throw new Error(err.detail || "Failed to end break");
-      }
-      return r.json();
-    })
-    .then(() => {
-      window._activeBreakRecord = null;
-      stopBreakLocalTick();
-      refreshBreakStatus();
-    })
     .catch(err => alert(`❌ ${err.message}`));
 }
 

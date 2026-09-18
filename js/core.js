@@ -17,8 +17,6 @@ const PYTHON_BACKEND_CONTRACT_NUMBERS_URL = "https://help-spc-backup.onrender.co
 const PYTHON_BACKEND_CONTRACT_DETAIL_URL = "https://help-spc-backup.onrender.com/api/contract-detail";
 const PYTHON_BACKEND_BREAK_STATUS_URL = "https://help-spc-backup.onrender.com/api/break/status";
 const PYTHON_BACKEND_BREAK_REQUEST_URL = "https://help-spc-backup.onrender.com/api/break/request";
-const PYTHON_BACKEND_BREAK_START_URL = "https://help-spc-backup.onrender.com/api/break/start";
-const PYTHON_BACKEND_BREAK_END_URL = "https://help-spc-backup.onrender.com/api/break/end";
 const PYTHON_BACKEND_BREAK_CANCEL_URL = "https://help-spc-backup.onrender.com/api/break/cancel";
 const PYTHON_BACKEND_BREAK_SET_CAP_URL = "https://help-spc-backup.onrender.com/api/break/admin/set-cap";
 
