@@ -109,6 +109,11 @@ function applyContractSelection() {
     const contractField = document.getElementById("nocTenantContract");
     if (contractField) contractField.value = contractNo; // نملاها فورًا، مش لازم نستنى الباقي
 
+    // بنملا SPC Account Number بنفس رقم العقد كمان فورًا - ده الحقل اللي Move-in
+    // Clearance بتستخدمه بدل "Tenant Contract Number" (شوف applyContractDetail برضو)
+    const spcAccountFieldImmediate = document.getElementById("moveInSpcAccount");
+    if (spcAccountFieldImmediate) spcAccountFieldImmediate.value = contractNo;
+
     const cacheKey = `${propertyId}::${contractNo}`;
     if (nocContractDetailCache[cacheKey]) {
         applyContractDetail(nocContractDetailCache[cacheKey]);
@@ -133,10 +138,12 @@ function applyContractDetail(contract) {
     const nameField = document.getElementById("nocTenantName");
     const contractField = document.getElementById("nocTenantContract");
     const unitField = document.getElementById("nocUnitNo");
+    const spcAccountField = document.getElementById("moveInSpcAccount"); // Move-in Clearance بتستخدم رقم العقد كـ SPC Account Number
 
     if (nameField) nameField.value = contract.customer_name;
     if (contractField) contractField.value = contract.contract_no;
     if (unitField) unitField.value = contract.unit_no;
+    if (spcAccountField) spcAccountField.value = contract.contract_no;
 }
 
 // 🧑‍💼 نفس فكرة اختيار عقد المستأجر، بس لخانة "2. Owner Details" - لو اختار N/A
@@ -188,11 +195,11 @@ function getSelectedTowerName() {
     return nocTowersById[propertyId] || "";
 }
 
-// 🔄 مسح الفورم بالكامل: كل الحقول المكتوبة + رجوع الدروب داون بتاع التاور والعقد
-// للوضع الافتراضي (من غير ما نعيد تحميل قائمة الأبراج من السيرفر تاني)
+// 🔄 مسح الفورم: كل الحقول المكتوبة + رجوع الدروب داون بتاع التاور والعقد للوضع
+// الافتراضي (من غير ما نعيد تحميل قائمة الأبراج من السيرفر تاني) - من غير ما نغير
+// نوع الـ NOC نفسه (كان فيه باج إن الـ Reset كان بيرجّع النوع لـ Tenant NOC دايمًا
+// حتى لو المستخدم واقف على نوع تاني زي Move-in Clearance)
 function resetNocForm() {
-    const typeSelect = document.getElementById("nocTypeSelect");
-    if (typeSelect) typeSelect.value = "tenant";
     toggleNocFormType();
 
     ["nocTenantName", "nocUnitNo", "nocTenantContract", "nocOwnerName", "nocOwnerContract", "moveInSpcAccount"].forEach(id => {
