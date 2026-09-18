@@ -60,29 +60,41 @@ function populateNocTowersDropdown() {
 function loadContractsForTower() {
     const propertyId = $("#nocTowerName").val();
     const $picker = $("#nocContractPicker");
+    const $ownerPicker = $("#nocOwnerContractPicker"); // نفس ليستة عقود التاور - بس الديفولت بتاعها N/A مش فاضي
     if (!$picker.length) return;
 
     nocContractDetailCache = {};
 
     if (!propertyId) {
         nocSelect2Refresh($picker, [{ value: "", text: "-- Select tower first --" }]);
+        if ($ownerPicker.length) nocSelect2Refresh($ownerPicker, [{ value: "", text: "-- Select tower first --" }]);
         return;
     }
 
     nocSelect2Refresh($picker, [{ value: "", text: "-- Loading contracts... --" }]);
+    if ($ownerPicker.length) nocSelect2Refresh($ownerPicker, [{ value: "", text: "-- Loading contracts... --" }]);
 
     fetch(`${PYTHON_BACKEND_CONTRACT_NUMBERS_URL}?property_id=${encodeURIComponent(propertyId)}`)
         .then(r => r.json())
         .then(data => {
             const contracts = data.contracts || [];
-            const options = [{
+
+            const tenantOptions = [{
                 value: "",
                 text: contracts.length ? "-- Select contract (optional) --" : "-- No contracts found for this tower --"
             }].concat(contracts.map(c => ({ value: c.contract_no, text: c.contract_no })));
-            nocSelect2Refresh($picker, options);
+            nocSelect2Refresh($picker, tenantOptions);
+
+            if ($ownerPicker.length) {
+                // نفس ليستة العقود، بس أول اختيار هنا "N/A" - ده هو الديفولت لطالما المالك مش محدد عقد
+                const ownerOptions = [{ value: "", text: "N/A" }]
+                    .concat(contracts.map(c => ({ value: c.contract_no, text: c.contract_no })));
+                nocSelect2Refresh($ownerPicker, ownerOptions);
+            }
         })
         .catch(() => {
             nocSelect2Refresh($picker, [{ value: "", text: "-- Failed to load contracts --" }]);
+            if ($ownerPicker.length) nocSelect2Refresh($ownerPicker, [{ value: "", text: "-- Failed to load contracts --" }]);
         });
 }
 
@@ -125,6 +137,47 @@ function applyContractDetail(contract) {
     if (nameField) nameField.value = contract.customer_name;
     if (contractField) contractField.value = contract.contract_no;
     if (unitField) unitField.value = contract.unit_no;
+}
+
+// 🧑‍💼 نفس فكرة اختيار عقد المستأجر، بس لخانة "2. Owner Details" - لو اختار N/A
+// (القيمة الفاضية) بنمسح اسم ورقم عقد المالك تاني، عشان يفضلوا فاضيين ويتبعتوا N/A
+// تلقائي في الـ payload بالظبط زي ما كان بيحصل لما الخانتين كانوا نص يدوي
+function applyOwnerContractSelection() {
+    const contractNo = $("#nocOwnerContractPicker").val();
+    const propertyId = $("#nocTowerName").val();
+
+    const nameField = document.getElementById("nocOwnerName");
+    const contractField = document.getElementById("nocOwnerContract");
+
+    if (!contractNo || !propertyId) {
+        if (nameField) nameField.value = "";
+        if (contractField) contractField.value = "";
+        return;
+    }
+
+    if (contractField) contractField.value = contractNo; // نملاها فورًا
+
+    const towerName = nocTowersById[propertyId];
+    if (!towerName) return;
+
+    const cacheKey = `${propertyId}::${contractNo}`;
+    if (nocContractDetailCache[cacheKey]) {
+        if (nameField) nameField.value = nocContractDetailCache[cacheKey].customer_name;
+        return;
+    }
+
+    fetch(`${PYTHON_BACKEND_CONTRACT_DETAIL_URL}?tower=${encodeURIComponent(towerName)}&contract=${encodeURIComponent(contractNo)}`)
+        .then(r => {
+            if (!r.ok) throw new Error("contract detail not found");
+            return r.json();
+        })
+        .then(detail => {
+            nocContractDetailCache[cacheKey] = detail;
+            if (nameField) nameField.value = detail.customer_name;
+        })
+        .catch(() => {
+            // العقد اتملى برقمه بس - اسم المالك هيتكتب يدوي
+        });
 }
 
 // نوكرول: خانة nocTowerName بقت select قيمتها الـ property id مش اسم التاور -
@@ -182,6 +235,7 @@ function toggleNocFormType() {
     const groupTenantContract = document.getElementById("groupTenantContract");
     const groupOwnerName = document.getElementById("groupOwnerName");
     const groupOwnerContract = document.getElementById("groupOwnerContract");
+    const groupOwnerContractPicker = document.getElementById("groupOwnerContractPicker");
     const groupMoveInAccountType = document.getElementById("groupMoveInAccountType");
     const groupMoveInSpcAccount = document.getElementById("groupMoveInSpcAccount");
 
@@ -189,6 +243,7 @@ function toggleNocFormType() {
         if (section2Title) section2Title.style.display = "none";
         if (groupOwnerName) groupOwnerName.style.display = "none";
         if (groupOwnerContract) groupOwnerContract.style.display = "none";
+        if (groupOwnerContractPicker) groupOwnerContractPicker.style.display = "none";
 
         if (groupTenantName) groupTenantName.style.display = "block";
         if (groupTenantContract) groupTenantContract.style.display = "none";
@@ -201,6 +256,7 @@ function toggleNocFormType() {
         if (section2Title) section2Title.style.display = "none";
         if (groupOwnerName) groupOwnerName.style.display = "none";
         if (groupOwnerContract) groupOwnerContract.style.display = "none";
+        if (groupOwnerContractPicker) groupOwnerContractPicker.style.display = "none";
 
         if (groupTenantName) groupTenantName.style.display = "block";
         if (groupTenantContract) groupTenantContract.style.display = "block";
@@ -214,6 +270,7 @@ function toggleNocFormType() {
         if (section2Title) section2Title.style.display = "block";
         if (groupOwnerName) groupOwnerName.style.display = "block";
         if (groupOwnerContract) groupOwnerContract.style.display = "block";
+        if (groupOwnerContractPicker) groupOwnerContractPicker.style.display = "block";
 
         if (groupTenantName) groupTenantName.style.display = "block";
         if (groupTenantContract) groupTenantContract.style.display = "block";
@@ -231,6 +288,7 @@ function toggleNocFormType() {
         if (section2Title) section2Title.style.display = "block";
         if (groupOwnerName) groupOwnerName.style.display = "block";
         if (groupOwnerContract) groupOwnerContract.style.display = "block";
+        if (groupOwnerContractPicker) groupOwnerContractPicker.style.display = "block";
 
         if (groupTenantName) groupTenantName.style.display = "block";
         if (groupTenantContract) groupTenantContract.style.display = "block";

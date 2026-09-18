@@ -13,7 +13,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <link rel="stylesheet" href="./style.css?v=20260918.043012">
+    <link rel="stylesheet" href="./style.css?v=20260918.044008">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- 🔎 Select2 (searchable dropdowns, used by the NOC Contract picker) -->
@@ -392,6 +392,13 @@
 
                             <div class="section-title" id="section2Title" style="font-weight: 800; color: var(--dark-navy); grid-column: 1 / -1;">
                                 <i class="fa-solid fa-user-tie" style="color: #d97706;"></i> 2. Owner Details (Optional)
+                            </div>
+
+                            <div class="form-group" id="groupOwnerContractPicker" style="grid-column: 1 / -1;">
+                                <label><i class="fa-solid fa-magnifying-glass"></i> Select Owner's Contract (optional - auto-fills owner name below, leave as N/A if none):</label>
+                                <select id="nocOwnerContractPicker" class="combo-input" onchange="applyOwnerContractSelection()">
+                                    <option value="">-- Select tower first --</option>
+                                </select>
                             </div>
 
                             <div class="form-group" id="groupOwnerName">
@@ -1266,17 +1273,17 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/js/select2.min.js"></script>
 
     <!-- 📜 Main Application Script -->
-    <script src="js/core.js?v=20260918.043012"></script>
-    <script src="js/auth.js?v=20260918.043012"></script>
-    <script src="js/noc.js?v=20260918.043012"></script>
-    <script src="js/navigation.js?v=20260918.043012"></script>
-    <script src="js/unit-mapping.js?v=20260918.043012"></script>
-    <script src="js/calculator.js?v=20260918.043012"></script>
-    <script src="js/towers.js?v=20260918.043012"></script>
-    <script src="js/tech-schedule.js?v=20260918.043012"></script>
-    <script src="js/roster.js?v=20260918.043012"></script>
-    <script src="js/admin.js?v=20260918.043012"></script>
-    <script src="js/cc-pulse.js?v=20260918.043012"></script>
-    <script src="js/init.js?v=20260918.043012"></script>
+    <script src="js/core.js?v=20260918.044008"></script>
+    <script src="js/auth.js?v=20260918.044008"></script>
+    <script src="js/noc.js?v=20260918.044008"></script>
+    <script src="js/navigation.js?v=20260918.044008"></script>
+    <script src="js/unit-mapping.js?v=20260918.044008"></script>
+    <script src="js/calculator.js?v=20260918.044008"></script>
+    <script src="js/towers.js?v=20260918.044008"></script>
+    <script src="js/tech-schedule.js?v=20260918.044008"></script>
+    <script src="js/roster.js?v=20260918.044008"></script>
+    <script src="js/admin.js?v=20260918.044008"></script>
+    <script src="js/cc-pulse.js?v=20260918.044008"></script>
+    <script src="js/init.js?v=20260918.044008"></script>
 </body>
 </html>

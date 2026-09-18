@@ -81,6 +81,13 @@
                                 <i class="fa-solid fa-user-tie" style="color: #d97706;"></i> 2. Owner Details (Optional)
                             </div>
 
+                            <div class="form-group" id="groupOwnerContractPicker" style="grid-column: 1 / -1;">
+                                <label><i class="fa-solid fa-magnifying-glass"></i> Select Owner's Contract (optional - auto-fills owner name below, leave as N/A if none):</label>
+                                <select id="nocOwnerContractPicker" class="combo-input" onchange="applyOwnerContractSelection()">
+                                    <option value="">-- Select tower first --</option>
+                                </select>
+                            </div>
+
                             <div class="form-group" id="groupOwnerName">
                                 <label id="labelOwnerName"><i class="fa-solid fa-user"></i> Owner Consumer Name:</label>
                                 <input type="text" id="nocOwnerName" class="combo-input" placeholder="e.g. N/A or Owner Full Name">
