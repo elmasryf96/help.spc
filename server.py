@@ -191,9 +191,8 @@ SC_PASSWORD = os.environ.get("SC_PASSWORD", "")
 PORTAL_BASE_URL = "https://billing.smartcollection.co"
 
 # فلاجز تشغيل كروميوم بأقل استهلاك ممكن للرامات - مهمة جدًا لأن السيرفر شغال على
-# خطة Render بحد أقصى 512MB، ودلوقتي بقى ممكن يبقى فيه متصفحين شغالين في نفس
-# الوقت (متصفح بورتال الفوترة المؤقت + متصفح 3CX Panel الدائم) - من غيرها كان
-# السيرفر بيطلع بره حد الذاكرة ويعمل Crash Loop (Render Event: "Ran out of memory")
+# خطة Render بحد أقصى 512MB. من غيرها + من غير المتصفح المشترك تحت، كان السيرفر
+# بيطلع بره حد الذاكرة ويعمل Crash Loop (Render Event: "Ran out of memory")
 LOW_MEMORY_CHROMIUM_ARGS = [
     "--no-sandbox",
     "--disable-dev-shm-usage",
@@ -209,6 +208,49 @@ LOW_MEMORY_CHROMIUM_ARGS = [
     "--safebrowsing-disable-auto-update",
     "--js-flags=--max-old-space-size=128",
 ]
+
+# نسخة واحدة مشتركة (بروسيس Chromium واحد بس) يستخدمها كل من Panel Scraper (3CX)
+# وتسجيل دخول بورتال الفوترة، كل واحد فاتح Context/Page منفصلة جواه بدل ما كل
+# واحد منهم يفتح بروسيس Chromium كامل لوحده - ده أكبر توفير ممكن للرامات، لأن
+# معظم استهلاك المتصفح بيكون في البروسيس الرئيسي (Browser + GPU process) نفسه
+# مش في كل Context لوحدها. ده اللي كان بيخلينا نوصل لحد الـ 512MB لما الاتنين
+# كانوا بيفتحوا بروسيس منفصل في نفس اللحظة.
+_shared_browser_state = {"playwright": None, "browser": None, "browser_started_at": 0}
+_shared_browser_lock = asyncio.Lock()
+
+# نعيد فتح المتصفح المشترك من الصفر كل ساعة حتى لو مفيش أي خطأ - أي متصفح شغال
+# لفترة طويلة جدًا ممكن استهلاكه للرامات "يزحف" لوحده مع الوقت
+SHARED_BROWSER_MAX_AGE_SECONDS = 60 * 60
+
+
+async def _get_shared_browser():
+    """بيرجع نسخة المتصفح المشتركة، وبيفتح واحدة جديدة لو مفيش، أو لو قديمة، أو لو اتقفلت/كراشت."""
+    from playwright.async_api import async_playwright
+
+    async with _shared_browser_lock:
+        if _shared_browser_state["playwright"] is None:
+            _shared_browser_state["playwright"] = await async_playwright().start()
+
+        browser = _shared_browser_state["browser"]
+        browser_too_old = (
+            browser is not None
+            and time.time() - _shared_browser_state["browser_started_at"] > SHARED_BROWSER_MAX_AGE_SECONDS
+        )
+        browser_dead = browser is not None and not browser.is_connected()
+
+        if browser is None or browser_too_old or browser_dead:
+            if browser is not None:
+                try:
+                    await browser.close()
+                except Exception:
+                    pass
+            _shared_browser_state["browser"] = await _shared_browser_state["playwright"].chromium.launch(
+                headless=True,
+                args=LOW_MEMORY_CHROMIUM_ARGS,
+            )
+            _shared_browser_state["browser_started_at"] = time.time()
+
+        return _shared_browser_state["browser"]
 
 
 # ============================================================
@@ -237,59 +279,54 @@ async def get_portal_session_cookie(force_refresh: bool = False) -> str:
             detail="لازم تضيف SC_USERNAME و SC_PASSWORD في Environment Variables على Render",
         )
 
-    from playwright.async_api import async_playwright
-
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=True,
-            args=LOW_MEMORY_CHROMIUM_ARGS,
+    # بنستخدم المتصفح المشترك (نفس بروسيس Panel Scraper) بدل ما نفتح بروسيس Chromium
+    # كامل لوحدنا - وبنفتح Page (ومعاها Context ضمنية) بس، وبنقفلها هي لوحدها في الآخر
+    # (مش المتصفح كله) عشان الـ Panel Scraper يفضل شغال من غير ما يتأثر
+    browser = await _get_shared_browser()
+    page = await browser.new_page()
+    try:
+        # مانحتاجش صور/خطوط/ميديا للوجن - بنمنعها عشان نقلل استهلاك الرامات
+        await page.route(
+            "**/*",
+            lambda route: route.abort()
+            if route.request.resource_type in ("image", "media", "font")
+            else route.continue_(),
         )
-        try:
-            page = await browser.new_page()
-            # مانحتاجش صور/خطوط/ميديا للوجن - بنمنعها عشان نقلل استهلاك الرامات
-            # (مهم جدًا دلوقتي إن السيرفر بقى شغال على حد الذاكرة القصوى بعد ما بقى
-            # فيه متصفح تاني شغال طول الوقت - Panel Scraper)
-            await page.route(
-                "**/*",
-                lambda route: route.abort()
-                if route.request.resource_type in ("image", "media", "font")
-                else route.continue_(),
-            )
-            await page.goto(f"{PORTAL_BASE_URL}/Account/Login", wait_until="load", timeout=30000)
-            await page.wait_for_selector('input[name="Username"]', timeout=15000)
-            await page.fill('input[name="Username"]', SC_USERNAME)
-            await page.fill('input[name="Password"]', SC_PASSWORD)
-            submit_btn = page.locator(
-                '#form-login button[type="submit"], #form-login input[type="submit"]'
-            )
-            if await submit_btn.count() > 0:
-                await submit_btn.first.click()
-            else:
-                await page.locator('input[name="Password"]').press("Enter")
-            await page.wait_for_timeout(3000)
+        await page.goto(f"{PORTAL_BASE_URL}/Account/Login", wait_until="load", timeout=30000)
+        await page.wait_for_selector('input[name="Username"]', timeout=15000)
+        await page.fill('input[name="Username"]', SC_USERNAME)
+        await page.fill('input[name="Password"]', SC_PASSWORD)
+        submit_btn = page.locator(
+            '#form-login button[type="submit"], #form-login input[type="submit"]'
+        )
+        if await submit_btn.count() > 0:
+            await submit_btn.first.click()
+        else:
+            await page.locator('input[name="Password"]').press("Enter")
+        await page.wait_for_timeout(3000)
 
-            if "Account/Login" in page.url:
-                raise HTTPException(
-                    status_code=502,
-                    detail="فشل تسجيل الدخول على بورتال الفوترة (تأكد من SC_USERNAME/SC_PASSWORD في Render)",
-                )
-
-            cookies = await page.context.cookies()
-            session_cookie = next(
-                (c for c in cookies if c["name"] == ".AspNetCore.Session"), None
+        if "Account/Login" in page.url:
+            raise HTTPException(
+                status_code=502,
+                detail="فشل تسجيل الدخول على بورتال الفوترة (تأكد من SC_USERNAME/SC_PASSWORD في Render)",
             )
-            if not session_cookie:
-                raise HTTPException(
-                    status_code=502,
-                    detail="سجل دخول بس مفيش كوكي جلسة (.AspNetCore.Session) راجع من البورتال",
-                )
 
-            cookie_value = f'.AspNetCore.Session={session_cookie["value"]}'
-            _portal_session_cache["cookie"] = cookie_value
-            _portal_session_cache["obtained_at"] = time.time()
-            return cookie_value
-        finally:
-            await browser.close()
+        cookies = await page.context.cookies()
+        session_cookie = next(
+            (c for c in cookies if c["name"] == ".AspNetCore.Session"), None
+        )
+        if not session_cookie:
+            raise HTTPException(
+                status_code=502,
+                detail="سجل دخول بس مفيش كوكي جلسة (.AspNetCore.Session) راجع من البورتال",
+            )
+
+        cookie_value = f'.AspNetCore.Session={session_cookie["value"]}'
+        _portal_session_cache["cookie"] = cookie_value
+        _portal_session_cache["obtained_at"] = time.time()
+        return cookie_value
+    finally:
+        await page.context.close()
 
 
 async def portal_authenticated_request(
@@ -691,22 +728,18 @@ async def agent_status():
 
 PANEL_SCRAPE_INTERVAL_SECONDS = 15
 PANEL_BASE_URL = f"https://{THREECX_FQDN}/"
-# نعيد فتح المتصفح الشبح من الصفر كل ساعة حتى لو مفيش أي خطأ - أي متصفح شغال لفترة
-# طويلة جدًا (ساعات) ممكن استهلاكه للرامات "يزحف" لوحده مع الوقت، فإعادة الفتح
-# الدورية دي بتحافظ على الاستهلاك تحت السيطرة على المدى الطويل
-PANEL_BROWSER_MAX_AGE_SECONDS = 60 * 60
+# (إعادة فتح المتصفح الدوري كل ساعة بقت متحكم فيها مركزيًا في _get_shared_browser
+# عن طريق SHARED_BROWSER_MAX_AGE_SECONDS، مش هنا)
 
 _panel_state = {
-    "playwright": None,
-    "browser": None,
     "context": None,
     "page": None,
+    "browser_ref": None,  # مرجع لنفس نسخة المتصفح المشترك اللي الـ Context/Page دول اتفتحوا عليها
     "logged_in": False,
     "last_error": None,
     "last_updated": None,
     "raw_text": "",
     "active_calls": [],
-    "browser_started_at": 0,
 }
 
 _PANEL_TIME_RE = re.compile(r"^\d{1,2}:\d{2}(:\d{2})?$")
@@ -859,32 +892,26 @@ async def _panel_login_and_open(page) -> None:
 
 
 async def panel_scraper_watcher():
-    """بيفضل شغال طول الوقت: يسجل دخول مرة، يفضل ماسك نفس الصفحة مفتوحة، ويقرا منها كل شوية ثواني."""
-    from playwright.async_api import async_playwright
-
+    """بيفضل شغال طول الوقت: يسجل دخول مرة، يفضل ماسك نفس الصفحة مفتوحة، ويقرا منها كل شوية ثواني.
+    بيستخدم نفس بروسيس المتصفح المشترك (_get_shared_browser) اللي بورتال الفوترة بيستخدمه
+    برضو - عشان يفضل بروسيس Chromium واحد بس شغال دايمًا، مش اتنين."""
     while True:
         try:
-            if _panel_state["playwright"] is None:
-                _panel_state["playwright"] = await async_playwright().start()
+            browser = await _get_shared_browser()
 
-            browser_too_old = (
-                _panel_state["browser"] is not None
-                and time.time() - _panel_state["browser_started_at"] > PANEL_BROWSER_MAX_AGE_SECONDS
-            )
+            # لو المتصفح اتغيّر (اتقفل واتفتح من جديد - قديم أو كريش) لازم نعمل Context ولوجين
+            # جداد، حتى لو _panel_state["logged_in"] لسه True من الجولة اللي فاتت
+            browser_changed = _panel_state.get("browser_ref") is not browser
 
-            if _panel_state["browser"] is None or not _panel_state["logged_in"] or browser_too_old:
-                if _panel_state["browser"] is not None:
+            if _panel_state["context"] is None or not _panel_state["logged_in"] or browser_changed:
+                if _panel_state["context"] is not None:
                     try:
-                        await _panel_state["browser"].close()
+                        await _panel_state["context"].close()
                     except Exception:
                         pass
-                _panel_state["browser"] = await _panel_state["playwright"].chromium.launch(
-                    headless=True,
-                    args=LOW_MEMORY_CHROMIUM_ARGS,
-                )
                 # فيوبورت أصغر شوية (كان 1600x1000) - بيقلل استهلاك الرامات من غير ما يأثر
                 # على قراءة النص، لأن احنا بنقرا inner_text مش بنعتمد على شكل الصفحة بصريًا
-                _panel_state["context"] = await _panel_state["browser"].new_context(viewport={"width": 1366, "height": 900})
+                _panel_state["context"] = await browser.new_context(viewport={"width": 1366, "height": 900})
                 # مانحتاجش صور/خطوط/ميديا عشان نقرا نص الصفحة بس - منعها بيوفر رامات كتير
                 await _panel_state["context"].route(
                     "**/*",
@@ -895,8 +922,8 @@ async def panel_scraper_watcher():
                 _panel_state["page"] = await _panel_state["context"].new_page()
                 await _panel_login_and_open(_panel_state["page"])
                 _panel_state["logged_in"] = True
+                _panel_state["browser_ref"] = browser
                 _panel_state["last_error"] = None
-                _panel_state["browser_started_at"] = time.time()
                 print("✅ [Panel Scraper] سجل دخول ووصل لصفحة Panel بنجاح")
 
             raw_text = await _panel_state["page"].inner_text("body")
