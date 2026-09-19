@@ -602,37 +602,18 @@ async def get_3cx_agent_status():
         users_resp.raise_for_status()
         users = users_resp.json()["value"]
 
-        active_calls = await get_3cx_active_calls(client, token)
-
-    # بنحول قايمة المكالمات لـ dict على أساس رقم الإيجستنشن، عشان نلاقي مكالمة كل إيجنت بسرعة
-    # (بنجرب كذا اسم حقل مختلف لأن 3CX ممكن يرجّع Dn أو DnNumber حسب النسخة)
+    # المكالمات الشغالة دلوقتي - من المتصفح الشبح (Panel Scraper)، لأن الـ API الرسمي
+    # (/xapi/v1/ActiveCalls) بيرجع 403 حاليًا (مشكلة صلاحية System Owner). صفحة Panel
+    # بتوري مدة كل مكالمة لحظيًا (بتحسبها 3CX نفسها)، فمش محتاجين نتتبع وقت البداية بنفسنا.
     calls_by_ext = {}
-    seen_call_ids = set()
-    for c in active_calls:
-        ext = str(c.get("Dn") or c.get("DnNumber") or c.get("Number") or "").strip()
+    for call in _panel_state.get("active_calls", []):
+        ext = call.get("agent_extension")
         if not ext:
             continue
-        status = str(c.get("Status") or "")
-        # بنعرض بس المكالمة اللي فعلاً شغالة (متكلم فيها)، مش الرنة أو وهي بتتعمل
-        if status.lower() not in ("connected", "talking"):
-            continue
-
-        call_id = str(c.get("Id") or f"{ext}-{c.get('Callee') or c.get('Caller')}")
-        seen_call_ids.add(call_id)
-        if call_id not in _call_start:
-            _call_start[call_id] = time.time()
-
-        other_party_raw = str(c.get("Callee") or c.get("Caller") or c.get("CalleeId") or c.get("CallerId") or "-").strip()
-        other_party = AGENT_MAP.get(other_party_raw, other_party_raw)
         calls_by_ext[ext] = {
-            "with": str(other_party),
-            "startedAt": _call_start[call_id],
+            "with": call.get("other_party") or "-",
+            "startedAt": time.time() - call.get("duration_seconds", 0),
         }
-
-    # بننظف أي مكالمة خلصت من الذاكرة عشان الـ dict مايكبرش على طول
-    for call_id in list(_call_start.keys()):
-        if call_id not in seen_call_ids:
-            _call_start.pop(call_id, None)
 
     result = []
     for u in users:
@@ -711,7 +692,101 @@ _panel_state = {
     "last_error": None,
     "last_updated": None,
     "raw_text": "",
+    "active_calls": [],
 }
+
+_PANEL_TIME_RE = re.compile(r"^\d{1,2}:\d{2}(:\d{2})?$")
+_PANEL_AGENT_EXT_RE = re.compile(r"(\d{2,4})\s*$")
+
+
+def _parse_panel_time_to_seconds(text: str) -> int:
+    """بيحول '05:31' أو '00:04:10' لعدد ثواني."""
+    parts = text.strip().split(":")
+    try:
+        parts = [int(p) for p in parts]
+    except ValueError:
+        return 0
+    while len(parts) < 3:
+        parts.insert(0, 0)
+    h, m, s = parts[-3], parts[-2], parts[-1]
+    return h * 3600 + m * 60 + s
+
+
+def _panel_clean_party_label(text: str) -> str:
+    """بيشيل الجزء الزيادة من كولر آي دي شكله '0521010988:Costumer Support Agent 0521010988'
+    ويسيب بس الرقم/الاسم الأساسي ('0521010988')."""
+    text = (text or "").strip()
+    if ":" in text:
+        text = text.split(":", 1)[0].strip()
+    return text or "-"
+
+
+def _panel_extract_agent(text: str):
+    """لو النص بيمثل واحد من الإيجنتس بتوعنا (زي 'Ahmed 115')، يرجع (اسمه, رقمه).
+    لو مش إيجنت (رقم خارجي أو Caller ID عميل)، يرجع (None, None)."""
+    text = (text or "").strip()
+    match = _PANEL_AGENT_EXT_RE.search(text)
+    if match:
+        ext = match.group(1)
+        if ext in AGENT_MAP:
+            return AGENT_MAP[ext], ext
+    return None, None
+
+
+def _parse_panel_all_calls(raw_text: str) -> list:
+    """
+    بيقرا النص الخام لصفحة Panel ويطلع منه المكالمات الشغالة دلوقتي فعليًا (جدول All Calls).
+    كل صف بيكون شكله (Caller, Callee, [Queue - اختياري], Time, Details) على أسطر منفصلة -
+    وبما إن عمود Queue مش دايمًا موجود، بنستخدم عمود الـ Time (شكله دايمًا mm:ss) كعلامة
+    بنعرف بيها حدود كل صف، وبعدين اللي قبله (سطرين أو تلاتة) هما Caller/Callee/[Queue].
+    """
+    lines = raw_text.split("\n")
+    try:
+        start = lines.index("Details") + 1  # أول سطر فعلي بعد هيدرات الأعمدة
+    except ValueError:
+        return []
+    try:
+        end = lines.index("Agent Status", start)
+    except ValueError:
+        end = len(lines)
+
+    section = lines[start:end]
+    calls = []
+    buffer = []
+    i = 0
+    while i < len(section):
+        line = section[i].strip()
+        if _PANEL_TIME_RE.match(line):
+            duration_text = line
+            details = section[i + 1].strip() if i + 1 < len(section) else ""
+            if len(buffer) >= 2:
+                caller_text = buffer[0]
+                callee_text = buffer[1]
+                queue_text = buffer[2] if len(buffer) >= 3 else ""
+
+                agent_name, agent_ext = _panel_extract_agent(caller_text)
+                other_party = callee_text
+                if not agent_name:
+                    agent_name, agent_ext = _panel_extract_agent(callee_text)
+                    other_party = caller_text
+
+                calls.append({
+                    "caller": caller_text,
+                    "callee": callee_text,
+                    "queue": queue_text,
+                    "duration_text": duration_text,
+                    "duration_seconds": _parse_panel_time_to_seconds(duration_text),
+                    "details": details,
+                    "agent_name": agent_name,
+                    "agent_extension": agent_ext,
+                    "other_party": _panel_clean_party_label(other_party),
+                })
+            buffer = []
+            i += 2  # نتخطى سطر الـ Details كمان
+        else:
+            buffer.append(line)
+            i += 1
+    return calls
 
 
 async def _panel_login_and_open(page) -> None:
@@ -795,8 +870,9 @@ async def panel_scraper_watcher():
                 _panel_state["last_error"] = None
                 print("✅ [Panel Scraper] سجل دخول ووصل لصفحة Panel بنجاح")
 
-            # v1: بس بنسحب النص الخام لكل الصفحة عشان نصممها صح في الخطوة الجاية
-            _panel_state["raw_text"] = await _panel_state["page"].inner_text("body")
+            raw_text = await _panel_state["page"].inner_text("body")
+            _panel_state["raw_text"] = raw_text
+            _panel_state["active_calls"] = _parse_panel_all_calls(raw_text)
             _panel_state["last_updated"] = time.time()
             _panel_state["last_error"] = None
 
@@ -820,6 +896,7 @@ async def api_debug_panel_status():
         "logged_in": _panel_state["logged_in"],
         "last_error": _panel_state["last_error"],
         "last_updated": _panel_state["last_updated"],
+        "active_calls": _panel_state["active_calls"],
         "raw_text": _panel_state["raw_text"],
     }
 
