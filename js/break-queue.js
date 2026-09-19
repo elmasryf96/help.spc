@@ -109,7 +109,7 @@ function initBreakQueueGlobal() {
   requestBreakNotificationPermission();
   refreshBreakStatus();
   if (!_breakPollInterval) {
-    _breakPollInterval = setInterval(refreshBreakStatus, 2000);
+    _breakPollInterval = setInterval(refreshBreakStatus, 1000);
   }
 }
 
