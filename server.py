@@ -190,6 +190,26 @@ SC_USERNAME = os.environ.get("SC_USERNAME", "")
 SC_PASSWORD = os.environ.get("SC_PASSWORD", "")
 PORTAL_BASE_URL = "https://billing.smartcollection.co"
 
+# فلاجز تشغيل كروميوم بأقل استهلاك ممكن للرامات - مهمة جدًا لأن السيرفر شغال على
+# خطة Render بحد أقصى 512MB، ودلوقتي بقى ممكن يبقى فيه متصفحين شغالين في نفس
+# الوقت (متصفح بورتال الفوترة المؤقت + متصفح 3CX Panel الدائم) - من غيرها كان
+# السيرفر بيطلع بره حد الذاكرة ويعمل Crash Loop (Render Event: "Ran out of memory")
+LOW_MEMORY_CHROMIUM_ARGS = [
+    "--no-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu",
+    "--disable-extensions",
+    "--disable-background-networking",
+    "--disable-default-apps",
+    "--disable-sync",
+    "--disable-translate",
+    "--metrics-recording-only",
+    "--mute-audio",
+    "--no-first-run",
+    "--safebrowsing-disable-auto-update",
+    "--js-flags=--max-old-space-size=128",
+]
+
 
 # ============================================================
 # 📋 عقود البورتال (Live Contract Dropdown للـ NOC Generator)
@@ -222,10 +242,19 @@ async def get_portal_session_cookie(force_refresh: bool = False) -> str:
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=True,
-            args=["--no-sandbox", "--disable-dev-shm-usage"],
+            args=LOW_MEMORY_CHROMIUM_ARGS,
         )
         try:
             page = await browser.new_page()
+            # مانحتاجش صور/خطوط/ميديا للوجن - بنمنعها عشان نقلل استهلاك الرامات
+            # (مهم جدًا دلوقتي إن السيرفر بقى شغال على حد الذاكرة القصوى بعد ما بقى
+            # فيه متصفح تاني شغال طول الوقت - Panel Scraper)
+            await page.route(
+                "**/*",
+                lambda route: route.abort()
+                if route.request.resource_type in ("image", "media", "font")
+                else route.continue_(),
+            )
             await page.goto(f"{PORTAL_BASE_URL}/Account/Login", wait_until="load", timeout=30000)
             await page.wait_for_selector('input[name="Username"]', timeout=15000)
             await page.fill('input[name="Username"]', SC_USERNAME)
@@ -662,6 +691,10 @@ async def agent_status():
 
 PANEL_SCRAPE_INTERVAL_SECONDS = 15
 PANEL_BASE_URL = f"https://{THREECX_FQDN}/"
+# نعيد فتح المتصفح الشبح من الصفر كل ساعة حتى لو مفيش أي خطأ - أي متصفح شغال لفترة
+# طويلة جدًا (ساعات) ممكن استهلاكه للرامات "يزحف" لوحده مع الوقت، فإعادة الفتح
+# الدورية دي بتحافظ على الاستهلاك تحت السيطرة على المدى الطويل
+PANEL_BROWSER_MAX_AGE_SECONDS = 60 * 60
 
 _panel_state = {
     "playwright": None,
@@ -673,6 +706,7 @@ _panel_state = {
     "last_updated": None,
     "raw_text": "",
     "active_calls": [],
+    "browser_started_at": 0,
 }
 
 _PANEL_TIME_RE = re.compile(r"^\d{1,2}:\d{2}(:\d{2})?$")
@@ -833,7 +867,12 @@ async def panel_scraper_watcher():
             if _panel_state["playwright"] is None:
                 _panel_state["playwright"] = await async_playwright().start()
 
-            if _panel_state["browser"] is None or not _panel_state["logged_in"]:
+            browser_too_old = (
+                _panel_state["browser"] is not None
+                and time.time() - _panel_state["browser_started_at"] > PANEL_BROWSER_MAX_AGE_SECONDS
+            )
+
+            if _panel_state["browser"] is None or not _panel_state["logged_in"] or browser_too_old:
                 if _panel_state["browser"] is not None:
                     try:
                         await _panel_state["browser"].close()
@@ -841,13 +880,23 @@ async def panel_scraper_watcher():
                         pass
                 _panel_state["browser"] = await _panel_state["playwright"].chromium.launch(
                     headless=True,
-                    args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
+                    args=LOW_MEMORY_CHROMIUM_ARGS,
                 )
-                _panel_state["context"] = await _panel_state["browser"].new_context(viewport={"width": 1600, "height": 1000})
+                # فيوبورت أصغر شوية (كان 1600x1000) - بيقلل استهلاك الرامات من غير ما يأثر
+                # على قراءة النص، لأن احنا بنقرا inner_text مش بنعتمد على شكل الصفحة بصريًا
+                _panel_state["context"] = await _panel_state["browser"].new_context(viewport={"width": 1366, "height": 900})
+                # مانحتاجش صور/خطوط/ميديا عشان نقرا نص الصفحة بس - منعها بيوفر رامات كتير
+                await _panel_state["context"].route(
+                    "**/*",
+                    lambda route: route.abort()
+                    if route.request.resource_type in ("image", "media", "font")
+                    else route.continue_(),
+                )
                 _panel_state["page"] = await _panel_state["context"].new_page()
                 await _panel_login_and_open(_panel_state["page"])
                 _panel_state["logged_in"] = True
                 _panel_state["last_error"] = None
+                _panel_state["browser_started_at"] = time.time()
                 print("✅ [Panel Scraper] سجل دخول ووصل لصفحة Panel بنجاح")
 
             raw_text = await _panel_state["page"].inner_text("body")
