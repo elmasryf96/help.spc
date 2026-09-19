@@ -951,7 +951,7 @@ _last_known_status = {}
 # بيتصفر برضو لو السيرفر عمل Restart، وقتها العداد هيبدأ من جديد مع أول تغيير بعد الريستارت
 _session_start = {}
 
-AGENT_STATUS_POLL_SECONDS = 10
+AGENT_STATUS_POLL_SECONDS = 1  # نزلناها من 10 لـ1 عشان الـ Break Queue يتابع حالة 3CX الحقيقية شبه لحظي (طلب فارس 2026-09-19) - التوكن متكاش فبيقين مفيش أي أوث إضافي، بس هنراقب لو 3CX بدأ يرفض/يبطئ الطلبات وقتها نرجعها لرقم أعلى
 
 
 async def log_status_change_to_sheet(client: httpx.AsyncClient, name, number, old_status, new_status):
