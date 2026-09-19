@@ -1,5 +1,7 @@
 import os
 import re
+import json
+import base64
 import uuid
 import asyncio
 import calendar
@@ -525,6 +527,18 @@ import time
 _token_cache = {"token": None, "expires_at": 0}
 
 
+def _decode_jwt_claims_unsafe(token: str) -> dict:
+    """بيفك تشفير الـ JWT (بس الجزء اللي فيه المعلومات - الـ payload) من غير التحقق من التوقيع,
+    الهدف بس إننا نشوف الصلاحيات (role/claims) اللي التوكن ده فعليًا شايلها لأغراض تشخيصية."""
+    try:
+        payload_part = token.split(".")[1]
+        padding = "=" * (-len(payload_part) % 4)
+        decoded = base64.urlsafe_b64decode(payload_part + padding)
+        return json.loads(decoded)
+    except Exception as e:
+        return {"decode_error": str(e)}
+
+
 async def get_3cx_token(client: httpx.AsyncClient) -> str:
     # لو عندنا توكن لسه صالح لأكتر من 5 دقايق، نستخدمه زي ما هو
     if _token_cache["token"] and time.time() < _token_cache["expires_at"] - 300:
@@ -539,6 +553,13 @@ async def get_3cx_token(client: httpx.AsyncClient) -> str:
     token_data = login_resp.json()["Token"]
     _token_cache["token"] = token_data["access_token"]
     _token_cache["expires_at"] = time.time() + token_data.get("expires_in", 3600)
+
+    # 🔎 تشخيص مؤقت: نطبع صلاحيات التوكن (role/claims) عشان نعرف ليه ActiveCalls بيرجع 403
+    claims = _decode_jwt_claims_unsafe(_token_cache["token"])
+    interesting_keys = {k: v for k, v in claims.items() if "role" in k.lower() or "scope" in k.lower() or "owner" in str(v).lower()}
+    print(f"🔎 [3CX TOKEN DEBUG] كل الصلاحيات: {claims}")
+    print(f"🔎 [3CX TOKEN DEBUG] الصلاحيات المهمة: {interesting_keys}")
+
     return _token_cache["token"]
 
 
