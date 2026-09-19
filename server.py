@@ -10,7 +10,7 @@ import httpx
 from typing import Optional
 from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from docxtpl import DocxTemplate
@@ -682,6 +682,155 @@ async def agent_status():
         return await get_3cx_agent_status()
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"3CX fetch failed: {e}")
+
+
+# ============================================================
+# 🖥️ Panel Scraper (Playwright) - نسخة أولى تشخيصية فقط
+# ============================================================
+# السبب: /xapi/v1/ActiveCalls بيرجع 403 (التوكن بتاعنا صلاحيته "Group Owner" مش
+# "System Owner")، فمش قادرين نجيب "مين شغال مكالمة دلوقتي ومع مين" من الـ API الرسمي.
+# الحل البديل: متصفح Chromium مخفي (headless) شغال في الخلفية طول الوقت، مسجل دخول
+# بحساب 106 زي أي مستخدم عادي، فاتح صفحة "Panel" (Switchboard) وبيقرا منها البيانات
+# بالظبط زي ما عين المستخدم بتشوفها - مش محتاج الـ API خالص.
+#
+# النسخة دي (v1) لسه تشخيصية بس: بتسجل دخول، بتفتح صفحة Panel، وبتحفظ *النص الخام*
+# اللي ظاهر في الصفحة (من غير أي تحليل/parsing ذكي) - عشان نقدر نشوفه فعليًا (من خلال
+# /api/debug/panel-status و /api/debug/panel-screenshot) ونصمم على أساسه طريقة استخراج
+# البيانات المنظمة (مين بيكلم مين ومن قد إيه) في الخطوة الجاية.
+# ============================================================
+
+PANEL_SCRAPE_INTERVAL_SECONDS = 15
+PANEL_BASE_URL = f"https://{THREECX_FQDN}/"
+
+_panel_state = {
+    "playwright": None,
+    "browser": None,
+    "context": None,
+    "page": None,
+    "logged_in": False,
+    "last_error": None,
+    "last_updated": None,
+    "raw_text": "",
+}
+
+
+async def _panel_login_and_open(page) -> None:
+    """بيسجل دخول على 3CX Web Client (زي أي مستخدم عادي) وبيروح صفحة Panel."""
+    await page.goto(PANEL_BASE_URL, wait_until="load", timeout=30000)
+
+    # بنجرب أكتر من شكل ممكن تكون بيه خانة رقم الإيجستنشن (بيختلف حسب نسخة الـ Web Client)
+    username_selectors = [
+        'input[name="Number"]',
+        'input[name="Username"]',
+        'input[formcontrolname="number"]',
+        'input[formcontrolname="username"]',
+        'input[placeholder*="Number" i]',
+        'input[placeholder*="Extension" i]',
+        'input[type="text"]',
+    ]
+    password_selectors = [
+        'input[name="Password"]',
+        'input[formcontrolname="password"]',
+        'input[type="password"]',
+    ]
+
+    async def _find_first_visible(selectors):
+        for sel in selectors:
+            loc = page.locator(sel).first
+            try:
+                await loc.wait_for(state="visible", timeout=4000)
+                return loc
+            except Exception:
+                continue
+        return None
+
+    username_field = await _find_first_visible(username_selectors)
+    if username_field is None:
+        raise RuntimeError("مالقيتش خانة رقم الإيجستنشن في صفحة تسجيل الدخول")
+    await username_field.fill(THREECX_USERNAME)
+
+    password_field = await _find_first_visible(password_selectors)
+    if password_field is None:
+        raise RuntimeError("مالقيتش خانة الباسورد في صفحة تسجيل الدخول")
+    await password_field.fill(THREECX_PASSWORD)
+    await password_field.press("Enter")
+
+    await page.wait_for_timeout(5000)  # نستنى الصفحة الرئيسية تحمل بعد تسجيل الدخول
+
+    # ندوس على "Panel" في القايمة الجانبية
+    panel_link = page.get_by_text("Panel", exact=True).first
+    try:
+        await panel_link.wait_for(state="visible", timeout=10000)
+        await panel_link.click()
+    except Exception:
+        # لو مالقيناهاش بالنص، نجرب رابط مباشر (تخمين للـ SPA route)
+        await page.goto(f"{PANEL_BASE_URL}panel", wait_until="load", timeout=20000)
+
+    await page.wait_for_timeout(3000)
+
+
+async def panel_scraper_watcher():
+    """بيفضل شغال طول الوقت: يسجل دخول مرة، يفضل ماسك نفس الصفحة مفتوحة، ويقرا منها كل شوية ثواني."""
+    from playwright.async_api import async_playwright
+
+    while True:
+        try:
+            if _panel_state["playwright"] is None:
+                _panel_state["playwright"] = await async_playwright().start()
+
+            if _panel_state["browser"] is None or not _panel_state["logged_in"]:
+                if _panel_state["browser"] is not None:
+                    try:
+                        await _panel_state["browser"].close()
+                    except Exception:
+                        pass
+                _panel_state["browser"] = await _panel_state["playwright"].chromium.launch(
+                    headless=True,
+                    args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
+                )
+                _panel_state["context"] = await _panel_state["browser"].new_context(viewport={"width": 1600, "height": 1000})
+                _panel_state["page"] = await _panel_state["context"].new_page()
+                await _panel_login_and_open(_panel_state["page"])
+                _panel_state["logged_in"] = True
+                _panel_state["last_error"] = None
+                print("✅ [Panel Scraper] سجل دخول ووصل لصفحة Panel بنجاح")
+
+            # v1: بس بنسحب النص الخام لكل الصفحة عشان نصممها صح في الخطوة الجاية
+            _panel_state["raw_text"] = await _panel_state["page"].inner_text("body")
+            _panel_state["last_updated"] = time.time()
+            _panel_state["last_error"] = None
+
+        except Exception as e:
+            _panel_state["last_error"] = str(e)
+            _panel_state["logged_in"] = False  # هيجرب يسجل دخول تاني في الدورة الجاية
+            print(f"⚠️ [Panel Scraper] خطأ: {e}")
+
+        await asyncio.sleep(PANEL_SCRAPE_INTERVAL_SECONDS)
+
+
+@app.on_event("startup")
+async def _start_panel_scraper():
+    asyncio.create_task(panel_scraper_watcher())
+
+
+@app.get("/api/debug/panel-status")
+async def api_debug_panel_status():
+    """افتحيها في المتصفح عادي عشان تشوفي حالة المتصفح الشبح والنص اللي قراه من صفحة Panel."""
+    return {
+        "logged_in": _panel_state["logged_in"],
+        "last_error": _panel_state["last_error"],
+        "last_updated": _panel_state["last_updated"],
+        "raw_text": _panel_state["raw_text"],
+    }
+
+
+@app.get("/api/debug/panel-screenshot")
+async def api_debug_panel_screenshot():
+    """افتحيها في المتصفح عادي عشان تشوفي صورة فعلية للي المتصفح الشبح شايفه دلوقتي."""
+    if _panel_state["page"] is None:
+        raise HTTPException(status_code=503, detail="المتصفح لسه مفتحش")
+    screenshot_bytes = await _panel_state["page"].screenshot(full_page=True)
+    return Response(content=screenshot_bytes, media_type="image/png")
 
 
 # ------------------------------------------------------------
