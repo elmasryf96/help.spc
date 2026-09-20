@@ -603,7 +603,14 @@ async def api_contract_detail(tower: str, contract: str):
     if not match:
         print(f"⚠️ contract-detail: no match for '{contract}' in '{tower}' - portal returned: "
               f"{[c['contract_no'] for c in contracts][:10]}")
-        raise HTTPException(status_code=404, detail="العقد ده مش لاقيينه - جرب تاني")
+        # معلومات تشخيصية مؤقتة في الرد نفسه (شيلها بعد ما المشكلة تتحل)
+        tower_slug = re.sub(r"\s+", "_", (tower or "").strip())
+        debug_info = (
+            f"tower_sent={tower_slug} | contract={contract} | "
+            f"html_len={len(html)} | widgets={len(contracts)} | "
+            f"returned={[c['contract_no'] for c in contracts][:5]}"
+        )
+        raise HTTPException(status_code=404, detail=f"العقد ده مش لاقيينه - جرب تاني [{debug_info}]")
     return match
 
 
