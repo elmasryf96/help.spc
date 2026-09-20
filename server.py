@@ -767,13 +767,45 @@ async def _form_search_once(property_id: str, contract_no: str):
             await ctx.close()
 
 
-async def _lookup_via_portal_form(property_id: str, contract_no: str):
+async def _lookup_via_http_all_cookies(tower_slug: str, contract_no: str):
+    """محاولة سريعة (أقل من ثانية): نفس رابط البحث بس بكل كوكيز المتصفح مش الجلسة بس.
+    بنقبل النتيجة بس لو رجّعت العقد المطلوب بالظبط، غير كده بنرجع None ونكمّل بالمتصفح."""
+    cookies = _portal_session_cache.get("cookies_list") or []
+    if not cookies:
+        return None
+    header = "; ".join(f"{c['name']}={c['value']}" for c in cookies)
+    async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
+        resp = await client.get(
+            f"{PORTAL_BASE_URL}/AdminPortal/Customers",
+            params={"page": "1", "Property": tower_slug, "Contract": contract_no},
+            headers={"Cookie": header},
+        )
+    if "Account/Login" in str(resp.url) or 'id="form-login"' in resp.text:
+        return None
+    items = await asyncio.to_thread(parse_contracts_from_html, resp.text)
+    key = _norm_contract_no(contract_no)
+    return next((c for c in items if _norm_contract_no(c["contract_no"]) == key), None)
+
+
+async def _lookup_via_portal_form(property_id: str, contract_no: str, tower_slug: str = ""):
     key = (property_id, _norm_contract_no(contract_no))
     cached = _contract_result_cache.get(key)
     if cached and time.time() - cached[0] < CONTRACT_RESULT_CACHE_SECONDS:
         return cached[1]
 
     await get_portal_session_cookie()
+
+    # محاولة سريعة بالـ HTTP بكل الكوكيز (لو نجحت مفيش داعي لفتح متصفح)
+    if tower_slug:
+        try:
+            hit = await _lookup_via_http_all_cookies(tower_slug, contract_no)
+            if hit:
+                print(f"⚡ lookup سريع (HTTP + كل الكوكيز) نجح للعقد {contract_no}")
+                _contract_result_cache[key] = (time.time(), hit)
+                return hit
+        except Exception as e:
+            print(f"ℹ️ المحاولة السريعة فشلت ({type(e).__name__}) - هنستخدم المتصفح")
+
     html = await _form_search_once(property_id, contract_no)
     if html is None:  # الجلسة انتهت - نجدد ونجرب مرة واحدة
         await get_portal_session_cookie(force_refresh=True)
@@ -862,7 +894,7 @@ async def api_contract_detail(tower: str, contract: str):
         await _refresh_towers_cache_if_stale()
         prop = next((t for t in (_towers_cache["towers"] or []) if _tower_slug(t["name"]) == slug), None)
         if prop:
-            match = await _lookup_via_portal_form(prop["id"], contract)
+            match = await _lookup_via_portal_form(prop["id"], contract, slug)
     except Exception as e:
         print(f"⚠️ بحث الفورم فشل ({type(e).__name__}: {e}) - هنرجع للتقليب")
         match = None
