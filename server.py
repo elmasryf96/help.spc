@@ -480,8 +480,10 @@ def parse_contracts_from_html(html: str) -> list:
         )
         if m:
             unit_no = m.group(1).strip()
-        elif "deposit" in unit_no.lower():
-            unit_no = ""  # قيمة غلط من الطريقة القديمة - نسيبها فاضية والاستنتاج من العقد هيكمّل
+        # لو القيمة اللي اتقرت شكلها نص حقل تاني (مش رقم وحدة) يبقى قيمة الوحدة الحقيقية مش
+        # موجودة في الصفحة اللي السيرفر بيقراها - نسيبها فاضية والاستنتاج من رقم العقد هيكمّل
+        if re.search(r"deposit|contract begin|contract end|final bill|outstanding|received|\bAED\b", unit_no, re.I):
+            unit_no = ""
         m = re.search(r"Property\s*:\s*(.+?)\s*Property Unit No", widget_text)
         if m:
             property_name = m.group(1).strip()
