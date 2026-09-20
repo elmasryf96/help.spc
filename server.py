@@ -470,6 +470,21 @@ def parse_contracts_from_html(html: str) -> list:
         property_name = value_after("Property")
         unit_no = value_after("Property Unit No")
 
+        # في صفحة العميل القيمة بتيجي كنص عادي بعد الـ label (مش label تاني)، فلو الطريقة
+        # اللي فوق رجّعت فاضي بنقرأها من نص الـ widget كله: "Property: X Property Unit No: T1_705 ..."
+        widget_text = re.sub(r"\s+", " ", widget.get_text(" ", strip=True))
+        if not unit_no:
+            m = re.search(
+                r"Property Unit No\s*:?\s*(.+?)\s*(?:Received Security Deposit|Contract Begin|Contract End|Final Bill|Outstanding|$)",
+                widget_text,
+            )
+            if m:
+                unit_no = m.group(1).strip()
+        if not property_name:
+            m = re.search(r"Property\s*:\s*(.+?)\s*Property Unit No", widget_text)
+            if m:
+                property_name = m.group(1).strip()
+
         email_span = widget.select_one(".SendEmail")
         email = (email_span.get("data-email", "") if email_span else "").strip()
         sms_span = widget.select_one(".SendSMS")
@@ -493,7 +508,6 @@ def parse_contracts_from_html(html: str) -> list:
                 "email": email,
                 "phone": phone,
                 "outstanding": outstanding,
-                "labels": labels[:24],  # تشخيص مؤقت: بيوضح شكل الحقول في صفحة العميل
             }
         )
 
@@ -634,15 +648,9 @@ async def api_contract_detail(tower: str, contract: str):
     match = entry["by_contract"].get(key)
     if match and not match.get("unit_no"):
         # رقم الوحدة مش بيتقرأ من صفحة العميل - بنستنتجه من رقم العقد:
-        # SBD-T1_705-T1 -> 705 ، SBD-T1_Shop 2-O1 -> Shop 2 ، GBD-T1-1007-T1 -> 1007
-        derived = ""
-        cn = match.get("contract_no", "")
-        if "_" in cn:
-            derived = cn.split("_", 1)[1].rsplit("-", 1)[0]
-        else:
-            parts = cn.split("-")
-            if len(parts) >= 4:
-                derived = "-".join(parts[2:-1])
+        # SBD-T1_705-T1 -> T1_705 (نفس شكل Property Unit No في البورتال)
+        parts = match.get("contract_no", "").split("-")
+        derived = "-".join(parts[1:-1]) if len(parts) >= 3 else ""
         match = dict(match, unit_no=derived.strip(), unit_source="derived-from-contract")
     if not match:
         print(f"⚠️ contract-detail: no match for '{contract}' in '{tower}' after scanning "
