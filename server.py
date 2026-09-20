@@ -585,32 +585,59 @@ async def api_contract_numbers(property_id: str):
     return {"property_id": property_id, "count": len(contracts), "contracts": contracts}
 
 
+# كاش لعقود كل برج اتقلّبت صفحاتها - البورتال بيتجاهل فلتر "Contract" في الـ URL وبيرجّع
+# أول صفحة (20 عميل) بس، فبنقلّب الصفحات بنفسنا لحد ما نلاقي العقد ونحفظ كل اللي شفناه
+_tower_contracts_cache = {}
+TOWER_CONTRACTS_CACHE_MAX_AGE_SECONDS = 15 * 60
+MAX_CUSTOMER_PAGES = 80  # حد أمان (80 صفحة × 20 = 1600 عقد للبرج الواحد)
+PAGES_PER_BATCH = 4      # كام صفحة نطلبها مع بعض في نفس الوقت
+
+
+def _norm_contract_no(s: str) -> str:
+    # بيتجاهل الشرطات والـ underscore والمسافات وحالة الحروف
+    return re.sub(r"[^A-Z0-9]", "", (s or "").upper())
+
+
+async def _fetch_customers_page(tower_slug: str, page: int) -> list:
+    resp = await portal_authenticated_request(
+        "GET", "/AdminPortal/Customers", params={"page": str(page), "Property": tower_slug}
+    )
+    return parse_contracts_from_html(resp.text)
+
+
 @app.get("/api/contract-detail")
 async def api_contract_detail(tower: str, contract: str):
     """بيرجع تفاصيل عقد واحد بس (اسم العميل، الوحدة، الإيميل...) - بيتستخدم بعد اختيار العقد من القايمة."""
-    html = await fetch_customers_html(tower, contract=contract)
-    contracts = parse_contracts_from_html(html)
-    # المقارنة بتتجاهل المسافات والشرطات والـ underscore وحالة الحروف (البورتال ساعات
-    # بيكتب نفس رقم العقد بشكل مختلف بين القايمة وصفحة العملاء، زي SBD-T1_705-T1 و
-    # SBD-T1-705-T1). ومفيش fallback على "أول نتيجة" لو فيه أكتر من نتيجة - ده كان
-    # سبب البيانات الغلط - بنقبل النتيجة الوحيدة بس لو البورتال رجّع نتيجة واحدة.
-    def _norm(s: str) -> str:
-        return re.sub(r"[^A-Z0-9]", "", (s or "").upper())
+    tower_slug = re.sub(r"\s+", "_", (tower or "").strip())
+    key = _norm_contract_no(contract)
 
-    match = next((c for c in contracts if _norm(c["contract_no"]) == _norm(contract)), None)
-    if not match and len(contracts) == 1:
-        match = contracts[0]
+    entry = _tower_contracts_cache.get(tower_slug)
+    if not entry or time.time() - entry["at"] > TOWER_CONTRACTS_CACHE_MAX_AGE_SECONDS:
+        entry = {"at": time.time(), "by_contract": {}, "next_page": 1, "exhausted": False}
+        _tower_contracts_cache[tower_slug] = entry
+
+    while key not in entry["by_contract"] and not entry["exhausted"] and entry["next_page"] <= MAX_CUSTOMER_PAGES:
+        pages = list(range(entry["next_page"], min(entry["next_page"] + PAGES_PER_BATCH, MAX_CUSTOMER_PAGES + 1)))
+        results = await asyncio.gather(*[_fetch_customers_page(tower_slug, p) for p in pages])
+        new_count = 0
+        for items in results:
+            for c in items:
+                k = _norm_contract_no(c["contract_no"])
+                if k and k not in entry["by_contract"]:
+                    entry["by_contract"][k] = c
+                    new_count += 1
+        entry["next_page"] = pages[-1] + 1
+        if new_count == 0:  # صفحات فاضية أو مكررة = خلصنا كل صفحات البرج
+            entry["exhausted"] = True
+
+    match = entry["by_contract"].get(key)
     if not match:
-        print(f"⚠️ contract-detail: no match for '{contract}' in '{tower}' - portal returned: "
-              f"{[c['contract_no'] for c in contracts][:10]}")
-        # معلومات تشخيصية مؤقتة في الرد نفسه (شيلها بعد ما المشكلة تتحل)
-        tower_slug = re.sub(r"\s+", "_", (tower or "").strip())
-        debug_info = (
-            f"tower_sent={tower_slug} | contract={contract} | "
-            f"html_len={len(html)} | widgets={len(contracts)} | "
-            f"returned={[c['contract_no'] for c in contracts][:5]}"
+        print(f"⚠️ contract-detail: no match for '{contract}' in '{tower}' after scanning "
+              f"{len(entry['by_contract'])} contracts (next_page={entry['next_page']})")
+        raise HTTPException(
+            status_code=404,
+            detail=f"العقد ده مش لاقيينه - جرب تاني [scanned={len(entry['by_contract'])} contracts, pages={entry['next_page'] - 1}]",
         )
-        raise HTTPException(status_code=404, detail=f"العقد ده مش لاقيينه - جرب تاني [{debug_info}]")
     return match
 
 
