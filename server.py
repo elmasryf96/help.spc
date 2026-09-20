@@ -709,6 +709,48 @@ def _prewarm_tower_in_background(property_id: str):
         asyncio.create_task(_prewarm_tower(slug))
 
 
+@app.get("/api/debug/portal-filter")
+async def api_debug_portal_filter(tower: str, contract: str):
+    """تشخيص مؤقت (يتشال بعد ما نحل المشكلة): بيجرّب كذا شكل لطلب فلتر العقد على البورتال
+    ويرجّع بس أرقام (status / redirects / عدد النتايج / أول 3 أرقام عقود) من غير بيانات عملاء."""
+    cookie = await get_portal_session_cookie()
+    slug = _tower_slug(tower)
+    url = f"{PORTAL_BASE_URL}/AdminPortal/Customers"
+    params = {"page": "1", "Property": slug, "Contract": contract}
+    ua = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+          "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+    variants = {
+        "A_current": ({"Cookie": cookie}, True, params),
+        "B_browser_headers": (
+            {"Cookie": cookie, "User-Agent": ua,
+             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+             "Accept-Language": "en-US,en;q=0.9", "Referer": url},
+            True, params),
+        "C_no_redirect": ({"Cookie": cookie}, False, params),
+        "D_no_page_param": ({"Cookie": cookie, "User-Agent": ua}, True,
+                            {"Property": slug, "Contract": contract}),
+    }
+    out = {"cookie_names": [c.split("=")[0].strip() for c in cookie.split(";")]}
+    async with httpx.AsyncClient(timeout=30) as client:
+        for name, (headers, follow, prm) in variants.items():
+            try:
+                r = await client.get(url, params=prm, headers=headers, follow_redirects=follow)
+                items = parse_contracts_from_html(r.text) if r.status_code == 200 else []
+                out[name] = {
+                    "status": r.status_code,
+                    "final_url": str(r.url),
+                    "location": r.headers.get("location"),
+                    "redirects": [f"{h.status_code} {h.url}" for h in r.history],
+                    "html_len": len(r.text),
+                    "widgets": len(items),
+                    "first3": [c["contract_no"] for c in items[:3]],
+                    "has_target": any(_norm_contract_no(c["contract_no"]) == _norm_contract_no(contract) for c in items),
+                }
+            except Exception as e:
+                out[name] = {"error": str(e)}
+    return out
+
+
 @app.get("/api/contract-detail")
 async def api_contract_detail(tower: str, contract: str):
     """بيرجع تفاصيل عقد واحد بس (اسم العميل، الوحدة، الإيميل...) - بيتستخدم بعد اختيار العقد من القايمة."""
