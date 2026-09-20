@@ -404,7 +404,9 @@ async def portal_authenticated_request(
 
 async def fetch_customers_html(tower: str, contract: str = "") -> str:
     """بيجيب صفحة الـ Customers مفلترة بتاور (واختياريًا رقم عقد معين كمان)، من غير متصفح."""
-    params = {"Property": tower}
+    # البورتال بيستخدم اسم التاور بـ underscore بدل المسافات في الفلتر (Property=Starz_By_Danube)،
+    # ولو بعتنا المسافات بيتجاهل فلتر العقد وبيرجّع أول صفحة من عملاء التاور كلهم
+    params = {"page": "1", "Property": re.sub(r"\s+", "_", (tower or "").strip())}
     if contract:
         params["Contract"] = contract
     resp = await portal_authenticated_request("GET", "/AdminPortal/Customers", params=params)
