@@ -58,7 +58,7 @@ function populateNocTowersDropdown() {
 
     nocSelect2Refresh($sel, [{ value: "", text: "-- Loading towers... --" }]);
 
-    fetch(PYTHON_BACKEND_TOWERS_URL)
+    fetchWithFallback(PYTHON_BACKEND_TOWERS_URL)
         .then(r => r.json())
         .then(data => applyNocTowers(data.towers || [], ""))
         .catch(() => {
@@ -77,7 +77,7 @@ function refreshNocTowers() {
     btn.disabled = true;
     btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
 
-    fetch(`${PYTHON_BACKEND_TOWERS_URL}/refresh`, { method: "POST" })
+    fetchWithFallback(`${PYTHON_BACKEND_TOWERS_URL}/refresh`, { method: "POST" })
         .then(r => {
             if (!r.ok) throw new Error("refresh failed " + r.status);
             return r.json();
@@ -111,7 +111,7 @@ function loadContractsForTower() {
     nocSelect2Refresh($picker, [{ value: "", text: "-- Loading contracts... --" }]);
     if ($ownerPicker.length) nocSelect2Refresh($ownerPicker, [{ value: "", text: "-- Loading contracts... --" }]);
 
-    fetch(`${PYTHON_BACKEND_CONTRACT_NUMBERS_URL}?property_id=${encodeURIComponent(propertyId)}`)
+    fetchWithFallback(`${PYTHON_BACKEND_CONTRACT_NUMBERS_URL}?property_id=${encodeURIComponent(propertyId)}`)
         .then(r => r.json())
         .then(data => {
             const contracts = data.contracts || [];
@@ -169,7 +169,7 @@ function applyContractSelection() {
         return;
     }
 
-    fetch(`${PYTHON_BACKEND_CONTRACT_DETAIL_URL}?tower=${encodeURIComponent(towerName)}&contract=${encodeURIComponent(contractNo)}`)
+    fetchWithFallback(`${PYTHON_BACKEND_CONTRACT_DETAIL_URL}?tower=${encodeURIComponent(towerName)}&contract=${encodeURIComponent(contractNo)}`)
         .then(r => {
             if (!r.ok) throw new Error("contract detail not found");
             return r.json();
@@ -216,17 +216,18 @@ function applyOwnerContractSelection() {
 
     if (contractField) contractField.value = contractNo; // نملاها فورًا
     if (nameField) nameField.value = ""; // نمسح اسم المالك القديم لحد ما الجديد يوصل
+    if (nameField) nameField.placeholder = "Loading name...";
 
     const towerName = nocTowersById[propertyId];
     if (!towerName) return;
 
     const cacheKey = `${propertyId}::${contractNo}`;
     if (nocContractDetailCache[cacheKey]) {
-        if (nameField) nameField.value = nocContractDetailCache[cacheKey].customer_name;
+        if (nameField) { nameField.value = nocContractDetailCache[cacheKey].customer_name; nameField.placeholder = "e.g. N/A or Owner Full Name"; }
         return;
     }
 
-    fetch(`${PYTHON_BACKEND_CONTRACT_DETAIL_URL}?tower=${encodeURIComponent(towerName)}&contract=${encodeURIComponent(contractNo)}`)
+    fetchWithFallback(`${PYTHON_BACKEND_CONTRACT_DETAIL_URL}?tower=${encodeURIComponent(towerName)}&contract=${encodeURIComponent(contractNo)}`)
         .then(r => {
             if (!r.ok) throw new Error("contract detail not found");
             return r.json();
@@ -234,10 +235,11 @@ function applyOwnerContractSelection() {
         .then(detail => {
             nocContractDetailCache[cacheKey] = detail;
             if ($("#nocOwnerContractPicker").val() !== contractNo || $("#nocTowerName").val() !== propertyId) return;
-            if (nameField) nameField.value = detail.customer_name;
+            if (nameField) { nameField.value = detail.customer_name; nameField.placeholder = "e.g. N/A or Owner Full Name"; }
         })
         .catch(() => {
-            // العقد اتملى برقمه بس - اسم المالك هيتكتب يدوي
+            if ($("#nocOwnerContractPicker").val() !== contractNo) return;
+            if (nameField) nameField.placeholder = "Not found - type the name manually";
         });
 }
 
@@ -468,7 +470,7 @@ function handleNocSubmission() {
         };
     }
 
-    fetch(targetUrl, {
+    fetchWithFallback(targetUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

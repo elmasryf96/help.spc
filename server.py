@@ -351,7 +351,12 @@ async def get_portal_session_cookie(force_refresh: bool = False) -> str:
             await submit_btn.first.click()
         else:
             await page.locator('input[name="Password"]').press("Enter")
-        await page.wait_for_timeout(3000)
+        try:
+            # نستنى لحد ما الصفحة تسيب /Account/Login فعلاً (بدل ثواني ثابتة) - الدخول ساعات بيبطأ
+            await page.wait_for_url(lambda u: "Account/Login" not in u, timeout=25000)
+        except Exception:
+            pass
+        await page.wait_for_timeout(1000)
 
         if "Account/Login" in page.url:
             raise HTTPException(

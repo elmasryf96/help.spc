@@ -3,3 +3,4 @@ __pycache__/
 search_debug.txt
 search_result.html
 test_search.py
+run_local.py
