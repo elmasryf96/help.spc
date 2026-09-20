@@ -161,7 +161,7 @@ function applyContractSelection() {
     // رقم الوحدة بيتشتق من رقم العقد (SBD-T1_705-T1 -> T1_705) فنملاه فورًا
     const cParts = contractNo.split("-");
     if (staleUnit && cParts.length >= 3) staleUnit.value = cParts.slice(1, -1).join("-").trim();
-    if (staleName) staleName.placeholder = "جاري تحميل الاسم...";
+    if (staleName) staleName.placeholder = "Loading name...";
 
     const cacheKey = `${propertyId}::${contractNo}`;
     if (nocContractDetailCache[cacheKey]) {

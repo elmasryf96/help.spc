@@ -611,6 +611,7 @@ async def _warm_portal_once():
 async def _start_background_tasks():
     if SC_USERNAME and SC_PASSWORD:
         asyncio.create_task(_warm_portal_once())
+        asyncio.create_task(_warm_all_towers_loop())
 
 
 @app.get("/api/contract-numbers")
@@ -628,7 +629,7 @@ async def api_contract_numbers(property_id: str):
 _tower_contracts_cache = {}
 _tower_scan_locks = {}
 _prewarm_semaphore = asyncio.Semaphore(1)  # برج واحد بس بيتقلّب في الخلفية في نفس الوقت (حماية للرامات)
-TOWER_CONTRACTS_CACHE_MAX_AGE_SECONDS = 6 * 60 * 60
+TOWER_CONTRACTS_CACHE_MAX_AGE_SECONDS = 7 * 60 * 60  # أطول من دورة التحديث الكاملة (6 ساعات) عشان الكاش ما ينتهيش قبل ما يتجدد
 MAX_CUSTOMER_PAGES = 80  # حد أمان (80 صفحة × 20 = 1600 عقد للبرج الواحد)
 PAGES_PER_BATCH = 6      # كام صفحة نطلبها مع بعض في نفس الوقت
 
@@ -696,6 +697,41 @@ async def _prewarm_tower(slug: str):
                 pass
     except Exception as e:
         print(f"⚠️ prewarm للبرج '{slug}' فشل (مش مشكلة - هيتعمل عند الطلب): {e}")
+
+
+WARM_ALL_INTERVAL_SECONDS = 6 * 60 * 60   # تحديث كامل لكل الأبراج كل 6 ساعات
+WARM_BETWEEN_TOWERS_SECONDS = 5           # استراحة بين كل برج والتاني (حماية للرامات والبورتال)
+
+
+async def _rebuild_tower_cache(slug: str):
+    """بيقلّب كل صفحات البرج في كاش جديد، ولما يخلص بيبدّله بالقديم (القديم بيفضل شغال طول المسح)."""
+    async with _prewarm_semaphore:
+        entry = {"at": time.time(), "by_contract": {}, "next_page": 1, "exhausted": False, "scan_seen": set()}
+        while await _scan_one_batch(slug, entry):
+            pass
+        if entry["by_contract"]:
+            entry["at"] = time.time()
+            _tower_contracts_cache[slug] = entry
+
+
+async def _warm_all_towers_loop():
+    """بعد تشغيل السيرفر بيحمّل بيانات كل الأبراج واحد ورا التاني في الخلفية، وبعدين يكرر كل 6 ساعات.
+    أي عقد جديد بيظهر فورًا برضو لأن /api/contract-detail بيعيد المسح لو العقد مش في الكاش."""
+    await asyncio.sleep(20)  # نسيب السيرفر يقوم ويجيب قايمة الأبراج الأول
+    while True:
+        try:
+            await _refresh_towers_cache_if_stale()
+            for t in list(_towers_cache["towers"] or []):
+                slug = _tower_slug(t["name"])
+                try:
+                    await _rebuild_tower_cache(slug)
+                except Exception as e:
+                    print(f"⚠️ warm-all: البرج '{slug}' فشل: {e}")
+                await asyncio.sleep(WARM_BETWEEN_TOWERS_SECONDS)
+            print("✅ warm-all: خلص تحميل كل الأبراج")
+        except Exception as e:
+            print(f"⚠️ warm-all فشل: {e}")
+        await asyncio.sleep(WARM_ALL_INTERVAL_SECONDS)
 
 
 def _prewarm_tower_in_background(property_id: str):
