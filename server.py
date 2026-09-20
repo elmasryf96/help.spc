@@ -617,15 +617,20 @@ async def _start_background_tasks():
 async def api_contract_numbers(property_id: str):
     """بيرجع كل أرقام العقود (من غير حد أقصى) لتاور معين، عشان قايمة البحث القابلة للكتابة فيها."""
     contracts = await fetch_contract_numbers(property_id)
+    _prewarm_tower_in_background(property_id)  # نبدأ نجهّز بيانات عملاء البرج في الخلفية
     return {"property_id": property_id, "count": len(contracts), "contracts": contracts}
 
 
 # كاش لعقود كل برج اتقلّبت صفحاتها - البورتال بيتجاهل فلتر "Contract" في الـ URL وبيرجّع
-# أول صفحة (20 عميل) بس، فبنقلّب الصفحات بنفسنا لحد ما نلاقي العقد ونحفظ كل اللي شفناه
+# أول صفحة (20 عميل) بس، فبنقلّب الصفحات بنفسنا لحد ما نلاقي العقد ونحفظ كل اللي شفناه.
+# وأول ما المستخدم يختار برج بنبدأ نقلّب صفحاته في الخلفية (prewarm) عشان لما يختار العقد
+# تكون البيانات جاهزة من غير ما يستنى.
 _tower_contracts_cache = {}
+_tower_scan_locks = {}
+_prewarm_semaphore = asyncio.Semaphore(1)  # برج واحد بس بيتقلّب في الخلفية في نفس الوقت (حماية للرامات)
 TOWER_CONTRACTS_CACHE_MAX_AGE_SECONDS = 15 * 60
 MAX_CUSTOMER_PAGES = 80  # حد أمان (80 صفحة × 20 = 1600 عقد للبرج الواحد)
-PAGES_PER_BATCH = 6      # كام صفحة نطلبها مع بعض في نفس الوقت
+PAGES_PER_BATCH = 4      # كام صفحة نطلبها مع بعض في نفس الوقت
 
 
 def _norm_contract_no(s: str) -> str:
@@ -633,23 +638,83 @@ def _norm_contract_no(s: str) -> str:
     return re.sub(r"[^A-Z0-9]", "", (s or "").upper())
 
 
+def _tower_slug(tower: str) -> str:
+    return re.sub(r"\s+", "_", (tower or "").strip())
+
+
 async def _fetch_customers_page(tower_slug: str, page: int) -> list:
     resp = await portal_authenticated_request(
         "GET", "/AdminPortal/Customers", params={"page": str(page), "Property": tower_slug}
     )
-    return parse_contracts_from_html(resp.text)
+    # تحليل الـ HTML (215KB) شغل CPU - بنعمله في thread عشان السيرفر يفضل يرد على باقي الطلبات
+    return await asyncio.to_thread(parse_contracts_from_html, resp.text)
+
+
+def _get_tower_entry(slug: str) -> dict:
+    entry = _tower_contracts_cache.get(slug)
+    if not entry or time.time() - entry["at"] > TOWER_CONTRACTS_CACHE_MAX_AGE_SECONDS:
+        entry = {"at": time.time(), "by_contract": {}, "next_page": 1, "exhausted": False, "scan_seen": set()}
+        _tower_contracts_cache[slug] = entry
+    return entry
+
+
+async def _scan_one_batch(slug: str, entry: dict) -> bool:
+    """بيقلّب دفعة صفحات واحدة من البرج ويضيف عقودها للكاش. بيرجّع False لما مفيش صفحات تانية."""
+    lock = _tower_scan_locks.setdefault(slug, asyncio.Lock())
+    async with lock:
+        if entry["exhausted"]:
+            return False
+        if entry["next_page"] > MAX_CUSTOMER_PAGES:
+            entry["exhausted"] = True
+            entry["exhausted_at"] = time.time()
+            return False
+
+        pages = list(range(entry["next_page"], min(entry["next_page"] + PAGES_PER_BATCH, MAX_CUSTOMER_PAGES + 1)))
+        results = await asyncio.gather(*[_fetch_customers_page(slug, p) for p in pages])
+        entry["next_page"] = pages[-1] + 1
+        for items in results:
+            page_keys = {_norm_contract_no(c["contract_no"]) for c in items if c["contract_no"]}
+            # صفحة فاضية، أو كل عقودها اتشافت قبل كده في نفس المسح (البورتال بيعيد آخر صفحة
+            # لو طلبنا صفحة بعد الأخيرة) = خلصنا كل صفحات البرج
+            if not page_keys or page_keys <= entry["scan_seen"]:
+                entry["exhausted"] = True
+                entry["exhausted_at"] = time.time()
+                return False
+            entry["scan_seen"] |= page_keys
+            for c in items:
+                k = _norm_contract_no(c["contract_no"])
+                if k:
+                    entry["by_contract"][k] = c
+        return True
+
+
+async def _prewarm_tower(slug: str):
+    try:
+        async with _prewarm_semaphore:
+            entry = _get_tower_entry(slug)
+            while await _scan_one_batch(slug, entry):
+                pass
+    except Exception as e:
+        print(f"⚠️ prewarm للبرج '{slug}' فشل (مش مشكلة - هيتعمل عند الطلب): {e}")
+
+
+def _prewarm_tower_in_background(property_id: str):
+    """بيبدأ تقليب صفحات البرج في الخلفية أول ما المستخدم يختاره (لو مش متقلّب قبل كده)."""
+    name = next((t["name"] for t in (_towers_cache["towers"] or []) if t["id"] == property_id), None)
+    if not name:
+        return
+    slug = _tower_slug(name)
+    entry = _get_tower_entry(slug)
+    if not entry["exhausted"]:
+        asyncio.create_task(_prewarm_tower(slug))
 
 
 @app.get("/api/contract-detail")
 async def api_contract_detail(tower: str, contract: str):
     """بيرجع تفاصيل عقد واحد بس (اسم العميل، الوحدة، الإيميل...) - بيتستخدم بعد اختيار العقد من القايمة."""
-    tower_slug = re.sub(r"\s+", "_", (tower or "").strip())
+    slug = _tower_slug(tower)
     key = _norm_contract_no(contract)
-
-    entry = _tower_contracts_cache.get(tower_slug)
-    if not entry or time.time() - entry["at"] > TOWER_CONTRACTS_CACHE_MAX_AGE_SECONDS:
-        entry = {"at": time.time(), "by_contract": {}, "next_page": 1, "exhausted": False, "scan_seen": set()}
-        _tower_contracts_cache[tower_slug] = entry
+    entry = _get_tower_entry(slug)
 
     # عقد جديد اتضاف بعد ما الكاش اتملى: لو مش لاقيينه وآخر مسح كامل عدّى عليه 30 ثانية،
     # نعيد المسح من الأول عشان العقد الجديد يظهر فورًا (والمسح المتكرر لعقد مش موجود محدود بـ 30 ثانية)
@@ -662,23 +727,8 @@ async def api_contract_detail(tower: str, contract: str):
         entry["next_page"] = 1
         entry["scan_seen"] = set()
 
-    while key not in entry["by_contract"] and not entry["exhausted"] and entry["next_page"] <= MAX_CUSTOMER_PAGES:
-        pages = list(range(entry["next_page"], min(entry["next_page"] + PAGES_PER_BATCH, MAX_CUSTOMER_PAGES + 1)))
-        results = await asyncio.gather(*[_fetch_customers_page(tower_slug, p) for p in pages])
-        for items in results:
-            page_keys = {_norm_contract_no(c["contract_no"]) for c in items if c["contract_no"]}
-            # صفحة فاضية، أو كل عقودها اتشافت قبل كده في نفس المسح (البورتال بيعيد آخر صفحة
-            # لو طلبنا صفحة بعد الأخيرة) = خلصنا كل صفحات البرج
-            if not page_keys or page_keys <= entry["scan_seen"]:
-                entry["exhausted"] = True
-                entry["exhausted_at"] = time.time()
-                break
-            entry["scan_seen"] |= page_keys
-            for c in items:
-                k = _norm_contract_no(c["contract_no"])
-                if k:
-                    entry["by_contract"][k] = c
-        entry["next_page"] = pages[-1] + 1
+    while key not in entry["by_contract"] and await _scan_one_batch(slug, entry):
+        pass
 
     match = entry["by_contract"].get(key)
     if match and not match.get("unit_no"):
