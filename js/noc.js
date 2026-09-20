@@ -158,6 +158,11 @@ function applyContractSelection() {
     if (staleName) staleName.value = "";
     if (staleUnit) staleUnit.value = "";
 
+    // رقم الوحدة بيتشتق من رقم العقد (SBD-T1_705-T1 -> T1_705) فنملاه فورًا
+    const cParts = contractNo.split("-");
+    if (staleUnit && cParts.length >= 3) staleUnit.value = cParts.slice(1, -1).join("-").trim();
+    if (staleName) staleName.placeholder = "جاري تحميل الاسم...";
+
     const cacheKey = `${propertyId}::${contractNo}`;
     if (nocContractDetailCache[cacheKey]) {
         applyContractDetail(nocContractDetailCache[cacheKey]);
@@ -176,7 +181,8 @@ function applyContractSelection() {
             applyContractDetail(detail);
         })
         .catch(() => {
-            // العقد اتملى برقمه بس على الأقل - باقي البيانات (الاسم/الوحدة) هتتكتب يدوي
+            const nf = document.getElementById("nocTenantName");
+            if (nf) nf.placeholder = "";
         });
 }
 
@@ -186,9 +192,9 @@ function applyContractDetail(contract) {
     const unitField = document.getElementById("nocUnitNo");
     const spcAccountField = document.getElementById("moveInSpcAccount"); // Move-in Clearance بتستخدم رقم العقد كـ SPC Account Number
 
-    if (nameField) nameField.value = contract.customer_name;
+    if (nameField) { nameField.value = contract.customer_name; nameField.placeholder = ""; }
     if (contractField) contractField.value = contract.contract_no;
-    if (unitField) unitField.value = contract.unit_no;
+    if (unitField && contract.unit_no) unitField.value = contract.unit_no;
     if (spcAccountField) spcAccountField.value = contract.contract_no;
 }
 

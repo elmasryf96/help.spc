@@ -360,7 +360,6 @@ async def get_portal_session_cookie(force_refresh: bool = False) -> str:
             )
 
         cookies = await page.context.cookies()
-        _portal_session_cache["all_cookies"] = cookies  # تشخيص: كل الكوكيز اللي البورتال دّاها للمتصفح
         session_cookie = next(
             (c for c in cookies if c["name"] == ".AspNetCore.Session"), None
         )
@@ -629,9 +628,9 @@ async def api_contract_numbers(property_id: str):
 _tower_contracts_cache = {}
 _tower_scan_locks = {}
 _prewarm_semaphore = asyncio.Semaphore(1)  # برج واحد بس بيتقلّب في الخلفية في نفس الوقت (حماية للرامات)
-TOWER_CONTRACTS_CACHE_MAX_AGE_SECONDS = 15 * 60
+TOWER_CONTRACTS_CACHE_MAX_AGE_SECONDS = 6 * 60 * 60
 MAX_CUSTOMER_PAGES = 80  # حد أمان (80 صفحة × 20 = 1600 عقد للبرج الواحد)
-PAGES_PER_BATCH = 4      # كام صفحة نطلبها مع بعض في نفس الوقت
+PAGES_PER_BATCH = 6      # كام صفحة نطلبها مع بعض في نفس الوقت
 
 
 def _norm_contract_no(s: str) -> str:
@@ -710,136 +709,6 @@ def _prewarm_tower_in_background(property_id: str):
         asyncio.create_task(_prewarm_tower(slug))
 
 
-@app.get("/api/debug/portal-filter")
-async def api_debug_portal_filter(tower: str, contract: str):
-    """تشخيص مؤقت (يتشال بعد ما نحل المشكلة): بيجرّب كذا شكل لطلب فلتر العقد على البورتال
-    ويرجّع بس أرقام (status / redirects / عدد النتايج / أول 3 أرقام عقود) من غير بيانات عملاء."""
-    cookie = await get_portal_session_cookie()
-    slug = _tower_slug(tower)
-    url = f"{PORTAL_BASE_URL}/AdminPortal/Customers"
-    params = {"page": "1", "Property": slug, "Contract": contract}
-    ua = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-          "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
-    variants = {
-        "A_current": ({"Cookie": cookie}, True, params),
-        "B_browser_headers": (
-            {"Cookie": cookie, "User-Agent": ua,
-             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-             "Accept-Language": "en-US,en;q=0.9", "Referer": url},
-            True, params),
-        "C_no_redirect": ({"Cookie": cookie}, False, params),
-        "D_no_page_param": ({"Cookie": cookie, "User-Agent": ua}, True,
-                            {"Property": slug, "Contract": contract}),
-    }
-    all_cookies = _portal_session_cache.get("all_cookies")
-    if not all_cookies:
-        await get_portal_session_cookie(force_refresh=True)
-        all_cookies = _portal_session_cache.get("all_cookies") or []
-    out = {
-        "cookie_names": [c.split("=")[0].strip() for c in cookie.split(";")],
-        "all_cookie_names": [f"{c.get('name')} ({c.get('domain')})" for c in all_cookies],
-    }
-    full_cookie = "; ".join(f"{c['name']}={c['value']}" for c in all_cookies)
-    if full_cookie:
-        variants["F_all_cookies"] = ({"Cookie": full_cookie, "User-Agent": ua}, True, params)
-
-    # E: نفس الرابط بمتصفح Chromium حقيقي (بنفس الكوكيز) - زي ما بيتفتح في متصفحك
-    try:
-        t0 = time.time()
-        browser = await _get_shared_browser()
-        ctx = await browser.new_context()
-        try:
-            await ctx.add_cookies(
-                [{k: c[k] for k in ("name", "value", "domain", "path") if k in c} for c in all_cookies]
-            )
-            pg = await ctx.new_page()
-            await pg.route(
-                "**/*",
-                lambda route: route.abort()
-                if route.request.resource_type in ("image", "media", "font")
-                else route.continue_(),
-            )
-            await pg.goto(f"{url}?page=1&Property={slug}&Contract={contract}", wait_until="domcontentloaded", timeout=30000)
-            await pg.wait_for_timeout(2000)
-            html_e = await pg.content()
-            items_e = parse_contracts_from_html(html_e)
-            out["E_chromium_page"] = {
-                "final_url": pg.url,
-                "html_len": len(html_e),
-                "widgets": len(items_e),
-                "first3": [c["contract_no"] for c in items_e[:3]],
-                "has_target": any(_norm_contract_no(c["contract_no"]) == _norm_contract_no(contract) for c in items_e),
-                "seconds": round(time.time() - t0, 1),
-            }
-        finally:
-            await ctx.close()
-    except Exception as e:
-        out["E_chromium_page"] = {"error": str(e)}
-
-    async with httpx.AsyncClient(timeout=30) as client:
-        for name, (headers, follow, prm) in variants.items():
-            try:
-                r = await client.get(url, params=prm, headers=headers, follow_redirects=follow)
-                items = parse_contracts_from_html(r.text) if r.status_code == 200 else []
-                out[name] = {
-                    "status": r.status_code,
-                    "final_url": str(r.url),
-                    "location": r.headers.get("location"),
-                    "redirects": [f"{h.status_code} {h.url}" for h in r.history],
-                    "html_len": len(r.text),
-                    "widgets": len(items),
-                    "first3": [c["contract_no"] for c in items[:3]],
-                    "has_target": any(_norm_contract_no(c["contract_no"]) == _norm_contract_no(contract) for c in items),
-                }
-            except Exception as e:
-                out[name] = {"error": str(e)}
-    return out
-
-
-@app.get("/api/debug/portal-manage")
-async def api_debug_portal_manage(tower: str, contract: str):
-    """تشخيص مؤقت (يتشال بعد الحل): هل الـ id اللي في قايمة العقود بيفتح صفحة العميل مباشرة؟
-    بيرجّع أسماء حقول الصفحة، وقيم الحقول اللي اسمها فيه name/unit/property/contract بس."""
-    from bs4 import BeautifulSoup
-
-    await _refresh_towers_cache_if_stale()
-    t = next((t for t in _towers_cache["towers"] if t["name"] == tower), None)
-    if not t:
-        raise HTTPException(status_code=404, detail="tower not found in cache")
-    opts = await fetch_contract_numbers(t["id"])
-    opt = next((o for o in opts if _norm_contract_no(o["contract_no"]) == _norm_contract_no(contract)), None)
-    out = {"property_id": t["id"], "options_count": len(opts), "option": opt,
-           "first3_options": opts[:3]}
-    if not opt:
-        return out
-
-    resp = await portal_authenticated_request("GET", f"/AdminPortal/Customers/Manage/{opt['id']}")
-    soup = BeautifulSoup(resp.text, "html.parser")
-    out.update({
-        "status": resp.status_code,
-        "final_url": str(resp.url),
-        "html_len": len(resp.text),
-        "title": soup.title.get_text(strip=True) if soup.title else None,
-        "contains_contract_no": contract.lower() in resp.text.lower(),
-    })
-    fields = []
-    for el in soup.select("input, select, textarea"):
-        name = el.get("name") or el.get("id")
-        if not name:
-            continue
-        if el.name == "select":
-            sel = el.select_one("option[selected]")
-            val = sel.get_text(strip=True) if sel else ""
-        elif el.name == "textarea":
-            val = el.get_text(strip=True)
-        else:
-            val = el.get("value", "")
-        show = bool(re.search(r"name|unit|property|contract|account", name, re.I))
-        fields.append({"name": name, "tag": el.name, "value": val if show else "(hidden)"})
-    out["fields"] = fields[:80]
-    return out
-
-
 @app.get("/api/contract-detail")
 async def api_contract_detail(tower: str, contract: str):
     """بيرجع تفاصيل عقد واحد بس (اسم العميل، الوحدة، الإيميل...) - بيتستخدم بعد اختيار العقد من القايمة."""
@@ -873,7 +742,7 @@ async def api_contract_detail(tower: str, contract: str):
               f"{len(entry['by_contract'])} contracts (next_page={entry['next_page']})")
         raise HTTPException(
             status_code=404,
-            detail=f"العقد ده مش لاقيينه - جرب تاني [scanned={len(entry['by_contract'])} contracts, pages={entry['next_page'] - 1}]",
+            detail="العقد ده مش لاقيينه - جرب تاني",
         )
     return match
 
