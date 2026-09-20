@@ -540,9 +540,12 @@ async def api_contract_detail(tower: str, contract: str):
     """بيرجع تفاصيل عقد واحد بس (اسم العميل، الوحدة، الإيميل...) - بيتستخدم بعد اختيار العقد من القايمة."""
     html = await fetch_customers_html(tower, contract=contract)
     contracts = parse_contracts_from_html(html)
-    match = next((c for c in contracts if c["contract_no"] == contract), None)
-    if not match and contracts:
-        match = contracts[0]
+    # مقارنة مطابقة تمامًا (بعد شيل المسافات وتوحيد الحروف) - من غير أي fallback على
+    # أول نتيجة، لأن ده كان بيرجّع بيانات عميل تاني لو البورتال رجّع نتايج مش مطابقة
+    def _norm(s: str) -> str:
+        return re.sub(r"\s+", "", s or "").upper()
+
+    match = next((c for c in contracts if _norm(c["contract_no"]) == _norm(contract)), None)
     if not match:
         raise HTTPException(status_code=404, detail="العقد ده مش لاقيينه - جرب تاني")
     return match

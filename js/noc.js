@@ -114,6 +114,13 @@ function applyContractSelection() {
     const spcAccountFieldImmediate = document.getElementById("moveInSpcAccount");
     if (spcAccountFieldImmediate) spcAccountFieldImmediate.value = contractNo;
 
+    // نمسح الاسم ورقم الوحدة بتوع العقد السابق فورًا - عشان لو تفاصيل العقد الجديد
+    // اتأخرت أو فشلت، ماتفضلش بيانات العقد القديم ظاهرة مع رقم العقد الجديد
+    const staleName = document.getElementById("nocTenantName");
+    const staleUnit = document.getElementById("nocUnitNo");
+    if (staleName) staleName.value = "";
+    if (staleUnit) staleUnit.value = "";
+
     const cacheKey = `${propertyId}::${contractNo}`;
     if (nocContractDetailCache[cacheKey]) {
         applyContractDetail(nocContractDetailCache[cacheKey]);
@@ -127,6 +134,8 @@ function applyContractSelection() {
         })
         .then(detail => {
             nocContractDetailCache[cacheKey] = detail;
+            // لو المستخدم اختار عقد تاني وإحنا مستنيين الرد، نتجاهل الرد القديم
+            if ($("#nocContractPicker").val() !== contractNo || $("#nocTowerName").val() !== propertyId) return;
             applyContractDetail(detail);
         })
         .catch(() => {
@@ -163,6 +172,7 @@ function applyOwnerContractSelection() {
     }
 
     if (contractField) contractField.value = contractNo; // نملاها فورًا
+    if (nameField) nameField.value = ""; // نمسح اسم المالك القديم لحد ما الجديد يوصل
 
     const towerName = nocTowersById[propertyId];
     if (!towerName) return;
@@ -180,6 +190,7 @@ function applyOwnerContractSelection() {
         })
         .then(detail => {
             nocContractDetailCache[cacheKey] = detail;
+            if ($("#nocOwnerContractPicker").val() !== contractNo || $("#nocTowerName").val() !== propertyId) return;
             if (nameField) nameField.value = detail.customer_name;
         })
         .catch(() => {
