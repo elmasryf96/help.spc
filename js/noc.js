@@ -17,6 +17,10 @@ function initNocPage() {
     }
     toggleNocFormType();
     populateNocTowersDropdown();
+
+    // زرار ريفرش الأبراج يظهر للأدمن بس
+    const refreshBtn = document.getElementById("refreshNocTowersBtn");
+    if (refreshBtn) refreshBtn.style.display = (typeof isAdmin === "function" && isAdmin()) ? "inline-flex" : "none";
 }
 
 // ============================================================
@@ -35,6 +39,19 @@ function nocSelect2Refresh($el, options) {
     $el.select2({ width: "100%" });
 }
 
+function applyNocTowers(towers, keepValue) {
+    const $sel = $("#nocTowerName");
+    nocTowersById = {};
+    towers.forEach(t => { nocTowersById[t.id] = t.name; });
+
+    const options = [{ value: "", text: "-- Select Tower --" }]
+        .concat(towers.map(t => ({ value: t.id, text: t.name })));
+    nocSelect2Refresh($sel, options);
+
+    // لو كان فيه برج مختار قبل الريفرش وما زال موجود، نرجّعه من غير ما نمسح العقود
+    if (keepValue && nocTowersById[keepValue]) $sel.val(keepValue).trigger("change.select2");
+}
+
 function populateNocTowersDropdown() {
     const $sel = $("#nocTowerName");
     if (!$sel.length) return;
@@ -43,17 +60,37 @@ function populateNocTowersDropdown() {
 
     fetch(PYTHON_BACKEND_TOWERS_URL)
         .then(r => r.json())
-        .then(data => {
-            const towers = data.towers || [];
-            nocTowersById = {};
-            towers.forEach(t => { nocTowersById[t.id] = t.name; });
-
-            const options = [{ value: "", text: "-- Select Tower --" }]
-                .concat(towers.map(t => ({ value: t.id, text: t.name })));
-            nocSelect2Refresh($sel, options);
-        })
+        .then(data => applyNocTowers(data.towers || [], ""))
         .catch(() => {
             nocSelect2Refresh($sel, [{ value: "", text: "-- Failed to load towers, refresh the page --" }]);
+        });
+}
+
+// 🔄 زرار الأدمن: بيطلب من السيرفر يجدد قايمة الأبراج من بورتال الفوترة (بيدخل بالكروميوم)
+function refreshNocTowers() {
+    const btn = document.getElementById("refreshNocTowersBtn");
+    if (!btn || btn.disabled) return;
+    if (typeof isAdmin === "function" && !isAdmin()) return;
+
+    const originalHtml = btn.innerHTML;
+    const previousTower = $("#nocTowerName").val();
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
+
+    fetch(`${PYTHON_BACKEND_TOWERS_URL}/refresh`, { method: "POST" })
+        .then(r => {
+            if (!r.ok) throw new Error("refresh failed " + r.status);
+            return r.json();
+        })
+        .then(data => {
+            applyNocTowers(data.towers || [], previousTower);
+            btn.innerHTML = `<i class="fa-solid fa-check" style="color:#16a34a;"></i>`;
+            setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 1500);
+        })
+        .catch(() => {
+            alert("❌ Failed to refresh towers. Please wait a minute and try again.");
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
         });
 }
 

@@ -470,20 +470,21 @@ def parse_contracts_from_html(html: str) -> list:
         property_name = value_after("Property")
         unit_no = value_after("Property Unit No")
 
-        # في صفحة العميل القيمة بتيجي كنص عادي بعد الـ label (مش label تاني)، فلو الطريقة
-        # اللي فوق رجّعت فاضي بنقرأها من نص الـ widget كله: "Property: X Property Unit No: T1_705 ..."
+        # في صفحة العميل القيمة بتيجي كنص عادي بعد الـ label (مش label تاني)، فالطريقة
+        # اللي فوق كانت بتاخد label غلط (زي "Received Security Deposit"). بنقرأ من نص
+        # الـ widget كله: "Property: X Property Unit No: T1_705 Received Security Deposit ..."
         widget_text = re.sub(r"\s+", " ", widget.get_text(" ", strip=True))
-        if not unit_no:
-            m = re.search(
-                r"Property Unit No\s*:?\s*(.+?)\s*(?:Received Security Deposit|Contract Begin|Contract End|Final Bill|Outstanding|$)",
-                widget_text,
-            )
-            if m:
-                unit_no = m.group(1).strip()
-        if not property_name:
-            m = re.search(r"Property\s*:\s*(.+?)\s*Property Unit No", widget_text)
-            if m:
-                property_name = m.group(1).strip()
+        m = re.search(
+            r"Property Unit No\s*:?\s*(.+?)\s*(?:Received Security Deposit|Contract Begin|Contract End|Final Bill|Outstanding|$)",
+            widget_text,
+        )
+        if m:
+            unit_no = m.group(1).strip()
+        elif "deposit" in unit_no.lower():
+            unit_no = ""  # قيمة غلط من الطريقة القديمة - نسيبها فاضية والاستنتاج من العقد هيكمّل
+        m = re.search(r"Property\s*:\s*(.+?)\s*Property Unit No", widget_text)
+        if m:
+            property_name = m.group(1).strip()
 
         email_span = widget.select_one(".SendEmail")
         email = (email_span.get("data-email", "") if email_span else "").strip()
@@ -549,11 +550,9 @@ async def _fetch_towers_from_portal() -> list:
 
 
 async def _refresh_towers_cache_if_stale():
-    now = time.time()
-    if (
-        _towers_cache["towers"] is None
-        or now - _towers_cache["obtained_at"] >= TOWERS_CACHE_MAX_AGE_SECONDS
-    ):
+    # قايمة الأبراج بتتجاب مرة واحدة بس (أول طلب بعد تشغيل السيرفر) وبعد كده بتفضل ثابتة
+    # في الذاكرة. مفيش تحديث تلقائي - الأدمن بس هو اللي بيحدّثها بزرار الريفرش
+    if _towers_cache["towers"] is None:
         _towers_cache["towers"] = await _fetch_towers_from_portal()
         _towers_cache["obtained_at"] = time.time()
 
@@ -568,29 +567,48 @@ async def api_towers():
     return {"count": len(_towers_cache["towers"]), "towers": _towers_cache["towers"]}
 
 
+_towers_refresh_state = {"last": 0}
+TOWERS_REFRESH_COOLDOWN_SECONDS = 60  # حماية: مفيش ريفرش أكتر من مرة كل دقيقة
+
+
+@app.post("/api/towers/refresh")
+async def api_towers_refresh():
+    """
+    بيجدد قايمة الأبراج من البورتال (بيسجل دخول لو لزم) - الفرونت إند بيظهر الزرار
+    للأدمن بس. لو التحديث فشل أو رجع قايمة فاضية بنسيب القايمة القديمة زي ما هي.
+    """
+    now = time.time()
+    if now - _towers_refresh_state["last"] < TOWERS_REFRESH_COOLDOWN_SECONDS:
+        raise HTTPException(status_code=429, detail="استنى دقيقة قبل ما تحدّث تاني")
+    _towers_refresh_state["last"] = now
+
+    towers = await _fetch_towers_from_portal()
+    if not towers:
+        raise HTTPException(status_code=502, detail="البورتال رجّع قايمة أبراج فاضية - القايمة القديمة لسه موجودة")
+    _towers_cache["towers"] = towers
+    _towers_cache["obtained_at"] = time.time()
+    return {"count": len(towers), "towers": towers}
+
+
 # ============================================================
-# 🔥 Background Warm-Up Loop - بيشتغل طول الوقت من لحظة ما السيرفر يبدأ، وبيجدد
-# جلسة البورتال وقايمة الأبراج بانتظام (كل 5 دقايق) قبل ما تنتهي صلاحيتهم.
-# من غيره، أول طلب بعد أي deploy أو بعد فترة استخدام تعدت 15 دقيقة كان بيضطر
-# يسجل دخول كامل بمتصفح Playwright (كذا ثانية) - وده اللي كان بيحصل بالظبط لما
-# التاورز أحيانًا بتطلع فورًا وأحيانًا بتاخد شوية وهي "بتعمل لودينج".
+# 🔥 Warm-Up مرة واحدة عند تشغيل السيرفر: بيسجل دخول ويجيب قايمة الأبراج مرة واحدة بس.
+# اتشال اللوب اللي كان بيفتح Chromium ويسجل دخول كل 5-15 دقيقة طول الوقت (تقيل على
+# 512MB) - دلوقتي جلسة البورتال بتتجدد عند الطلب بس، لما تنتهي وحد يحتاجها فعلًا.
 # ============================================================
 
 
-async def _keep_portal_warm_loop():
-    while True:
-        try:
-            await get_portal_session_cookie()  # بيجدد بس لو قرب ينتهي - مش هيعمل لوجين كل مرة
-            await _refresh_towers_cache_if_stale()
-        except Exception as e:
-            print(f"⚠️ Portal warm-up loop error (هيحاول تاني بعد 5 دقايق): {e}")
-        await asyncio.sleep(5 * 60)  # كل 5 دقايق - أقل بكتير من مدة صلاحية جلسة البورتال (15 دقيقة)
+async def _warm_portal_once():
+    try:
+        await get_portal_session_cookie()
+        await _refresh_towers_cache_if_stale()
+    except Exception as e:
+        print(f"⚠️ Portal warm-up (مرة واحدة) فشل - هيتعمل عند أول طلب: {e}")
 
 
 @app.on_event("startup")
 async def _start_background_tasks():
     if SC_USERNAME and SC_PASSWORD:
-        asyncio.create_task(_keep_portal_warm_loop())
+        asyncio.create_task(_warm_portal_once())
 
 
 @app.get("/api/contract-numbers")
@@ -628,22 +646,37 @@ async def api_contract_detail(tower: str, contract: str):
 
     entry = _tower_contracts_cache.get(tower_slug)
     if not entry or time.time() - entry["at"] > TOWER_CONTRACTS_CACHE_MAX_AGE_SECONDS:
-        entry = {"at": time.time(), "by_contract": {}, "next_page": 1, "exhausted": False}
+        entry = {"at": time.time(), "by_contract": {}, "next_page": 1, "exhausted": False, "scan_seen": set()}
         _tower_contracts_cache[tower_slug] = entry
+
+    # عقد جديد اتضاف بعد ما الكاش اتملى: لو مش لاقيينه وآخر مسح كامل عدّى عليه 30 ثانية،
+    # نعيد المسح من الأول عشان العقد الجديد يظهر فورًا (والمسح المتكرر لعقد مش موجود محدود بـ 30 ثانية)
+    if (
+        key not in entry["by_contract"]
+        and entry["exhausted"]
+        and time.time() - entry.get("exhausted_at", 0) > 30
+    ):
+        entry["exhausted"] = False
+        entry["next_page"] = 1
+        entry["scan_seen"] = set()
 
     while key not in entry["by_contract"] and not entry["exhausted"] and entry["next_page"] <= MAX_CUSTOMER_PAGES:
         pages = list(range(entry["next_page"], min(entry["next_page"] + PAGES_PER_BATCH, MAX_CUSTOMER_PAGES + 1)))
         results = await asyncio.gather(*[_fetch_customers_page(tower_slug, p) for p in pages])
-        new_count = 0
         for items in results:
+            page_keys = {_norm_contract_no(c["contract_no"]) for c in items if c["contract_no"]}
+            # صفحة فاضية، أو كل عقودها اتشافت قبل كده في نفس المسح (البورتال بيعيد آخر صفحة
+            # لو طلبنا صفحة بعد الأخيرة) = خلصنا كل صفحات البرج
+            if not page_keys or page_keys <= entry["scan_seen"]:
+                entry["exhausted"] = True
+                entry["exhausted_at"] = time.time()
+                break
+            entry["scan_seen"] |= page_keys
             for c in items:
                 k = _norm_contract_no(c["contract_no"])
-                if k and k not in entry["by_contract"]:
+                if k:
                     entry["by_contract"][k] = c
-                    new_count += 1
         entry["next_page"] = pages[-1] + 1
-        if new_count == 0:  # صفحات فاضية أو مكررة = خلصنا كل صفحات البرج
-            entry["exhausted"] = True
 
     match = entry["by_contract"].get(key)
     if match and not match.get("unit_no"):
