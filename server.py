@@ -588,13 +588,19 @@ async def api_contract_detail(tower: str, contract: str):
     """بيرجع تفاصيل عقد واحد بس (اسم العميل، الوحدة، الإيميل...) - بيتستخدم بعد اختيار العقد من القايمة."""
     html = await fetch_customers_html(tower, contract=contract)
     contracts = parse_contracts_from_html(html)
-    # مقارنة مطابقة تمامًا (بعد شيل المسافات وتوحيد الحروف) - من غير أي fallback على
-    # أول نتيجة، لأن ده كان بيرجّع بيانات عميل تاني لو البورتال رجّع نتايج مش مطابقة
+    # المقارنة بتتجاهل المسافات والشرطات والـ underscore وحالة الحروف (البورتال ساعات
+    # بيكتب نفس رقم العقد بشكل مختلف بين القايمة وصفحة العملاء، زي SBD-T1_705-T1 و
+    # SBD-T1-705-T1). ومفيش fallback على "أول نتيجة" لو فيه أكتر من نتيجة - ده كان
+    # سبب البيانات الغلط - بنقبل النتيجة الوحيدة بس لو البورتال رجّع نتيجة واحدة.
     def _norm(s: str) -> str:
-        return re.sub(r"\s+", "", s or "").upper()
+        return re.sub(r"[^A-Z0-9]", "", (s or "").upper())
 
     match = next((c for c in contracts if _norm(c["contract_no"]) == _norm(contract)), None)
+    if not match and len(contracts) == 1:
+        match = contracts[0]
     if not match:
+        print(f"⚠️ contract-detail: no match for '{contract}' in '{tower}' - portal returned: "
+              f"{[c['contract_no'] for c in contracts][:10]}")
         raise HTTPException(status_code=404, detail="العقد ده مش لاقيينه - جرب تاني")
     return match
 
