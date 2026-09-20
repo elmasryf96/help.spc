@@ -369,6 +369,7 @@ async def get_portal_session_cookie(force_refresh: bool = False) -> str:
                 detail="سجل دخول بس مفيش كوكي جلسة (.AspNetCore.Session) راجع من البورتال",
             )
 
+        _portal_session_cache["cookies_list"] = cookies  # كل الكوكيز - بيستخدمها بحث الفورم بالمتصفح
         cookie_value = f'.AspNetCore.Session={session_cookie["value"]}'
         _portal_session_cache["cookie"] = cookie_value
         _portal_session_cache["obtained_at"] = time.time()
@@ -611,14 +612,14 @@ async def _warm_portal_once():
 async def _start_background_tasks():
     if SC_USERNAME and SC_PASSWORD:
         asyncio.create_task(_warm_portal_once())
-        asyncio.create_task(_warm_all_towers_loop())
+        # asyncio.create_task(_warm_all_towers_loop())  # اتوقف: بحث الفورم أسرع ومش محتاج تحميل مسبق
 
 
 @app.get("/api/contract-numbers")
 async def api_contract_numbers(property_id: str):
     """بيرجع كل أرقام العقود (من غير حد أقصى) لتاور معين، عشان قايمة البحث القابلة للكتابة فيها."""
     contracts = await fetch_contract_numbers(property_id)
-    _prewarm_tower_in_background(property_id)  # نبدأ نجهّز بيانات عملاء البرج في الخلفية
+    # _prewarm_tower_in_background(property_id)  # اتوقف: بحث الفورم مش محتاجه
     return {"property_id": property_id, "count": len(contracts), "contracts": contracts}
 
 
@@ -699,6 +700,88 @@ async def _prewarm_tower(slug: str):
         print(f"⚠️ prewarm للبرج '{slug}' فشل (مش مشكلة - هيتعمل عند الطلب): {e}")
 
 
+# ============================================================
+# 🔎 بحث العقد بنفس طريقة الموظف بالظبط: يختار البرج والعقد من الدروب داون ويدوس Search
+# (بيقرا نتيجة البورتال نفسها - من غير تقليب صفحات). ~3-4 ثواني للعقد.
+# لو فشل لأي سبب بنرجع للتقليب القديم.
+# ============================================================
+_form_lookup_lock = asyncio.Lock()  # طلب واحد في المرة (حماية للرامات)
+_contract_result_cache = {}
+CONTRACT_RESULT_CACHE_SECONDS = 30 * 60
+
+_JS_SET_PROPERTY = """(id) => { const $j = window.jQuery || window.$;
+    if ($j) { $j('#Search_Property').val(id).trigger('change'); }
+    else { const s = document.querySelector('#Search_Property'); s.value = id;
+           s.dispatchEvent(new Event('change', {bubbles: true})); } }"""
+
+_JS_HAS_CONTRACT = """(target) => { const norm = s => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const s = document.getElementById('Search_ContractNo'); if (!s) return false;
+    return Array.from(s.options).some(o => norm(o.text) === norm(target)); }"""
+
+_JS_SET_CONTRACT = """(target) => { const norm = s => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const s = document.getElementById('Search_ContractNo');
+    const o = Array.from(s.options).find(o => norm(o.text) === norm(target)); if (!o) return false;
+    const $j = window.jQuery || window.$;
+    if ($j) { $j(s).val(o.value).trigger('change'); }
+    else { s.value = o.value; s.dispatchEvent(new Event('change', {bubbles: true})); }
+    return true; }"""
+
+
+async def _form_search_once(property_id: str, contract_no: str):
+    """بيرجّع HTML صفحة النتيجة، أو None لو الجلسة منتهية (محتاج تسجيل دخول تاني)."""
+    cookies = _portal_session_cache.get("cookies_list")
+    if not cookies:
+        await get_portal_session_cookie(force_refresh=True)
+        cookies = _portal_session_cache.get("cookies_list") or []
+
+    async with _form_lookup_lock:
+        browser = await _get_shared_browser()
+        ctx = await browser.new_context()
+        try:
+            await ctx.add_cookies(cookies)
+            page = await ctx.new_page()
+            await page.route(
+                "**/*",
+                lambda route: route.abort()
+                if route.request.resource_type in ("image", "media", "font")
+                else route.continue_(),
+            )
+            await page.goto(f"{PORTAL_BASE_URL}/AdminPortal/Customers", wait_until="domcontentloaded", timeout=30000)
+            if "Account/Login" in page.url:
+                return None
+            await page.wait_for_selector("#Search_Property", timeout=15000)
+            await page.evaluate(_JS_SET_PROPERTY, property_id)
+            await page.wait_for_function(_JS_HAS_CONTRACT, arg=contract_no, timeout=20000)
+            if not await page.evaluate(_JS_SET_CONTRACT, contract_no):
+                raise RuntimeError("contract option not selectable")
+            await page.locator("#form-search button[type=submit]").first.click()
+            await page.wait_for_load_state("load", timeout=30000)
+            await page.wait_for_timeout(500)
+            return await page.content()
+        finally:
+            await ctx.close()
+
+
+async def _lookup_via_portal_form(property_id: str, contract_no: str):
+    key = (property_id, _norm_contract_no(contract_no))
+    cached = _contract_result_cache.get(key)
+    if cached and time.time() - cached[0] < CONTRACT_RESULT_CACHE_SECONDS:
+        return cached[1]
+
+    await get_portal_session_cookie()
+    html = await _form_search_once(property_id, contract_no)
+    if html is None:  # الجلسة انتهت - نجدد ونجرب مرة واحدة
+        await get_portal_session_cookie(force_refresh=True)
+        html = await _form_search_once(property_id, contract_no)
+    if not html:
+        return None
+    items = await asyncio.to_thread(parse_contracts_from_html, html)
+    hit = next((c for c in items if _norm_contract_no(c["contract_no"]) == key[1]), None)
+    if hit:
+        _contract_result_cache[key] = (time.time(), hit)
+    return hit
+
+
 WARM_ALL_INTERVAL_SECONDS = 6 * 60 * 60   # تحديث كامل لكل الأبراج كل 6 ساعات
 WARM_BETWEEN_TOWERS_SECONDS = 5           # استراحة بين كل برج والتاني (حماية للرامات والبورتال)
 
@@ -714,6 +797,16 @@ async def _rebuild_tower_cache(slug: str):
             _tower_contracts_cache[slug] = entry
 
 
+_warm_status = {"running": False, "done": 0, "total": 0, "current": "", "failed": [], "cycles_completed": 0, "last_finished": None}
+
+
+@app.get("/api/warm-status")
+async def api_warm_status():
+    """تقدم تحميل بيانات كل الأبراج في الخلفية (للمتابعة فقط)."""
+    return dict(_warm_status, cached_towers=len(_tower_contracts_cache),
+                cached_contracts=sum(len(e["by_contract"]) for e in _tower_contracts_cache.values()))
+
+
 async def _warm_all_towers_loop():
     """بعد تشغيل السيرفر بيحمّل بيانات كل الأبراج واحد ورا التاني في الخلفية، وبعدين يكرر كل 6 ساعات.
     أي عقد جديد بيظهر فورًا برضو لأن /api/contract-detail بيعيد المسح لو العقد مش في الكاش."""
@@ -721,13 +814,20 @@ async def _warm_all_towers_loop():
     while True:
         try:
             await _refresh_towers_cache_if_stale()
-            for t in list(_towers_cache["towers"] or []):
+            towers_list = list(_towers_cache["towers"] or [])
+            _warm_status.update(running=True, done=0, total=len(towers_list), current="", failed=[])
+            for t in towers_list:
                 slug = _tower_slug(t["name"])
+                _warm_status["current"] = slug
                 try:
                     await _rebuild_tower_cache(slug)
                 except Exception as e:
+                    _warm_status["failed"].append(slug)
                     print(f"⚠️ warm-all: البرج '{slug}' فشل: {e}")
+                _warm_status["done"] += 1
                 await asyncio.sleep(WARM_BETWEEN_TOWERS_SECONDS)
+            _warm_status.update(running=False, current="", cycles_completed=_warm_status["cycles_completed"] + 1,
+                                last_finished=time.strftime("%Y-%m-%d %H:%M:%S"))
             print("✅ warm-all: خلص تحميل كل الأبراج")
         except Exception as e:
             print(f"⚠️ warm-all فشل: {e}")
@@ -750,6 +850,26 @@ async def api_contract_detail(tower: str, contract: str):
     """بيرجع تفاصيل عقد واحد بس (اسم العميل، الوحدة، الإيميل...) - بيتستخدم بعد اختيار العقد من القايمة."""
     slug = _tower_slug(tower)
     key = _norm_contract_no(contract)
+
+    # 1) الطريقة السريعة: بحث الفورم بالمتصفح (زي الموظف بالظبط)
+    match = None
+    try:
+        await _refresh_towers_cache_if_stale()
+        prop = next((t for t in (_towers_cache["towers"] or []) if _tower_slug(t["name"]) == slug), None)
+        if prop:
+            match = await _lookup_via_portal_form(prop["id"], contract)
+    except Exception as e:
+        print(f"⚠️ بحث الفورم فشل ({type(e).__name__}: {e}) - هنرجع للتقليب")
+        match = None
+
+    if match:
+        if not match.get("unit_no"):
+            parts = match.get("contract_no", "").split("-")
+            derived = "-".join(parts[1:-1]) if len(parts) >= 3 else ""
+            match = dict(match, unit_no=derived.strip(), unit_source="derived-from-contract")
+        return match
+
+    # 2) احتياطي: تقليب صفحات البرج
     entry = _get_tower_entry(slug)
 
     # عقد جديد اتضاف بعد ما الكاش اتملى: لو مش لاقيينه وآخر مسح كامل عدّى عليه 30 ثانية،
