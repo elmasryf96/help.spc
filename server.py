@@ -360,6 +360,7 @@ async def get_portal_session_cookie(force_refresh: bool = False) -> str:
             )
 
         cookies = await page.context.cookies()
+        _portal_session_cache["all_cookies"] = cookies  # تشخيص: كل الكوكيز اللي البورتال دّاها للمتصفح
         session_cookie = next(
             (c for c in cookies if c["name"] == ".AspNetCore.Session"), None
         )
@@ -730,7 +731,51 @@ async def api_debug_portal_filter(tower: str, contract: str):
         "D_no_page_param": ({"Cookie": cookie, "User-Agent": ua}, True,
                             {"Property": slug, "Contract": contract}),
     }
-    out = {"cookie_names": [c.split("=")[0].strip() for c in cookie.split(";")]}
+    all_cookies = _portal_session_cache.get("all_cookies")
+    if not all_cookies:
+        await get_portal_session_cookie(force_refresh=True)
+        all_cookies = _portal_session_cache.get("all_cookies") or []
+    out = {
+        "cookie_names": [c.split("=")[0].strip() for c in cookie.split(";")],
+        "all_cookie_names": [f"{c.get('name')} ({c.get('domain')})" for c in all_cookies],
+    }
+    full_cookie = "; ".join(f"{c['name']}={c['value']}" for c in all_cookies)
+    if full_cookie:
+        variants["F_all_cookies"] = ({"Cookie": full_cookie, "User-Agent": ua}, True, params)
+
+    # E: نفس الرابط بمتصفح Chromium حقيقي (بنفس الكوكيز) - زي ما بيتفتح في متصفحك
+    try:
+        t0 = time.time()
+        browser = await _get_shared_browser()
+        ctx = await browser.new_context()
+        try:
+            await ctx.add_cookies(
+                [{k: c[k] for k in ("name", "value", "domain", "path") if k in c} for c in all_cookies]
+            )
+            pg = await ctx.new_page()
+            await pg.route(
+                "**/*",
+                lambda route: route.abort()
+                if route.request.resource_type in ("image", "media", "font")
+                else route.continue_(),
+            )
+            await pg.goto(f"{url}?page=1&Property={slug}&Contract={contract}", wait_until="domcontentloaded", timeout=30000)
+            await pg.wait_for_timeout(2000)
+            html_e = await pg.content()
+            items_e = parse_contracts_from_html(html_e)
+            out["E_chromium_page"] = {
+                "final_url": pg.url,
+                "html_len": len(html_e),
+                "widgets": len(items_e),
+                "first3": [c["contract_no"] for c in items_e[:3]],
+                "has_target": any(_norm_contract_no(c["contract_no"]) == _norm_contract_no(contract) for c in items_e),
+                "seconds": round(time.time() - t0, 1),
+            }
+        finally:
+            await ctx.close()
+    except Exception as e:
+        out["E_chromium_page"] = {"error": str(e)}
+
     async with httpx.AsyncClient(timeout=30) as client:
         for name, (headers, follow, prm) in variants.items():
             try:
