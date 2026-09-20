@@ -4,6 +4,7 @@ import uuid
 import asyncio
 import calendar
 import subprocess
+import shutil
 import httpx
 from typing import Optional
 from datetime import datetime, timedelta
@@ -60,30 +61,77 @@ class MoveInClearanceRequest(BaseModel):
 def read_root():
     return {"status": "Backend is online and running!"}
 
-def convert_and_return_pdf(doc_template: str, context: dict, unit_no: str, prefix: str):
+_pdf_lock = asyncio.Lock()  # تحويل واحد بس في نفس الوقت - LibreOffice تقيل جدًا على 512MB
+
+
+async def _release_shared_browser():
+    """بيقفل Chromium المشترك قبل تحويل الـ PDF عشان يفضّي رامات (بيتفتح تاني لوحده لما يتطلب)."""
+    async with _shared_browser_lock:
+        browser = _shared_browser_state["browser"]
+        if browser is not None:
+            try:
+                await browser.close()
+            except Exception:
+                pass
+            _shared_browser_state["browser"] = None
+
+
+async def convert_and_return_pdf(doc_template: str, context: dict, unit_no: str, prefix: str):
     if not os.path.exists(doc_template):
         print(f"❌ Template file '{doc_template}' not found!")
         raise HTTPException(status_code=500, detail=f"Template file '{doc_template}' not found on server!")
 
-    doc = DocxTemplate(doc_template)
-    doc.render(context)
-
     clean_unit = "".join(c for c in unit_no if c.isalnum() or c in ('-', '_'))
-    temp_docx = f"temp_{prefix}_{clean_unit}.docx"
-    doc.save(temp_docx)
 
-    cmd = f"libreoffice --headless --convert-to pdf {temp_docx} --outdir ."
-    subprocess.run(cmd, shell=True, check=True)
+    async with _pdf_lock:
+        # كان الكراش (Out of memory) بيحصل هنا: LibreOffice + Chromium مع بعض فوق 512MB،
+        # وكمان subprocess.run القديم كان بيوقف السيرفر كله (كل الطلبات التانية) أثناء التحويل
+        await _release_shared_browser()
 
-    generated_pdf = temp_docx.replace(".docx", ".pdf")
+        job_id = uuid.uuid4().hex[:8]
+        temp_docx = f"temp_{prefix}_{clean_unit}_{job_id}.docx"
+        temp_pdf = temp_docx[:-5] + ".pdf"
+        profile_dir = f"/tmp/lo_profile_{job_id}"
 
-    if os.path.exists(temp_docx):
-        os.remove(temp_docx)
+        try:
+            doc = DocxTemplate(doc_template)
+            doc.render(context)
+            doc.save(temp_docx)
 
-    return FileResponse(
-        generated_pdf,
+            proc = await asyncio.create_subprocess_exec(
+                "libreoffice",
+                f"-env:UserInstallation=file://{profile_dir}",
+                "--headless",
+                "--convert-to", "pdf",
+                temp_docx,
+                "--outdir", ".",
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=90)
+            except asyncio.TimeoutError:
+                proc.kill()
+                raise HTTPException(status_code=504, detail="تحويل الـ PDF أخد وقت أكتر من اللازم")
+
+            if proc.returncode != 0 or not os.path.exists(temp_pdf):
+                raise HTTPException(status_code=500, detail="فشل تحويل الملف إلى PDF")
+
+            with open(temp_pdf, "rb") as f:
+                pdf_bytes = f.read()
+        finally:
+            for path in (temp_docx, temp_pdf):
+                try:
+                    if os.path.exists(path):
+                        os.remove(path)
+                except Exception:
+                    pass
+            shutil.rmtree(profile_dir, ignore_errors=True)
+
+    return Response(
+        content=pdf_bytes,
         media_type="application/pdf",
-        filename=f"{prefix}_{clean_unit}.pdf"
+        headers={"Content-Disposition": f'attachment; filename="{prefix}_{clean_unit}.pdf"'},
     )
 
 @app.post("/generate-noc")
@@ -107,7 +155,7 @@ async def generate_noc(data: TenantNocRequest):
             "OWNER_NAME": owner_name_clean.upper() if owner_name_clean != "N/A" else "N/A",
             "OWNER_CONTRACT": owner_contract_clean if owner_contract_clean != "N/A" else "N/A"
         }
-        return convert_and_return_pdf("NOC_Template.docx", context, data.unit_no, "Tenant_NOC")
+        return await convert_and_return_pdf("NOC_Template.docx", context, data.unit_no, "Tenant_NOC")
     except Exception as e:
         print(f"❌ Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -130,7 +178,7 @@ async def generate_owner_noc(data: OwnerNocRequest):
             "NEW_OWNER_NAME": (data.new_owner_name or "").upper(),
             "NEW_OWNER_CONTRACT": data.new_owner_contract
         }
-        return convert_and_return_pdf("NOC_Owner_Template.docx", context, data.unit_no, "Owner_NOC")
+        return await convert_and_return_pdf("NOC_Owner_Template.docx", context, data.unit_no, "Owner_NOC")
     except Exception as e:
         print(f"❌ Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -151,7 +199,7 @@ async def generate_rent_noc(data: RentNocRequest):
             "OWNER_NAME": (data.owner_name or "").upper(),
             "OWNER_CONTRACT": data.owner_contract
         }
-        return convert_and_return_pdf("NOC_Rent_Template.docx", context, data.unit_no, "Rent_NOC")
+        return await convert_and_return_pdf("NOC_Rent_Template.docx", context, data.unit_no, "Rent_NOC")
     except Exception as e:
         print(f"❌ Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -173,7 +221,7 @@ async def generate_move_in_clearance(data: MoveInClearanceRequest):
             "unit_no": data.unit_no,
             "spc_account_no": data.spc_account_no
         }
-        return convert_and_return_pdf("Move_In_Clearance_Template.docx", context, data.unit_no, "Move_In_Clearance")
+        return await convert_and_return_pdf("Move_In_Clearance_Template.docx", context, data.unit_no, "Move_In_Clearance")
     except Exception as e:
         print(f"❌ Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
