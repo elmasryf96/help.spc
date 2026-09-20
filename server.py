@@ -493,6 +493,7 @@ def parse_contracts_from_html(html: str) -> list:
                 "email": email,
                 "phone": phone,
                 "outstanding": outstanding,
+                "labels": labels[:24],  # تشخيص مؤقت: بيوضح شكل الحقول في صفحة العميل
             }
         )
 
@@ -590,7 +591,7 @@ async def api_contract_numbers(property_id: str):
 _tower_contracts_cache = {}
 TOWER_CONTRACTS_CACHE_MAX_AGE_SECONDS = 15 * 60
 MAX_CUSTOMER_PAGES = 80  # حد أمان (80 صفحة × 20 = 1600 عقد للبرج الواحد)
-PAGES_PER_BATCH = 4      # كام صفحة نطلبها مع بعض في نفس الوقت
+PAGES_PER_BATCH = 6      # كام صفحة نطلبها مع بعض في نفس الوقت
 
 
 def _norm_contract_no(s: str) -> str:
@@ -631,6 +632,18 @@ async def api_contract_detail(tower: str, contract: str):
             entry["exhausted"] = True
 
     match = entry["by_contract"].get(key)
+    if match and not match.get("unit_no"):
+        # رقم الوحدة مش بيتقرأ من صفحة العميل - بنستنتجه من رقم العقد:
+        # SBD-T1_705-T1 -> 705 ، SBD-T1_Shop 2-O1 -> Shop 2 ، GBD-T1-1007-T1 -> 1007
+        derived = ""
+        cn = match.get("contract_no", "")
+        if "_" in cn:
+            derived = cn.split("_", 1)[1].rsplit("-", 1)[0]
+        else:
+            parts = cn.split("-")
+            if len(parts) >= 4:
+                derived = "-".join(parts[2:-1])
+        match = dict(match, unit_no=derived.strip(), unit_source="derived-from-contract")
     if not match:
         print(f"⚠️ contract-detail: no match for '{contract}' in '{tower}' after scanning "
               f"{len(entry['by_contract'])} contracts (next_page={entry['next_page']})")
