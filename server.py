@@ -796,6 +796,50 @@ async def api_debug_portal_filter(tower: str, contract: str):
     return out
 
 
+@app.get("/api/debug/portal-manage")
+async def api_debug_portal_manage(tower: str, contract: str):
+    """تشخيص مؤقت (يتشال بعد الحل): هل الـ id اللي في قايمة العقود بيفتح صفحة العميل مباشرة؟
+    بيرجّع أسماء حقول الصفحة، وقيم الحقول اللي اسمها فيه name/unit/property/contract بس."""
+    from bs4 import BeautifulSoup
+
+    await _refresh_towers_cache_if_stale()
+    t = next((t for t in _towers_cache["towers"] if t["name"] == tower), None)
+    if not t:
+        raise HTTPException(status_code=404, detail="tower not found in cache")
+    opts = await fetch_contract_numbers(t["id"])
+    opt = next((o for o in opts if _norm_contract_no(o["contract_no"]) == _norm_contract_no(contract)), None)
+    out = {"property_id": t["id"], "options_count": len(opts), "option": opt,
+           "first3_options": opts[:3]}
+    if not opt:
+        return out
+
+    resp = await portal_authenticated_request("GET", f"/AdminPortal/Customers/Manage/{opt['id']}")
+    soup = BeautifulSoup(resp.text, "html.parser")
+    out.update({
+        "status": resp.status_code,
+        "final_url": str(resp.url),
+        "html_len": len(resp.text),
+        "title": soup.title.get_text(strip=True) if soup.title else None,
+        "contains_contract_no": contract.lower() in resp.text.lower(),
+    })
+    fields = []
+    for el in soup.select("input, select, textarea"):
+        name = el.get("name") or el.get("id")
+        if not name:
+            continue
+        if el.name == "select":
+            sel = el.select_one("option[selected]")
+            val = sel.get_text(strip=True) if sel else ""
+        elif el.name == "textarea":
+            val = el.get_text(strip=True)
+        else:
+            val = el.get("value", "")
+        show = bool(re.search(r"name|unit|property|contract|account", name, re.I))
+        fields.append({"name": name, "tag": el.name, "value": val if show else "(hidden)"})
+    out["fields"] = fields[:80]
+    return out
+
+
 @app.get("/api/contract-detail")
 async def api_contract_detail(tower: str, contract: str):
     """بيرجع تفاصيل عقد واحد بس (اسم العميل، الوحدة، الإيميل...) - بيتستخدم بعد اختيار العقد من القايمة."""
