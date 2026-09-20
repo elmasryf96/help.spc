@@ -58,7 +58,7 @@ function populateNocTowersDropdown() {
 
     nocSelect2Refresh($sel, [{ value: "", text: "-- Loading towers... --" }]);
 
-    fetchWithFallback(PYTHON_BACKEND_TOWERS_URL)
+    fetch(PYTHON_BACKEND_TOWERS_URL)
         .then(r => r.json())
         .then(data => applyNocTowers(data.towers || [], ""))
         .catch(() => {
@@ -77,7 +77,7 @@ function refreshNocTowers() {
     btn.disabled = true;
     btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
 
-    fetchWithFallback(`${PYTHON_BACKEND_TOWERS_URL}/refresh`, { method: "POST" })
+    fetch(`${PYTHON_BACKEND_TOWERS_URL}/refresh`, { method: "POST" })
         .then(r => {
             if (!r.ok) throw new Error("refresh failed " + r.status);
             return r.json();
@@ -111,7 +111,7 @@ function loadContractsForTower() {
     nocSelect2Refresh($picker, [{ value: "", text: "-- Loading contracts... --" }]);
     if ($ownerPicker.length) nocSelect2Refresh($ownerPicker, [{ value: "", text: "-- Loading contracts... --" }]);
 
-    fetchWithFallback(`${PYTHON_BACKEND_CONTRACT_NUMBERS_URL}?property_id=${encodeURIComponent(propertyId)}`)
+    fetch(`${PYTHON_BACKEND_CONTRACT_NUMBERS_URL}?property_id=${encodeURIComponent(propertyId)}`)
         .then(r => r.json())
         .then(data => {
             const contracts = data.contracts || [];
@@ -169,7 +169,7 @@ function applyContractSelection() {
         return;
     }
 
-    fetchWithFallback(`${PYTHON_BACKEND_CONTRACT_DETAIL_URL}?tower=${encodeURIComponent(towerName)}&contract=${encodeURIComponent(contractNo)}`)
+    fetch(`${PYTHON_BACKEND_CONTRACT_DETAIL_URL}?tower=${encodeURIComponent(towerName)}&contract=${encodeURIComponent(contractNo)}`)
         .then(r => {
             if (!r.ok) throw new Error("contract detail not found");
             return r.json();
@@ -227,7 +227,7 @@ function applyOwnerContractSelection() {
         return;
     }
 
-    fetchWithFallback(`${PYTHON_BACKEND_CONTRACT_DETAIL_URL}?tower=${encodeURIComponent(towerName)}&contract=${encodeURIComponent(contractNo)}`)
+    fetch(`${PYTHON_BACKEND_CONTRACT_DETAIL_URL}?tower=${encodeURIComponent(towerName)}&contract=${encodeURIComponent(contractNo)}`)
         .then(r => {
             if (!r.ok) throw new Error("contract detail not found");
             return r.json();
@@ -470,7 +470,7 @@ function handleNocSubmission() {
         };
     }
 
-    fetchWithFallback(targetUrl, {
+    fetch(targetUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

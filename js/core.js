@@ -7,33 +7,18 @@
 // 🌐 GOOGLE SHEETS INTEGRATION URL & BACKEND API URL
 // ============================================================
 const GOOGLE_SHEET_API_URL = "https://script.google.com/macros/s/AKfycbzhjZ7HOUzKzcmCMrzsIUQMnX9dsbS3_qrEM0-v696OjjlMX3A5wSJUkbs5BDEH7UyM/exec";
-const PYTHON_BACKEND_NOC_URL = "https://faris.tailf08ede.ts.net/generate-noc";
-const PYTHON_BACKEND_OWNER_NOC_URL = "https://faris.tailf08ede.ts.net/generate-owner-noc";
-const PYTHON_BACKEND_RENT_NOC_URL = "https://faris.tailf08ede.ts.net/generate-rent-noc";
-const PYTHON_BACKEND_MOVE_IN_URL = "https://faris.tailf08ede.ts.net/generate-move-in-clearance";
+const PYTHON_BACKEND_NOC_URL = "https://help-spc-backup.onrender.com/generate-noc";
+const PYTHON_BACKEND_OWNER_NOC_URL = "https://help-spc-backup.onrender.com/generate-owner-noc";
+const PYTHON_BACKEND_RENT_NOC_URL = "https://help-spc-backup.onrender.com/generate-rent-noc";
+const PYTHON_BACKEND_MOVE_IN_URL = "https://help-spc-backup.onrender.com/generate-move-in-clearance";
 const PYTHON_BACKEND_AGENT_STATUS_URL = "https://help-spc-backup.onrender.com/api/agent-status";
-const PYTHON_BACKEND_TOWERS_URL = "https://faris.tailf08ede.ts.net/api/towers";
-const PYTHON_BACKEND_CONTRACT_NUMBERS_URL = "https://faris.tailf08ede.ts.net/api/contract-numbers";
-const PYTHON_BACKEND_CONTRACT_DETAIL_URL = "https://faris.tailf08ede.ts.net/api/contract-detail";
+const PYTHON_BACKEND_TOWERS_URL = "https://help-spc-backup.onrender.com/api/towers";
+const PYTHON_BACKEND_CONTRACT_NUMBERS_URL = "https://help-spc-backup.onrender.com/api/contract-numbers";
+const PYTHON_BACKEND_CONTRACT_DETAIL_URL = "https://help-spc-backup.onrender.com/api/contract-detail";
 const PYTHON_BACKEND_BREAK_STATUS_URL = "https://help-spc-backup.onrender.com/api/break/status";
 const PYTHON_BACKEND_BREAK_REQUEST_URL = "https://help-spc-backup.onrender.com/api/break/request";
 const PYTHON_BACKEND_BREAK_CANCEL_URL = "https://help-spc-backup.onrender.com/api/break/cancel";
 const PYTHON_BACKEND_BREAK_SET_CAP_URL = "https://help-spc-backup.onrender.com/api/break/admin/set-cap";
-
-// 💻 الحاجات التقيلة (بيانات العقود + توليد الـ NOC) شغالة على لاب توب فارس.
-// لو اللاب توب مش متاح (اتقفل/النت قطع) بنرجع تلقائيًا لسيرفر Render.
-const LAPTOP_BACKEND_BASE = "https://faris.tailf08ede.ts.net";
-const RENDER_BACKEND_BASE = "https://help-spc-backup.onrender.com";
-async function fetchWithFallback(url, options) {
-    try {
-        const r = await fetch(url, options);
-        if (url.startsWith(LAPTOP_BACKEND_BASE) && r.status >= 502 && r.status <= 504) throw new Error("laptop unavailable");
-        return r;
-    } catch (e) {
-        if (!url.startsWith(LAPTOP_BACKEND_BASE)) throw e;
-        return fetch(url.replace(LAPTOP_BACKEND_BASE, RENDER_BACKEND_BASE), options);
-    }
-}
 
 // ============================================================
 // ⏱️ AUTO-LOGOUT ON INACTIVITY (20 MINUTES)
