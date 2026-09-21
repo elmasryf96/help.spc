@@ -1,0 +1,256 @@
+/* ============================================================
+   glass.css - Liquid Glass theme (override layer on top of style.css)
+   نفس ألوان البورتال (أصفر/كحلي/كورال) بس بشكل زجاجي.
+   - لو حابب ترجع للشكل القديم بالكامل: شيل سطر <link> بتاع glass.css من head.html.
+   - وضع Lite (html.glass-lite): بيقفل البلور ويخلّي الكروت شبه معتمة - بيتفعل تلقائي
+     على الأجهزة الضعيفة، أو من زرار Glass في منيو البروفايل.
+   - قاعدة الأداء: البلور (backdrop-filter) بس على عناصر صغيرة (كروت الهوم، البوب أب، المنيو).
+     الحاويات الكبيرة وكروت CC Pulse وجداولها من غير بلور خالص.
+   ============================================================ */
+
+:root {
+    --glass-blur: blur(14px) saturate(160%);
+    --glass-bg: linear-gradient(145deg, rgba(255,255,255,0.68), rgba(255,255,255,0.28));
+    --glass-bg-soft: linear-gradient(145deg, rgba(255,255,255,0.72), rgba(255,255,255,0.4));
+    --glass-inset: rgba(255,255,255,0.62);
+    --glass-border: 1px solid rgba(255,255,255,0.78);
+    --glass-shadow: 0 14px 38px rgba(120,100,20,0.16), inset 0 1px 0 rgba(255,255,255,0.95);
+    --glass-shadow-sm: 0 6px 18px rgba(120,100,20,0.12), inset 0 1px 0 rgba(255,255,255,0.9);
+}
+
+/* ⚡ Lite: بدون بلور + خلفيات شبه معتمة (أجهزة ضعيفة أو اختيار المستخدم) */
+html.glass-lite {
+    --glass-blur: none;
+    --glass-bg: linear-gradient(145deg, rgba(255,255,255,0.94), rgba(255,255,255,0.86));
+    --glass-bg-soft: rgba(255,255,255,0.92);
+    --glass-inset: rgba(255,255,255,0.95);
+}
+@media (prefers-reduced-transparency: reduce) {
+    html {
+        --glass-blur: none;
+        --glass-bg: linear-gradient(145deg, rgba(255,255,255,0.94), rgba(255,255,255,0.86));
+        --glass-bg-soft: rgba(255,255,255,0.92);
+        --glass-inset: rgba(255,255,255,0.95);
+    }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    html {
+        --glass-bg: linear-gradient(145deg, rgba(255,255,255,0.94), rgba(255,255,255,0.86));
+        --glass-bg-soft: rgba(255,255,255,0.92);
+        --glass-inset: rgba(255,255,255,0.95);
+    }
+}
+
+/* 🌈 الخلفية: بقع لونية ثابتة (radial-gradient رخيصة، من غير blur filter) */
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    transform: translateZ(0);
+    will-change: transform;
+    background:
+        radial-gradient(520px 520px at 6% 4%, rgba(232,213,103,0.95), rgba(232,213,103,0) 70%),
+        radial-gradient(460px 460px at 96% 30%, rgba(238,108,106,0.42), rgba(238,108,106,0) 70%),
+        radial-gradient(620px 460px at 45% 104%, rgba(245,185,95,0.55), rgba(245,185,95,0) 70%);
+}
+
+/* 🧊 الحاوية الرئيسية (من غير بلور - مساحة كبيرة) */
+.container {
+    background: var(--glass-bg) !important;
+    border: var(--glass-border) !important;
+    border-radius: 28px !important;
+    box-shadow: 0 22px 60px rgba(120,100,20,0.18), inset 0 1px 0 rgba(255,255,255,0.95), inset 0 -1px 0 rgba(255,255,255,0.3) !important;
+}
+.brand-header {
+    background: transparent !important;
+    border-bottom: 1px solid rgba(255,255,255,0.7) !important;
+}
+.system-title {
+    background: linear-gradient(90deg, rgba(232,213,103,0.88), rgba(241,226,133,0.6)) !important;
+    border-bottom: 1px solid rgba(255,255,255,0.65) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+}
+
+/* 🔘 الأزرار (نفس الألوان، لمسة لمعان) */
+.btn-primary, .btn-login {
+    background: linear-gradient(135deg, #f1e285, #e8d567) !important;
+    border: 1px solid rgba(255,255,255,0.6) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 8px 20px rgba(200,170,30,0.32), inset 0 1px 0 rgba(255,255,255,0.75);
+}
+.menu-card:hover .btn-primary {
+    background: linear-gradient(135deg, rgba(26,37,47,0.95), rgba(26,37,47,0.8)) !important;
+    color: var(--primary-yellow) !important;
+}
+.back-btn {
+    background: linear-gradient(135deg, rgba(26,37,47,0.94), rgba(26,37,47,0.8)) !important;
+    border-radius: 999px !important;
+    box-shadow: 0 6px 16px rgba(26,37,47,0.25), inset 0 1px 0 rgba(255,255,255,0.25);
+}
+.logout-btn {
+    background: linear-gradient(135deg, #f26e6c, #d64542) !important;
+    border-radius: 999px !important;
+    box-shadow: 0 6px 16px rgba(214,69,66,0.32), inset 0 1px 0 rgba(255,255,255,0.4);
+}
+.admin-mini-btn {
+    background: linear-gradient(135deg, rgba(26,37,47,0.94), rgba(26,37,47,0.8)) !important;
+    border: 1px solid rgba(255,255,255,0.35) !important;
+    box-shadow: 0 6px 16px rgba(26,37,47,0.25), inset 0 1px 0 rgba(255,255,255,0.25);
+}
+.tab-btn, .ccp-mode-btn, .admin-tab-btn {
+    background: var(--glass-inset) !important;
+    border: var(--glass-border) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
+}
+.tab-btn.active {
+    background: linear-gradient(135deg, rgba(241,226,133,0.95), rgba(232,213,103,0.7)) !important;
+    border: 2px solid var(--dark-navy) !important;
+    color: var(--dark-navy) !important;
+}
+.admin-tab-btn.active {
+    background: linear-gradient(135deg, #f1e285, #e8d567) !important;
+    border: 2px solid var(--dark-navy) !important;
+    color: var(--dark-navy) !important;
+}
+.ccp-mode-btn.active {
+    background: linear-gradient(135deg, rgba(26,37,47,0.95), rgba(26,37,47,0.8)) !important;
+    border-color: rgba(255,255,255,0.35) !important;
+    color: var(--primary-yellow) !important;
+}
+
+/* 🧾 الكروت العادية (شفافية بس، من غير بلور) */
+.card, .calc-card, .day-card, .dept-roster-card, .agent-lookup-card, .full-table-card,
+.date-picker-card, .active-summary-card, .live-status-banner, .home-live-widget-card,
+.ccp-queue-summary-card, .ccp-report-box, .search-box {
+    background: var(--glass-bg-soft) !important;
+    border: var(--glass-border) !important;
+    border-radius: 20px !important;
+    box-shadow: var(--glass-shadow-sm) !important;
+}
+.calc-results-card, .hl-team-box, .ccp-agent-report-card, .mapping-tower-banner {
+    background: rgba(255,255,255,0.5) !important;
+    border: 1px solid rgba(255,255,255,0.75) !important;
+    border-radius: 16px !important;
+}
+.card h3, .calc-card h3 { border-bottom: 1px solid rgba(232,213,103,0.7) !important; }
+
+/* 🏠 كروت الهوم (بلور خفيف - عناصر صغيرة) */
+.menu-card {
+    background: var(--glass-bg) !important;
+    border: var(--glass-border) !important;
+    border-radius: 22px !important;
+    box-shadow: var(--glass-shadow) !important;
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+}
+.menu-card:hover {
+    background: var(--glass-bg) !important;
+    border-color: rgba(255,255,255,0.95) !important;
+    box-shadow: 0 20px 44px rgba(200,170,30,0.32), inset 0 1px 0 rgba(255,255,255,1) !important;
+}
+
+/* 📡 CC Pulse: كروت الإيجنتس زجاجية من غير بلور (بتتحدث كل 20 ثانية وفيها أنيميشن) */
+.ccp-agent-card, #homeActiveAgentsGrid .ccp-agent-card {
+    background: var(--glass-bg-soft) !important;
+    border: var(--glass-border) !important;
+    border-radius: 18px !important;
+    box-shadow: var(--glass-shadow-sm);
+}
+.ccp-metric-card {
+    background: var(--glass-bg-soft) !important;
+    border: 1px solid rgba(255,255,255,0.85) !important;
+    border-radius: 14px !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
+}
+.ccp-metric-card.ccp-accent {
+    background: linear-gradient(135deg, rgba(241,226,133,0.8), rgba(232,213,103,0.45)) !important;
+}
+/* كارت Total login الكحلي و الـ Adherence والتايم لاين بيفضلوا بألوانهم الأصلية */
+.ccp-metric-card.ccp-total-highlight { background: linear-gradient(135deg, rgba(26,37,47,0.95), rgba(26,37,47,0.82)) !important; }
+.ccp-timeline-track { box-shadow: inset 0 2px 8px rgba(0,0,0,0.25); }
+
+/* 🔤 الحقول */
+.combo-input, .login-input, .date-input, .perc-input, .ccp-mode-box input {
+    background: var(--glass-inset) !important;
+    border: 1px solid rgba(255,255,255,0.9) !important;
+    border-radius: 14px !important;
+    box-shadow: inset 0 2px 6px rgba(120,100,20,0.1), inset 0 1px 0 rgba(255,255,255,0.9);
+}
+.combo-input:focus, .login-input:focus, .date-input:focus, .perc-input:focus {
+    border-color: var(--primary-yellow) !important;
+    box-shadow: 0 0 0 3px rgba(232,213,103,0.45), inset 0 2px 6px rgba(120,100,20,0.08);
+}
+/* Select2 (بتاع NOC) */
+.select2-container--default .select2-selection--single {
+    background: var(--glass-inset) !important;
+    border: 1px solid rgba(255,255,255,0.9) !important;
+    border-radius: 14px !important;
+    box-shadow: inset 0 2px 6px rgba(120,100,20,0.1), inset 0 1px 0 rgba(255,255,255,0.9);
+}
+.select2-dropdown {
+    background: rgba(255,255,255,0.96) !important;
+    border: var(--glass-border) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 16px 40px rgba(120,100,20,0.22);
+    overflow: hidden;
+}
+
+/* 👤 اليوزر والمنيو */
+.user-badge-card {
+    background: var(--glass-bg) !important;
+    border: var(--glass-border) !important;
+    box-shadow: var(--glass-shadow-sm) !important;
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+}
+.user-badge-card:hover { background: var(--glass-bg) !important; }
+.profile-dropdown-menu {
+    background: rgba(255,255,255,0.9) !important;
+    border: var(--glass-border) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 18px 44px rgba(120,100,20,0.24) !important;
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+}
+.dropdown-user-info { background: rgba(232,213,103,0.25) !important; border: 1px solid rgba(255,255,255,0.8) !important; border-radius: 12px !important; }
+
+/* 🪟 البوب أب */
+.modal-overlay {
+    background: rgba(26,37,47,0.42) !important;
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+}
+html.glass-lite .modal-overlay { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(26,37,47,0.55) !important; }
+.modal-content {
+    background: var(--glass-bg) !important;
+    border: var(--glass-border) !important;
+    border-radius: 26px !important;
+    box-shadow: 0 30px 80px rgba(26,37,47,0.35), inset 0 1px 0 rgba(255,255,255,0.95) !important;
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+}
+.modal-header { background: rgba(232,213,103,0.28) !important; }
+
+/* 🔒 اللوجن */
+.login-container {
+    background: var(--glass-bg) !important;
+    border: var(--glass-border) !important;
+    border-radius: 28px !important;
+    box-shadow: 0 24px 64px rgba(120,100,20,0.22), inset 0 1px 0 rgba(255,255,255,0.95) !important;
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+}
+
+/* 🎚️ زرار Glass جوه منيو البروفايل (بيتضاف من glass.js) */
+.glass-toggle-state {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(16,124,65,0.14);
+    color: #107c41;
+}
+html.glass-lite .glass-toggle-state { background: rgba(107,114,128,0.16); color: #4b5563; }

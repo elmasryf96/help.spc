@@ -14,6 +14,19 @@
     <meta http-equiv="Expires" content="0">
 
     <link rel="stylesheet" href="./style.css?v=2026.144">
+    <!-- 🧊 Liquid Glass theme (override layer). لو عايز ترجع الشكل القديم: شيل السطرين اللي تحت (link + script) -->
+    <link rel="stylesheet" href="./glass.css?v=2026.144">
+    <script>
+        // بيقرر قبل أول رسم لو نقفل البلور (Lite): الاختيار اليدوي "glassMode" أقوى، ولو مفيش بنقرر بالجهاز (ذاكرة <= 4GB أو أنوية <= 2)
+        (function () {
+            try {
+                var pref = localStorage.getItem("glassMode");
+                var weak = (navigator.deviceMemory && navigator.deviceMemory <= 4) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2);
+                var lite = pref ? pref === "off" : !!weak;
+                if (lite) document.documentElement.classList.add("glass-lite");
+            } catch (e) {}
+        })();
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- 🔎 Select2 (searchable dropdowns, used by the NOC Contract picker) -->
