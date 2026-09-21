@@ -70,10 +70,44 @@ function populateNocTowersDropdown() {
 }
 
 // 🔄 زرار الأدمن: بيطلب من السيرفر يجدد قايمة الأبراج من بورتال الفوترة (بيدخل بالكروميوم)
+function nocConfirmYesNo(title, text) {
+    return new Promise(resolve => {
+        const overlay = document.createElement("div");
+        overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;";
+        overlay.innerHTML = `
+            <div style="background:#fff;border-radius:14px;max-width:380px;width:100%;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.25);text-align:center;">
+                <div style="font-size:32px;color:#dc2626;margin-bottom:6px;"><i class="fa-solid fa-building-circle-exclamation"></i></div>
+                <div style="font-weight:700;font-size:16px;margin-bottom:6px;">${title}</div>
+                <div style="font-size:13px;color:#555;margin-bottom:18px;">${text}</div>
+                <div style="display:flex;gap:10px;">
+                    <button type="button" data-a="no" style="flex:1;padding:10px;border:1px solid #d1d5db;border-radius:8px;background:#fff;font-weight:600;cursor:pointer;">No</button>
+                    <button type="button" data-a="yes" style="flex:1;padding:10px;border:none;border-radius:8px;background:#dc2626;color:#fff;font-weight:600;cursor:pointer;">Yes</button>
+                </div>
+            </div>`;
+        const close = answer => { overlay.remove(); resolve(answer); };
+        overlay.addEventListener("click", e => {
+            if (e.target === overlay) close(false);
+            const a = e.target.closest("button") && e.target.closest("button").getAttribute("data-a");
+            if (a) close(a === "yes");
+        });
+        document.body.appendChild(overlay);
+    });
+}
+
 function refreshNocTowers() {
     const btn = document.getElementById("refreshNocTowersBtn");
     if (!btn || btn.disabled) return;
     if (typeof isAdmin === "function" && !isAdmin()) return;
+
+    nocConfirmYesNo(
+        "Was a new tower added?",
+        "Choose <b>Yes</b> to update the towers list from the billing portal, or <b>No</b> to close."
+    ).then(yes => { if (yes) doRefreshNocTowers(); });
+}
+
+function doRefreshNocTowers() {
+    const btn = document.getElementById("refreshNocTowersBtn");
+    if (!btn || btn.disabled) return;
 
     const originalHtml = btn.innerHTML;
     const previousTower = $("#nocTowerName").val();
