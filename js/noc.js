@@ -20,7 +20,10 @@ function initNocPage() {
 
     // زرار ريفرش الأبراج يظهر للأدمن بس
     const refreshBtn = document.getElementById("refreshNocTowersBtn");
-    if (refreshBtn) refreshBtn.style.display = (typeof isAdmin === "function" && isAdmin()) ? "inline-flex" : "none";
+    const refreshNote = document.getElementById("refreshNocTowersNote");
+    const showAdminRefresh = (typeof isAdmin === "function" && isAdmin());
+    if (refreshBtn) refreshBtn.style.display = showAdminRefresh ? "inline-flex" : "none";
+    if (refreshNote) refreshNote.style.display = showAdminRefresh ? "block" : "none";
 }
 
 // ============================================================
@@ -84,7 +87,7 @@ function refreshNocTowers() {
         })
         .then(data => {
             applyNocTowers(data.towers || [], previousTower);
-            btn.innerHTML = `<i class="fa-solid fa-check" style="color:#16a34a;"></i>`;
+            btn.innerHTML = `<i class="fa-solid fa-check"></i> Done`;
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 1500);
         })
         .catch(() => {

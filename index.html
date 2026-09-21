@@ -13,7 +13,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <link rel="stylesheet" href="./style.css?v=20260921.035147">
+    <link rel="stylesheet" href="./style.css?v=20260921.045148">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- 🔎 Select2 (searchable dropdowns, used by the NOC Contract picker) -->
@@ -366,10 +366,13 @@
                                         </select>
                                     </div>
                                     <button type="button" id="refreshNocTowersBtn" onclick="refreshNocTowers()"
-                                        title="Refresh towers list from the billing portal (admin only)"
-                                        style="display:none; flex-shrink:0; padding:8px 12px; border:1px solid #d1d5db; border-radius:8px; background:#fff; cursor:pointer;">
-                                        <i class="fa-solid fa-rotate"></i>
+                                        title="Admin only: refresh the towers list from the billing portal"
+                                        style="display:none; flex-shrink:0; align-items:center; gap:6px; padding:8px 14px; border:none; border-radius:8px; background:#dc2626; color:#fff; font-weight:600; font-size:13px; cursor:pointer;">
+                                        <i class="fa-solid fa-rotate"></i> Refresh
                                     </button>
+                                </div>
+                                <div id="refreshNocTowersNote" style="display:none; margin-top:6px; font-size:12px; color:#dc2626;">
+                                    <i class="fa-solid fa-lock"></i> Admin only &mdash; press <b>Refresh</b> after adding a new tower to the billing portal.
                                 </div>
                             </div>
 
@@ -1435,18 +1438,18 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/js/select2.min.js"></script>
 
     <!-- 📜 Main Application Script -->
-    <script src="js/core.js?v=20260921.035147"></script>
-    <script src="js/auth.js?v=20260921.035147"></script>
-    <script src="js/noc.js?v=20260921.035147"></script>
-    <script src="js/break-queue.js?v=20260921.035147"></script>
-    <script src="js/navigation.js?v=20260921.035147"></script>
-    <script src="js/unit-mapping.js?v=20260921.035147"></script>
-    <script src="js/calculator.js?v=20260921.035147"></script>
-    <script src="js/towers.js?v=20260921.035147"></script>
-    <script src="js/tech-schedule.js?v=20260921.035147"></script>
-    <script src="js/roster.js?v=20260921.035147"></script>
-    <script src="js/admin.js?v=20260921.035147"></script>
-    <script src="js/cc-pulse.js?v=20260921.035147"></script>
-    <script src="js/init.js?v=20260921.035147"></script>
+    <script src="js/core.js?v=20260921.045148"></script>
+    <script src="js/auth.js?v=20260921.045148"></script>
+    <script src="js/noc.js?v=20260921.045148"></script>
+    <script src="js/break-queue.js?v=20260921.045148"></script>
+    <script src="js/navigation.js?v=20260921.045148"></script>
+    <script src="js/unit-mapping.js?v=20260921.045148"></script>
+    <script src="js/calculator.js?v=20260921.045148"></script>
+    <script src="js/towers.js?v=20260921.045148"></script>
+    <script src="js/tech-schedule.js?v=20260921.045148"></script>
+    <script src="js/roster.js?v=20260921.045148"></script>
+    <script src="js/admin.js?v=20260921.045148"></script>
+    <script src="js/cc-pulse.js?v=20260921.045148"></script>
+    <script src="js/init.js?v=20260921.045148"></script>
 </body>
 </html>
