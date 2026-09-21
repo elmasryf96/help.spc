@@ -135,7 +135,8 @@ body::before {
     border-radius: 20px !important;
     box-shadow: var(--glass-shadow-sm) !important;
 }
-.calc-results-card, .hl-team-box, .ccp-agent-report-card, .mapping-tower-banner {
+.ccp-agent-report-card { background: linear-gradient(145deg, rgba(255,255,255,0.7), rgba(255,251,230,0.55)) !important; border: 1px solid rgba(232,213,103,0.5) !important; box-shadow: var(--glass-shadow-sm); }
+.calc-results-card, .hl-team-box, .mapping-tower-banner {
     background: rgba(255,255,255,0.5) !important;
     border: 1px solid rgba(255,255,255,0.75) !important;
     border-radius: 16px !important;
@@ -164,17 +165,21 @@ body::before {
     border-radius: 18px !important;
     box-shadow: var(--glass-shadow-sm);
 }
+/* كروت الأرقام: خلفية دافية خفيفة عشان تبان فوق الصندوق الأبيض. من غير !important عشان
+   الألوان الخاصة (blue/amber/purple/total-highlight) تفضل شغالة. */
 .ccp-metric-card {
-    background: var(--glass-bg-soft) !important;
-    border: 1px solid rgba(255,255,255,0.85) !important;
-    border-radius: 14px !important;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
+    background: linear-gradient(145deg, rgba(255,251,230,0.96), rgba(255,246,196,0.62));
+    border: 1px solid rgba(232,213,103,0.55);
+    border-radius: 14px;
+    box-shadow: 0 4px 12px rgba(120,100,20,0.08), inset 0 1px 0 rgba(255,255,255,0.95);
 }
 .ccp-metric-card.ccp-accent {
-    background: linear-gradient(135deg, rgba(241,226,133,0.8), rgba(232,213,103,0.45)) !important;
+    background: linear-gradient(135deg, rgba(241,226,133,0.9), rgba(232,213,103,0.55));
 }
-/* كارت Total login الكحلي و الـ Adherence والتايم لاين بيفضلوا بألوانهم الأصلية */
-.ccp-metric-card.ccp-total-highlight { background: linear-gradient(135deg, rgba(26,37,47,0.95), rgba(26,37,47,0.82)) !important; }
+.ccp-metric-card.ccp-total-highlight {
+    background: linear-gradient(135deg, rgba(26,37,47,0.96), rgba(26,37,47,0.84));
+    border-color: rgba(255,255,255,0.25);
+}
 .ccp-timeline-track { box-shadow: inset 0 2px 8px rgba(0,0,0,0.25); }
 
 /* 🔤 الحقول */
