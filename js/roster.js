@@ -509,10 +509,9 @@ function renderFullMonthlyTable() {
 const SWAP_SHIFT_START_HOUR = { "Shift 1": 9, "Shift 2": 11, "Shift 3": 13 };
 const SWAP_SHIFT_LABELS = { "Shift 1": "9 AM – 5 PM", "Shift 2": "11 AM – 7 PM", "Shift 3": "1 PM – 9 PM" };
 const SWAP_CUTOFF_HOURS = 2;
-const SWAP_POLL_SECONDS = 90;
 
 let swapState = { requests: [], me: "", isAdmin: false, busy: false, loaded: false };
-let swapPollTimer = null;
+let swapLastSignal = null;
 
 function swapEsc(s) {
   return String(s === undefined || s === null ? "" : s)
@@ -633,25 +632,27 @@ function openSwapFromNotification() {
   switchRosterTab("swap-view");
 }
 
-function startSwapPolling() {
-  if (swapPollTimer) return;
-  const tick = () => {
-    if (!localStorage.getItem("loggedInUser") || !swapGetToken()) {
-      swapState.requests = [];
-      swapUpdateBadges();
-      return;
-    }
-    if (document.hidden) return;
-    swapFetchRequests().then(() => {
-      const tab = document.getElementById("tab-swap-view");
-      if (tab && tab.style.display === "block") swapRenderLists();
-    }).catch(() => { /* هدوء - أي فشل مؤقت في الشبكة مايزعجش المستخدم */ });
-  };
-  setTimeout(tick, 4000);
-  swapPollTimer = setInterval(tick, SWAP_POLL_SECONDS * 1000);
-}
+// 🔔 مفيش Polling مخصوص للسواب: auth.js بيسأل السيرفر كل 15 ثانية أصلاً (checkForceLogout) والرد فيه
+// swapChangedAt - لو اتغيرت عن آخر مرة نسحب قايمة الطلبات (طلب جديد لينا / رد على طلبنا)، غير كده مفيش أي طلب زيادة
+function swapOnServerSignal(value) {
+  if (!localStorage.getItem("loggedInUser") || !swapGetToken()) {
+    swapLastSignal = null; // أول إشارة بعد اللوجن هتسحب القايمة
+    if (swapState.requests.length) { swapState.requests = []; swapUpdateBadges(); }
+    return;
+  }
 
-document.addEventListener("DOMContentLoaded", startSwapPolling);
+  const v = String(value === undefined || value === null ? "0" : value);
+  if (v === swapLastSignal) return;
+
+  const isFirstSignal = (swapLastSignal === null);
+  swapLastSignal = v;
+  if (isFirstSignal && v === "0") return; // مفيش ولا طلب سواب اتعمل على السيرفر أصلاً
+
+  swapFetchRequests().then(() => {
+    const tab = document.getElementById("tab-swap-view");
+    if (tab && tab.style.display === "block") { swapUpdateForm(); swapRenderLists(); }
+  }).catch(() => { /* هدوء - أي فشل مؤقت في الشبكة هيتعاد مع الإشارة الجاية */ });
+}
 
 // بيتنادى أول ما التاب يتفتح (من switchRosterTab)
 function initSwapTab() {

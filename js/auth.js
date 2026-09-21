@@ -266,6 +266,9 @@ async function checkForceLogoutSignal() {
     const data = await res.json();
     if (!data || data.status !== "success") return;
 
+    // 🔄 إشارة تغيّر طلبات الـ Shift Swap (بتيجي مع نفس الطلب الخفيف ده، من غير Polling إضافي) - roster.js
+    if (typeof swapOnServerSignal === "function") swapOnServerSignal(data.swapChangedAt);
+
     const serverTimestamp = String(data.forceLogoutAt || "0");
     const seenTimestamp = localStorage.getItem(FORCE_LOGOUT_SEEN_KEY);
 
