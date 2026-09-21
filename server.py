@@ -72,6 +72,7 @@ async def _warm_libreoffice():
     try:
         await asyncio.sleep(20)
         async with _pdf_lock:
+            await _release_shared_browser()  # نفضّي رامات Chromium قبل LibreOffice (الاتنين مع بعض فوق 512MB)
             from docx import Document
 
             warm_docx = f"temp_warm_{uuid.uuid4().hex[:6]}.docx"
@@ -1321,6 +1322,10 @@ async def panel_scraper_watcher():
     بيستخدم نفس بروسيس المتصفح المشترك (_get_shared_browser) اللي بورتال الفوترة بيستخدمه
     برضو - عشان يفضل بروسيس Chromium واحد بس شغال دايمًا، مش اتنين."""
     while True:
+        # أثناء تحويل الـ PDF (LibreOffice) منفتحش Chromium تاني - كان بيرجع يفتح بعد ما نقفله والاتنين مع بعض بيعدّوا 512MB
+        if _pdf_lock.locked():
+            await asyncio.sleep(2)
+            continue
         try:
             browser = await _get_shared_browser()
 
