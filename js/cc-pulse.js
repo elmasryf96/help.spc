@@ -1861,9 +1861,6 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
     <div class="ccp-export-bar">
       <button type="button" class="ccp-export-btn" onclick="exportCcPulseReportToCsv()">📥 Export to CSV</button>
     </div>
-    ${ccPulseBuildQueueSummaryHtml(callLogData && callLogData.queueSummary)}
-    ${ccPulseBuildQueueTrendHtml(callLogData && callLogData.queueSummaryByDay)}
-    ${ccPulseBuildPeakHoursHtml(callLogData && callLogData.queueSummaryByHour)}
     ${bodyHtml}
   `;
 
