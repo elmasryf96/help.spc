@@ -64,6 +64,39 @@ def read_root():
 _pdf_lock = asyncio.Lock()  # تحويل واحد بس في نفس الوقت - LibreOffice تقيل جدًا على 512MB
 
 
+LO_PROFILE_DIR = "/tmp/lo_profile_shared"
+
+
+async def _warm_libreoffice():
+    """تحويل ملف صغير مرة واحدة بعد التشغيل عشان بروفايل LibreOffice يتبني قبل أول طلب فعلي."""
+    try:
+        await asyncio.sleep(20)
+        async with _pdf_lock:
+            from docx import Document
+
+            warm_docx = f"temp_warm_{uuid.uuid4().hex[:6]}.docx"
+            warm_pdf = warm_docx[:-5] + ".pdf"
+            try:
+                d = Document()
+                d.add_paragraph("warm-up")
+                d.save(warm_docx)
+                proc = await asyncio.create_subprocess_exec(
+                    "libreoffice", f"-env:UserInstallation=file://{LO_PROFILE_DIR}",
+                    "--headless", "--convert-to", "pdf", warm_docx, "--outdir", ".",
+                    stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL,
+                )
+                await asyncio.wait_for(proc.wait(), timeout=120)
+                print("🔥 LibreOffice warm-up خلص")
+            finally:
+                for p in (warm_docx, warm_pdf):
+                    try:
+                        os.remove(p)
+                    except Exception:
+                        pass
+    except Exception as e:
+        print(f"⚠️ LibreOffice warm-up فشل (مش مشكلة): {e}")
+
+
 async def _release_shared_browser():
     """بيقفل Chromium المشترك قبل تحويل الـ PDF عشان يفضّي رامات (بيتفتح تاني لوحده لما يتطلب)."""
     async with _shared_browser_lock:
@@ -91,7 +124,7 @@ async def convert_and_return_pdf(doc_template: str, context: dict, unit_no: str,
         job_id = uuid.uuid4().hex[:8]
         temp_docx = f"temp_{prefix}_{clean_unit}_{job_id}.docx"
         temp_pdf = temp_docx[:-5] + ".pdf"
-        profile_dir = f"/tmp/lo_profile_{job_id}"
+        profile_dir = LO_PROFILE_DIR  # بروفايل ثابت (أول مرة بس بيتبني) - أسرع بكتير من بروفايل جديد كل مرة
 
         try:
             doc = DocxTemplate(doc_template)
@@ -126,7 +159,6 @@ async def convert_and_return_pdf(doc_template: str, context: dict, unit_no: str,
                         os.remove(path)
                 except Exception:
                     pass
-            shutil.rmtree(profile_dir, ignore_errors=True)
 
     return Response(
         content=pdf_bytes,
@@ -617,6 +649,7 @@ async def _warm_portal_once():
 async def _start_background_tasks():
     if SC_USERNAME and SC_PASSWORD:
         asyncio.create_task(_warm_portal_once())
+        asyncio.create_task(_warm_libreoffice())
         # asyncio.create_task(_warm_all_towers_loop())  # اتوقف: بحث الفورم أسرع ومش محتاج تحميل مسبق
 
 
@@ -951,7 +984,7 @@ async def api_contract_detail(tower: str, contract: str):
 
 THREECX_FQDN = os.environ.get("THREECX_FQDN", "smartcollection.3cx.ae:5001")
 THREECX_USERNAME = os.environ.get("THREECX_USERNAME", "106")
-THREECX_PASSWORD = os.environ.get("THREECX_PASSWORD", "Lara@@2110")
+THREECX_PASSWORD = os.environ.get("THREECX_PASSWORD", "")
 
 # رقم الإيجستنشن في 3CX -> الاسم زي ما هو في الروستر
 # (أي حد في 3CX مش موجود هنا بيتجاهل تلقائياً)
