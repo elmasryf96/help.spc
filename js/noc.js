@@ -51,6 +51,9 @@ function applyNocTowers(towers, keepValue) {
         .concat(towers.map(t => ({ value: t.id, text: t.name })));
     nocSelect2Refresh($sel, options);
 
+    const countLine = document.getElementById("nocTowersCountLine");
+    if (countLine) countLine.textContent = `${towers.length} towers available`;
+
     // لو كان فيه برج مختار قبل الريفرش وما زال موجود، نرجّعه من غير ما نمسح العقود
     if (keepValue && nocTowersById[keepValue]) $sel.val(keepValue).trigger("change.select2");
 }
@@ -111,6 +114,7 @@ function doRefreshNocTowers() {
 
     const originalHtml = btn.innerHTML;
     const previousTower = $("#nocTowerName").val();
+    const previousCount = Object.keys(nocTowersById).length;
     btn.disabled = true;
     btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
 
@@ -120,8 +124,13 @@ function doRefreshNocTowers() {
             return r.json();
         })
         .then(data => {
-            applyNocTowers(data.towers || [], previousTower);
+            const newTowers = data.towers || [];
+            const diff = newTowers.length - previousCount;
+            applyNocTowers(newTowers, previousTower);
+            const summary = diff > 0 ? `${newTowers.length} towers (+${diff} new)` : `${newTowers.length} towers (no change)`;
             btn.innerHTML = `<i class="fa-solid fa-check"></i> Done`;
+            const countLine = document.getElementById("nocTowersCountLine");
+            if (countLine) countLine.textContent = summary;
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 1500);
         })
         .catch(() => {
