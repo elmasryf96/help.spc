@@ -9,7 +9,7 @@
    ============================================================ */
 
 :root {
-    --glass-blur: blur(14px) saturate(160%);
+    --glass-blur: blur(10px) saturate(150%);
     --glass-bg: linear-gradient(145deg, rgba(255,255,255,0.68), rgba(255,255,255,0.28));
     --glass-bg-soft: linear-gradient(145deg, rgba(255,255,255,0.72), rgba(255,255,255,0.4));
     --glass-inset: rgba(255,255,255,0.62);
@@ -55,6 +55,12 @@ body::before {
         radial-gradient(460px 460px at 96% 30%, rgba(238,108,106,0.42), rgba(238,108,106,0) 70%),
         radial-gradient(620px 460px at 45% 104%, rgba(245,185,95,0.55), rgba(245,185,95,0) 70%);
 }
+
+
+/* ⚡ تغيير الصفحة: بنلغي أنيميشن الفيد بتاع .page - كان بيعمل opacity/transform على حاوية كاملة
+   فيها عناصر بلور (backdrop-filter)، وده بيخلّي المتصفح يعيد رسم كل حاجة كل فريم (بطء عند فتح أي كارت/الداشبورد). */
+.page { animation: none !important; }
+.menu-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
 
 /* 🧊 الحاوية الرئيسية (من غير بلور - مساحة كبيرة) */
 .container {
@@ -142,8 +148,8 @@ body::before {
     border: var(--glass-border) !important;
     border-radius: 22px !important;
     box-shadow: var(--glass-shadow) !important;
-    -webkit-backdrop-filter: var(--glass-blur);
-    backdrop-filter: var(--glass-blur);
+    /* من غير backdrop-filter: كروت الهوم كتير (8+) وكل واحدة كانت بتعمل بلور = تقل في فتح الصفحات على الأجهزة الضعيفة.
+       الخلفية الشفافة + الحدود + الظل بيدّوا نفس الشكل تقريبًا. */
 }
 .menu-card:hover {
     background: var(--glass-bg) !important;
