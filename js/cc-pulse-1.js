@@ -1861,18 +1861,8 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
     <div class="ccp-export-bar">
       <button type="button" class="ccp-export-btn" onclick="exportCcPulseReportToCsv()">📥 Export to CSV</button>
     </div>
-    <div class="ccp-mode-bar" style="margin: 4px 0 14px;">
-      <button type="button" id="ccpResultViewBtn_queue" class="ccp-mode-btn" onclick="setCcpResultView('queue')"><i class="fa-solid fa-headset"></i> Queue</button>
-      <button type="button" id="ccpResultViewBtn_agents" class="ccp-mode-btn" onclick="setCcpResultView('agents')"><i class="fa-solid fa-user"></i> Agent</button>
-    </div>
-    <div id="ccpQueueSection">
-      ${ccPulseBuildQueueSummaryHtml(callLogData && callLogData.queueSummary)}
-      ${ccPulseBuildQueueTrendHtml(callLogData && callLogData.queueSummaryByDay)}
-      ${ccPulseBuildPeakHoursHtml(callLogData && callLogData.queueSummaryByHour)}
-    </div>
-    <div id="ccpAgentsSection">${bodyHtml}</div>
+    ${bodyHtml}
   `;
-  setCcpResultView(ccpResultView);
 
   const liveAgentMatch = ccPulseAgentsCache.find(x => x.name === data.agent);
   ccPulseLastExportAgentsList = [{ name: data.agent, number: liveAgentMatch ? liveAgentMatch.number : "-", days: data.days || [] }];
