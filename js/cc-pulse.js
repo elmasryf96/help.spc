@@ -534,7 +534,7 @@ function ccPulseBuildQueueSummaryHtml(qs) {
         </div>
         <div class="ccp-metric-card">
           <div class="ccp-metric-label">Abandoned</div>
-          <div class="ccp-metric-value">${qs.abandoned}</div>
+          <div class="ccp-metric-value" style="cursor:pointer; text-decoration:underline dotted;" title="Click to see each call" onclick="ccpShowQueueCallDetailModal()">${qs.abandoned}</div>
         </div>
         <div class="ccp-metric-card">
           <div class="ccp-metric-label">Redirected</div>
@@ -2072,6 +2072,72 @@ async function ccpShowOutboundUnansweredModal(agentName, mode, dateOrStart, endD
               <th>Customer Number</th>
               <th>Rang For</th>
               <th>Reason</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>`;
+  } catch (err) {
+    body.innerHTML = `<div class="ccp-error">⚠️ ${err}</div>`;
+  }
+}
+
+// ============================================================
+// 📞 POPUP: تفاصيل مكالمات "Abandoned" (اللي اتقفلت من غير رد) - على عكس
+// ccpShowOutboundUnansweredModal دي على مستوى الكيو كله (كل الإيجنتس)، مش
+// إيجنت بعينه - بتتفتح لما اليوزر يدوس على رقم "Abandoned" في Queue Overview.
+// بتقرا نفس الفترة (يوم/رينج/شهر) المعروضة حاليًا في التقرير عن طريق
+// buildCcPulseDateParams() - من Code.gs (action=queueCallDetail، دالة جديدة
+// getQueueCallDetail_ مضافة في Code-7.gs، مش بتلمس أي حاجة موجودة)
+// ============================================================
+async function ccpShowQueueCallDetailModal() {
+  ccpEnsureCallDetailModal_();
+
+  const modal = document.getElementById("ccpCallDetailModal");
+  const body = document.getElementById("ccpCallDetailBody");
+  document.getElementById("ccpCallDetailTitle").innerHTML =
+    `<i class="fa-solid fa-phone-slash"></i> Abandoned Calls`;
+  body.innerHTML = `<div class="ccp-loading">Loading...</div>`;
+  modal.style.display = "flex";
+
+  const params = buildCcPulseDateParams();
+  params.set("action", "queueCallDetail");
+  params.set("direction", "Inbound");
+  params.set("result", "Abandoned");
+
+  try {
+    const res = await fetch(`${GOOGLE_SHEET_API_URL}?${params.toString()}`);
+    const data = await res.json();
+
+    if (!data || data.status !== "success") {
+      body.innerHTML = `<div class="ccp-error">⚠️ ${data && data.message ? data.message : "Failed to load"}</div>`;
+      return;
+    }
+
+    if (!data.calls || data.calls.length === 0) {
+      body.innerHTML = `<div class="ccp-empty">No abandoned calls in this period</div>`;
+      return;
+    }
+
+    const rowsHtml = data.calls.map(c => `
+      <tr>
+        <td>${c.date}</td>
+        <td>${c.time ? c.time.slice(0, 8) : "--"}</td>
+        <td>${c.customerNumber || "-"}</td>
+        <td>${c.queue || "-"}</td>
+        <td>${formatCcPulseDuration(c.waitSeconds)}</td>
+      </tr>`).join("");
+
+    body.innerHTML = `
+      <div class="ccp-queue-trend-table-wrap">
+        <table class="ccp-queue-trend-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Customer Number</th>
+              <th>Queue</th>
+              <th>Waited</th>
             </tr>
           </thead>
           <tbody>${rowsHtml}</tbody>
