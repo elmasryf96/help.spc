@@ -1535,9 +1535,9 @@ function attachCcPulseTimelineEditHandlers() {
   });
 }
 
-// بيربط أزرار التعديل/الحذف في قايمة الـ Sessions تحت التايم لاين (بديل تاني للدوس على التايم لاين، شوف
-// buildCcPulseSessionListHtml_)، وزرار "+ Add status". نفس isAdmin() check وشكل الاستدعاء بالظبط زي
-// attachCcPulseTimelineEditHandlers - بينادي نفس ccpOpenEditModal، فمفيش منطق مكرر
+// بيربط أزرار التعديل/الحذف/الحفظ/الإلغاء في قايمة الـ Sessions تحت التايم لاين (بديل تاني للدوس على
+// التايم لاين، شوف buildCcPulseSessionListHtml_)، وزرار "+ Add status". التعديل هنا مباشر جوه الصف - مفيش
+// مودال خالص (بعكس الدوس على التايم لاين اللي لسه بيفتح ccpOpenEditModal)
 function attachCcPulseSessionListEditHandlers() {
   if (!isAdmin()) return;
 
@@ -1550,9 +1550,13 @@ function attachCcPulseSessionListEditHandlers() {
       if (!row) return;
 
       if (e.target.closest(".ccp-session-edit-btn")) {
-        ccpOpenEditModal(row);
+        ccpEnterRowEditMode_(row);
       } else if (e.target.closest(".ccp-session-delete-btn")) {
         ccpDeleteSessionRow_(row);
+      } else if (e.target.closest(".ccp-session-save-btn")) {
+        ccpSaveRowEdit_(row);
+      } else if (e.target.closest(".ccp-session-cancel-btn")) {
+        ccpCancelRowEdit_(row);
       }
     });
   });
@@ -1560,7 +1564,7 @@ function attachCcPulseSessionListEditHandlers() {
   document.querySelectorAll('.ccp-session-add-btn[data-ccp-add="1"]').forEach(btn => {
     if (btn.dataset.addBound === "true") return;
     btn.dataset.addBound = "true";
-    btn.addEventListener("click", () => ccpOpenEditModal(btn));
+    btn.addEventListener("click", () => ccpAddNewRow_(btn));
   });
 }
 
@@ -1721,31 +1725,32 @@ function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, 
     ${buildCcPulseSessionListHtml_(day.sessions, agentName, day.date)}`;
 }
 
+// كاش بسيط: "<agent>|<date>" -> آخر sessions array اتعرض لليوم ده. مطلوب عشان لو دُست على زرار قلم صف،
+// نعرف الصف اللي قبله واللي بعده (عشان نعرف نتاريخ "النهاية" وين، ونحدد الحالة الافتراضية لو الصف ده آخر
+// حاجة في اليوم) من غير ما نعيد الطلب من السيرفر أو نمرر بيانات زيادة في كل data-attribute
+const ccpSessionListCache_ = {};
+
 // قايمة الـ Sessions تحت التايم لاين - طريقة تانية للتعديل غير الدوس على التايم لاين نفسه، مفيدة خصوصًا
-// للسيجمنتات الصغيرة جدًا (كام ثانية) اللي عمليًا مستحيل تدوس عليها بدقة على بار طوله 12 ساعة.
-// نفس صلاحية وباك اند الدوس على التايم لاين بالظبط (editAgentStatusPoint_ / deleteAgentStatusPoint_ في
-// Code.gs) - بس entry point تاني (زرار قلم = يفتح نفس مودال ccpOpenEditModal، زرار سلة = حذف مباشر بضغطة
-// واحدة، وزرار "+ Add status" تحت القايمة يفتح نفس المودال فاضي لإضافة نقطة جديدة). أدمن بس - شوف
-// attachCcPulseSessionListEditHandlers
+// للسيجمنتات الصغيرة جدًا (كام ثانية) اللي عمليًا مستحيل تدوس عليها بدقة على بار طوله 12 ساعة. التعديل هنا
+// **مباشر جوه الصف نفسه (وقت البداية / وقت النهاية / الحالة كل واحد لوحده) من غير ما يفتح مودال/بوب أب** -
+// بعكس الدوس على التايم لاين اللي لسه بيفتح نفس المودال القديم (شوف ccpOpenEditModal). البداية والنهاية
+// بيتحفظوا بنداءين منفصلين لنفس endpoint الموجود أصلاً (editAgentStatusPoint) - "النهاية" فعليًا هي بداية
+// الصف اللي بعده (مفيش سجل "نهاية" منفصل في AgentStatusLog)، فتعديلها بيحرك نقطة الصف اللي بعده. لو الصف ده
+// آخر حاجة في اليوم (مفيش صف بعده) وحطينا نهاية، بنضيف نقطة جديدة تقفله (زي خانة "End time" الاختيارية اللي
+// كانت في المودال، بس هنا لكل صف مش بس وقت الفتح). شوف attachCcPulseSessionListEditHandlers
 function buildCcPulseSessionListHtml_(sessions, agentName, dateStr) {
   sessions = sessions || [];
   const canEdit = Boolean(agentName && dateStr && typeof isAdmin === "function" && isAdmin());
 
+  if (agentName && dateStr) ccpSessionListCache_[agentName + "|" + dateStr] = sessions;
+
   const rowsHtml = sessions.map((s, sIdx) => {
     const prevStatus = sIdx > 0 ? sessions[sIdx - 1].status : "";
-    const editAttrs = canEdit
-      ? ` data-ccp-edit="1" data-agent="${ccpEscapeAttr_(agentName)}" data-date="${dateStr}" data-time="${s.start}" data-status="${ccpEscapeAttr_(s.status)}" data-prev-status="${ccpEscapeAttr_(prevStatus)}"`
+    const attrs = canEdit
+      ? ` data-ccp-edit="1" data-agent="${ccpEscapeAttr_(agentName)}" data-date="${dateStr}" data-time="${s.start}" data-status="${ccpEscapeAttr_(s.status)}" data-prev-status="${ccpEscapeAttr_(prevStatus)}" data-idx="${sIdx}"`
       : "";
-    const rowActionsHtml = canEdit ? `
-          <button type="button" class="ccp-session-edit-btn" title="Edit this status"><i class="fa-solid fa-pen"></i></button>
-          <button type="button" class="ccp-session-delete-btn" title="Delete this status"><i class="fa-solid fa-trash-can"></i></button>` : "";
     return `
-        <div class="ccp-session-row"${editAttrs}>
-          <span class="ccp-dot" style="background:${ccpStatusColor(s.status)}"></span>
-          <span class="ccp-session-status">${ccpDisplayStatusName(s.status)}</span>
-          <span class="ccp-session-time">${ccPulseTimeOnly(s.start)} → ${ccPulseTimeOnly(s.end)}</span>
-          <span class="ccp-session-dur">${formatCcPulseDuration(s.durationSeconds)}</span>${rowActionsHtml}
-        </div>`;
+        <div class="ccp-session-row"${attrs}>${ccpSessionRowViewInnerHtml_(s, canEdit)}</div>`;
   }).join("");
 
   const addBtnHtml = canEdit
@@ -1755,6 +1760,191 @@ function buildCcPulseSessionListHtml_(sessions, agentName, dateStr) {
   return `
     <div class="ccp-session-list">${rowsHtml}</div>
     ${addBtnHtml}`;
+}
+
+// المحتوى الجوّاني لصف في وضع العرض العادي (مش بيغيّر data-attributes الصف نفسه - دي بتتحط مرة واحدة وبتفضل
+// زي ما هي، سواء الصف في وضع عرض أو تعديل، لأنها بتمثل هوية النقطة الأصلية في الشيت)
+function ccpSessionRowViewInnerHtml_(s, canEdit) {
+  const rowActionsHtml = canEdit ? `
+          <button type="button" class="ccp-session-edit-btn" title="Edit this status"><i class="fa-solid fa-pen"></i></button>
+          <button type="button" class="ccp-session-delete-btn" title="Delete this status"><i class="fa-solid fa-trash-can"></i></button>` : "";
+  return `
+          <span class="ccp-dot" style="background:${ccpStatusColor(s.status)}"></span>
+          <span class="ccp-session-status">${ccpDisplayStatusName(s.status)}</span>
+          <span class="ccp-session-time">${ccPulseTimeOnly(s.start)} → ${ccPulseTimeOnly(s.end)}</span>
+          <span class="ccp-session-dur">${formatCcPulseDuration(s.durationSeconds)}</span>${rowActionsHtml}`;
+}
+
+// المحتوى الجوّاني لصف في وضع التعديل - دروب داون حالة + وقت بداية + وقت نهاية (اختياري لو مفيش صف بعده) +
+// زرار حفظ/إلغاء، كل حقل بيتعدل لوحده. hasNext=false يخلي حقل النهاية فاضي بـ placeholder "ongoing" (مفيش
+// نقطة حقيقية بعده لسه - أي وقت هيتكتب هنا هيتضاف كنقطة جديدة وقت الحفظ، مش تحريك نقطة موجودة)
+function ccpSessionRowEditInnerHtml_(status, startHHMMSS, endHHMMSS, hasNext) {
+  const statusOptionsHtml = CCP_EDITABLE_STATUSES.map(o => `<option value="${o.value}"${o.value === status ? " selected" : ""}>${o.label}</option>`).join("");
+  const endAttrs = hasNext ? "" : ` placeholder="ongoing"`;
+  return `
+          <select class="ccp-session-edit-select">${statusOptionsHtml}</select>
+          <input type="time" step="1" class="ccp-session-edit-start" value="${startHHMMSS}">
+          <span class="ccp-session-edit-arrow">→</span>
+          <input type="time" step="1" class="ccp-session-edit-end" value="${endHHMMSS}"${endAttrs}>
+          <button type="button" class="ccp-session-save-btn" title="Save"><i class="fa-solid fa-check"></i></button>
+          <button type="button" class="ccp-session-cancel-btn" title="Cancel"><i class="fa-solid fa-xmark"></i></button>
+          <div class="ccp-session-edit-err"></div>`;
+}
+
+// بيحوّل صف من وضع العرض لوضع التعديل مباشرة جوه نفس الصف (من غير مودال). بيستخدم الكاش عشان يعرف لو فيه
+// صف بعده (hasNext) - لو آه، حقل النهاية بيمثل بداية الصف ده وتعديله بيحرك نقطته هو بنفس حالته. لو لأ (آخر
+// صف في اليوم، أو صف جديد لسه ما اتسجلش)، حقل النهاية هيبقى فاضي وأي وقت يتكتب فيه هيتحفظ كنقطة جديدة تقفل
+// الصف ده وترجع تلقائي لحالة قبله (أو Available لو مفيش صف قبله)
+function ccpEnterRowEditMode_(row) {
+  const agentName = row.getAttribute("data-agent") || "";
+  const dateStr = row.getAttribute("data-date") || "";
+  const originalTime = row.getAttribute("data-time") || "";
+  const status = row.getAttribute("data-status") || "Available";
+  const idx = parseInt(row.getAttribute("data-idx"), 10);
+
+  const sessions = ccpSessionListCache_[agentName + "|" + dateStr] || [];
+  const hasNext = !isNaN(idx) && (idx + 1) < sessions.length;
+  const nextSession = hasNext ? sessions[idx + 1] : null;
+  const prevStatus = (!isNaN(idx) && idx > 0 && sessions[idx - 1]) ? sessions[idx - 1].status : "Available";
+
+  row.dataset.hasNext = hasNext ? "1" : "0";
+  row.dataset.nextTime = hasNext ? nextSession.start : "";
+  row.dataset.nextStatus = hasNext ? nextSession.status : "";
+  row.dataset.autoRevert = prevStatus;
+
+  const startHHMMSS = originalTime ? originalTime.split(" ")[1] : "09:00:00";
+  const endHHMMSS = hasNext ? nextSession.start.split(" ")[1] : "";
+
+  row.innerHTML = ccpSessionRowEditInnerHtml_(status, startHHMMSS, endHHMMSS, hasNext);
+  row.querySelector(".ccp-session-edit-start").focus();
+}
+
+// إلغاء التعديل: لو الصف كان جديد (من زرار "+ Add status" ولسه ما اتحفظش) بنمسحه خالص ونرجع زرار الإضافة،
+// لو صف موجود بيرجع لوضع العرض العادي من نفس بيانات الكاش (من غير طلب جديد من السيرفر)
+function ccpCancelRowEdit_(row) {
+  const list = row.parentElement;
+
+  if (row.dataset.isNew === "1") {
+    row.remove();
+    const addBtn = list && list.nextElementSibling;
+    if (addBtn && addBtn.classList.contains("ccp-session-add-btn")) addBtn.style.display = "";
+    return;
+  }
+
+  const agentName = row.getAttribute("data-agent") || "";
+  const dateStr = row.getAttribute("data-date") || "";
+  const idx = parseInt(row.getAttribute("data-idx"), 10);
+  const sessions = ccpSessionListCache_[agentName + "|" + dateStr] || [];
+  const s = sessions[idx];
+  if (!s) { loadCcPulseReport(false); return; } // احتياطي - مش متوقع يحصل
+  row.innerHTML = ccpSessionRowViewInnerHtml_(s, true);
+}
+
+// حفظ صف بعد التعديل المباشر - ممكن يبعت حتى نداءين لـ editAgentStatusPoint (نفس endpoint بتاع المودال):
+// واحد لبداية السيجمنت (لو الحالة و/أو وقت البداية اتغيروا)، وواحد تاني لنهايته (لو hasNext بيحرك نقطة الصف
+// اللي بعده، أو لو مفيش صف بعده بيضيف نقطة جديدة تقفله) - كل نداء مستقل، ممكن تعدل واحد بس من الاتنين
+async function ccpSaveRowEdit_(row) {
+  const agentName = row.getAttribute("data-agent") || "";
+  const dateStr = row.getAttribute("data-date") || "";
+  const originalTime = row.getAttribute("data-time") || ""; // فاضي = صف جديد لسه مش متسجل في الشيت
+  const origStatus = row.getAttribute("data-status") || "";
+  const hasNext = row.dataset.hasNext === "1";
+  const nextTime = row.dataset.nextTime || "";
+  const nextStatus = row.dataset.nextStatus || "";
+  const autoRevertStatus = row.dataset.autoRevert || "Available";
+
+  const statusVal = row.querySelector(".ccp-session-edit-select").value;
+  const startVal = ccpNormalizeTimeToHHMMSS_(row.querySelector(".ccp-session-edit-start").value);
+  const endVal = ccpNormalizeTimeToHHMMSS_(row.querySelector(".ccp-session-edit-end").value);
+  const errEl = row.querySelector(".ccp-session-edit-err");
+  const saveBtn = row.querySelector(".ccp-session-save-btn");
+  const cancelBtn = row.querySelector(".ccp-session-cancel-btn");
+
+  errEl.textContent = "";
+  if (!dateStr || !startVal || !statusVal) {
+    errEl.textContent = "⚠️ Fill in time and status.";
+    return;
+  }
+  if (endVal && endVal <= startVal) {
+    errEl.textContent = "⚠️ End must be after start.";
+    return;
+  }
+
+  saveBtn.disabled = true;
+  cancelBtn.disabled = true;
+  saveBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
+
+  const newStartFull = `${dateStr} ${startVal}`;
+
+  try {
+    // 1) بداية السيجمنت - الحالة و/أو وقت البداية (نفس نداء واحد بيغطي الاتنين، شوف editAgentStatusPoint_)
+    const startChanged = !originalTime || newStartFull !== originalTime || statusVal !== origStatus;
+    if (startChanged) {
+      const res1 = await ccpPostAgentStatusEdit_(agentName, originalTime, newStartFull, statusVal);
+      if (res1.status !== "success") {
+        errEl.textContent = "❌ " + ccpFriendlyEditError_(res1.message);
+        saveBtn.disabled = false; cancelBtn.disabled = false;
+        saveBtn.innerHTML = `<i class="fa-solid fa-check"></i>`;
+        return;
+      }
+    }
+
+    // 2) نهاية السيجمنت
+    if (hasNext) {
+      const newEndFull = `${dateStr} ${endVal}`;
+      if (endVal && newEndFull !== nextTime) {
+        const res2 = await ccpPostAgentStatusEdit_(agentName, nextTime, newEndFull, nextStatus);
+        if (res2.status !== "success") {
+          errEl.textContent = "⚠️ Start saved, but end time failed: " + ccpFriendlyEditError_(res2.message || "unknown error");
+          loadCcPulseReport(false);
+          return;
+        }
+      }
+    } else if (endVal) {
+      const newEndFull = `${dateStr} ${endVal}`;
+      const res2 = await ccpPostAgentStatusEdit_(agentName, "", newEndFull, autoRevertStatus);
+      if (res2.status !== "success") {
+        errEl.textContent = "⚠️ Start saved, but end time failed: " + ccpFriendlyEditError_(res2.message || "unknown error");
+        loadCcPulseReport(false);
+        return;
+      }
+    }
+
+    ccpShowEditToast_("✅ Saved — refreshing timeline...");
+    loadCcPulseReport(false);
+  } catch (err) {
+    console.error("Error saving inline status edit:", err);
+    errEl.textContent = "❌ Network error. Please check your connection and try again.";
+    saveBtn.disabled = false; cancelBtn.disabled = false;
+    saveBtn.innerHTML = `<i class="fa-solid fa-check"></i>`;
+  }
+}
+
+// زرار "+ Add status": بيضيف صف جديد فاضي جوه القايمة مباشرة في وضع تعديل (من غير مودال) - مفيش نقطة بعده
+// (hasNext=false دايمًا لصف جديد)، فحقل النهاية هنا بيشتغل بنفس منطق "آخر صف في اليوم" (تحديد نهاية = إضافة
+// نقطة جديدة تقفله)
+function ccpAddNewRow_(btn) {
+  const agentName = btn.getAttribute("data-agent") || "";
+  const dateStr = btn.getAttribute("data-date") || "";
+  const list = btn.previousElementSibling;
+  if (!list || !list.classList.contains("ccp-session-list")) return;
+
+  const sessions = ccpSessionListCache_[agentName + "|" + dateStr] || [];
+
+  const row = document.createElement("div");
+  row.className = "ccp-session-row";
+  row.setAttribute("data-ccp-edit", "1");
+  row.setAttribute("data-agent", agentName);
+  row.setAttribute("data-date", dateStr);
+  row.setAttribute("data-time", "");
+  row.setAttribute("data-status", "Available");
+  row.setAttribute("data-idx", String(sessions.length)); // idx خارج نطاق المصفوفة الحقيقية -> hasNext=false تلقائي
+  row.dataset.isNew = "1";
+  list.appendChild(row);
+
+  btn.style.display = "none";
+  ccpEnterRowEditMode_(row);
+  row.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
 // ============================================================

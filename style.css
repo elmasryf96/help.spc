@@ -1848,6 +1848,7 @@ input:checked + .slider:before { transform: translateX(20px); }
 .ccp-day-row {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 10px;
     background: #fafafa;
     border-radius: 8px;
@@ -1927,6 +1928,70 @@ input:checked + .slider:before { transform: translateX(20px); }
     background: var(--badge-bg);
     border-color: var(--badge-border);
     color: var(--dark-navy);
+}
+
+/* ---- Inline row edit mode (no popup) - دروب داون الحالة + وقت البداية/النهاية + حفظ/إلغاء ---- */
+.ccp-session-edit-select {
+    flex-shrink: 0;
+    padding: 5px 8px;
+    border-radius: 6px;
+    border: 1.5px solid #e2e8f0;
+    background: #ffffff;
+    color: var(--dark-navy);
+    font-weight: 700;
+    font-size: 12px;
+}
+.ccp-session-edit-start,
+.ccp-session-edit-end {
+    flex-shrink: 0;
+    width: 108px;
+    padding: 5px 6px;
+    border-radius: 6px;
+    border: 1.5px solid #e2e8f0;
+    background: #ffffff;
+    color: var(--dark-navy);
+    font-size: 12px;
+}
+.ccp-session-edit-arrow {
+    flex-shrink: 0;
+    color: var(--text-muted);
+}
+.ccp-session-save-btn,
+.ccp-session-cancel-btn {
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 7px;
+    border: 1.5px solid #e2e8f0;
+    background: #ffffff;
+    cursor: pointer;
+    font-size: 11px;
+}
+.ccp-session-save-btn {
+    color: #16a34a;
+    border-color: #bbf7d0;
+}
+.ccp-session-save-btn:hover {
+    background: #f0fdf4;
+}
+.ccp-session-save-btn:disabled {
+    opacity: .6;
+    cursor: default;
+}
+.ccp-session-cancel-btn {
+    color: #64748b;
+}
+.ccp-session-cancel-btn:hover {
+    background: #f1f5f9;
+}
+.ccp-session-edit-err {
+    flex-basis: 100%;
+    color: var(--coral-red);
+    font-size: 11px;
+    font-weight: 700;
 }
 .ccp-total-list {
     display: flex;
