@@ -384,6 +384,14 @@ async function loadCcPulseReport(isAutoRefresh = false) {
   const select = document.getElementById("ccPulseAgentSelect");
   if (!resultBox || !select) return;
 
+  // لو فيه صف في قايمة الـ Sessions حالياً في وضع تعديل مباشر (تعديل موجود أو "+ Add status" لسه فاتح -
+  // شوف ccpEnterRowEditMode_)، منعملش أي تحديث تلقائي دلوقتي عشان مانمسحش التعديل اللي لسه ما اتحفظش من
+  // تحت الأدمن. هنحاول تاني في الدورة الجاية (20 ثانية) - أول ما يحفظ أو يلغي التعديل، التحديث بيرجع يشتغل
+  // عادي زي ما هو (الحفظ بينادي loadCcPulseReport(false) مباشرة على أي حال)
+  if (isAutoRefresh && resultBox.querySelector(".ccp-session-save-btn")) {
+    return;
+  }
+
   // كل مرة اليوزر يدوس "View report" بنفسه، بنلغي أي تحديث تلقائي شغال قبل كده ونبدأ من جديد
   if (!isAutoRefresh && ccPulseReportPollTimer) {
     clearInterval(ccPulseReportPollTimer);
@@ -1389,19 +1397,23 @@ function ccpFriendlyEditError_(message) {
   return message;
 }
 
-// بيبعت نقطة واحدة (editAgentStatusPoint) للسيرفر ويرجع الـ JSON - مستخدمة مرة واحدة أو مرتين (بداية + نهاية)
-function ccpPostAgentStatusEdit_(agentName, originalTime, newTime, newStatus) {
+// بيبعت نقطة واحدة (editAgentStatusPoint) للسيرفر ويرجع الـ JSON - مستخدمة مرة واحدة أو مرتين (بداية + نهاية).
+// oldStatus اختياري - لو موجود، بيتبعت صراحة عشان السيرفر يستخدمه زي ما هو بدل ما يخمّنه (شوف Code.gs)
+function ccpPostAgentStatusEdit_(agentName, originalTime, newTime, newStatus, oldStatus) {
+  const body = {
+    action: "editAgentStatusPoint",
+    agentName: agentName,
+    originalTime: originalTime,
+    newTime: newTime,
+    newStatus: newStatus,
+    token: localStorage.getItem("sessionToken") || ""
+  };
+  if (oldStatus) body.oldStatus = oldStatus;
+
   return fetch(GOOGLE_SHEET_API_URL, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({
-      action: "editAgentStatusPoint",
-      agentName: agentName,
-      originalTime: originalTime,
-      newTime: newTime,
-      newStatus: newStatus,
-      token: localStorage.getItem("sessionToken") || ""
-    })
+    body: JSON.stringify(body)
   }).then(res => res.json());
 }
 
@@ -1747,7 +1759,7 @@ function buildCcPulseSessionListHtml_(sessions, agentName, dateStr) {
   const rowsHtml = sessions.map((s, sIdx) => {
     const prevStatus = sIdx > 0 ? sessions[sIdx - 1].status : "";
     const attrs = canEdit
-      ? ` data-ccp-edit="1" data-agent="${ccpEscapeAttr_(agentName)}" data-date="${dateStr}" data-time="${s.start}" data-status="${ccpEscapeAttr_(s.status)}" data-prev-status="${ccpEscapeAttr_(prevStatus)}" data-idx="${sIdx}"`
+      ? ` data-ccp-edit="1" data-agent="${ccpEscapeAttr_(agentName)}" data-date="${dateStr}" data-time="${s.start}" data-status="${ccpEscapeAttr_(s.status)}" data-old-status="${ccpEscapeAttr_(s.oldStatus || "")}" data-prev-status="${ccpEscapeAttr_(prevStatus)}" data-idx="${sIdx}"`
       : "";
     return `
         <div class="ccp-session-row"${attrs}>${ccpSessionRowViewInnerHtml_(s, canEdit)}</div>`;
@@ -1775,15 +1787,20 @@ function ccpSessionRowViewInnerHtml_(s, canEdit) {
           <span class="ccp-session-dur">${formatCcPulseDuration(s.durationSeconds)}</span>${rowActionsHtml}`;
 }
 
-// المحتوى الجوّاني لصف في وضع التعديل - دروب داون حالة + وقت بداية + وقت نهاية (اختياري لو مفيش صف بعده) +
-// زرار حفظ/إلغاء، كل حقل بيتعدل لوحده. hasNext=false يخلي حقل النهاية فاضي بـ placeholder "ongoing" (مفيش
-// نقطة حقيقية بعده لسه - أي وقت هيتكتب هنا هيتضاف كنقطة جديدة وقت الحفظ، مش تحريك نقطة موجودة)
-function ccpSessionRowEditInnerHtml_(status, startHHMMSS, endHHMMSS, hasNext) {
+// المحتوى الجوّاني لصف في وضع التعديل - وقت البداية + الحالة "من -> لحد" (From/To - بتمثل عمودي
+// OldStatus/NewStatus بتاعت الصف ده بالظبط في AgentStatusLog، معروضين صراحة بدل ما السيرفر يخمّن From
+// لوحده زي الأول) + وقت النهاية (اختياري لو مفيش صف بعده) + زرار حفظ/إلغاء، كل حقل بيتعدل لوحده.
+// hasNext=false يخلي حقل النهاية فاضي بـ placeholder "ongoing" (مفيش نقطة حقيقية بعده لسه - أي وقت
+// هيتكتب هنا هيتضاف كنقطة جديدة وقت الحفظ، مش تحريك نقطة موجودة)
+function ccpSessionRowEditInnerHtml_(oldStatus, status, startHHMMSS, endHHMMSS, hasNext) {
+  const oldStatusOptionsHtml = CCP_EDITABLE_STATUSES.map(o => `<option value="${o.value}"${o.value === oldStatus ? " selected" : ""}>${o.label}</option>`).join("");
   const statusOptionsHtml = CCP_EDITABLE_STATUSES.map(o => `<option value="${o.value}"${o.value === status ? " selected" : ""}>${o.label}</option>`).join("");
   const endAttrs = hasNext ? "" : ` placeholder="ongoing"`;
   return `
-          <select class="ccp-session-edit-select">${statusOptionsHtml}</select>
           <input type="time" step="1" class="ccp-session-edit-start" value="${startHHMMSS}">
+          <select class="ccp-session-edit-old-select" title="Status right before this point (From)">${oldStatusOptionsHtml}</select>
+          <span class="ccp-session-edit-arrow">to</span>
+          <select class="ccp-session-edit-select" title="Status from this point on (To)">${statusOptionsHtml}</select>
           <span class="ccp-session-edit-arrow">→</span>
           <input type="time" step="1" class="ccp-session-edit-end" value="${endHHMMSS}"${endAttrs}>
           <button type="button" class="ccp-session-save-btn" title="Save"><i class="fa-solid fa-check"></i></button>
@@ -1800,12 +1817,13 @@ function ccpEnterRowEditMode_(row) {
   const dateStr = row.getAttribute("data-date") || "";
   const originalTime = row.getAttribute("data-time") || "";
   const status = row.getAttribute("data-status") || "Available";
+  const oldStatusAttr = row.getAttribute("data-old-status") || "";
   const idx = parseInt(row.getAttribute("data-idx"), 10);
 
   const sessions = ccpSessionListCache_[agentName + "|" + dateStr] || [];
   const hasNext = !isNaN(idx) && (idx + 1) < sessions.length;
   const nextSession = hasNext ? sessions[idx + 1] : null;
-  const prevStatus = (!isNaN(idx) && idx > 0 && sessions[idx - 1]) ? sessions[idx - 1].status : "Available";
+  const prevStatus = (!isNaN(idx) && idx > 0 && sessions[idx - 1]) ? sessions[idx - 1].status : "Away";
 
   row.dataset.hasNext = hasNext ? "1" : "0";
   row.dataset.nextTime = hasNext ? nextSession.start : "";
@@ -1814,8 +1832,11 @@ function ccpEnterRowEditMode_(row) {
 
   const startHHMMSS = originalTime ? originalTime.split(" ")[1] : "09:00:00";
   const endHHMMSS = hasNext ? nextSession.start.split(" ")[1] : "";
+  // "From" - القيمة الحقيقية المخزنة في الشيت لو الصف موجود بالفعل (جايالنا من السيرفر)، أو تخمين معقول
+  // (نفس منطق autoRevert - الحالة اللي كانت شغالة قبله فعلاً، أو "Away" لو ده أول صف في اليوم) لو صف جديد
+  const oldStatusDefault = oldStatusAttr || prevStatus;
 
-  row.innerHTML = ccpSessionRowEditInnerHtml_(status, startHHMMSS, endHHMMSS, hasNext);
+  row.innerHTML = ccpSessionRowEditInnerHtml_(oldStatusDefault, status, startHHMMSS, endHHMMSS, hasNext);
   row.querySelector(".ccp-session-edit-start").focus();
 }
 
@@ -1848,11 +1869,13 @@ async function ccpSaveRowEdit_(row) {
   const dateStr = row.getAttribute("data-date") || "";
   const originalTime = row.getAttribute("data-time") || ""; // فاضي = صف جديد لسه مش متسجل في الشيت
   const origStatus = row.getAttribute("data-status") || "";
+  const origOldStatus = row.getAttribute("data-old-status") || "";
   const hasNext = row.dataset.hasNext === "1";
   const nextTime = row.dataset.nextTime || "";
   const nextStatus = row.dataset.nextStatus || "";
   const autoRevertStatus = row.dataset.autoRevert || "Available";
 
+  const oldStatusVal = row.querySelector(".ccp-session-edit-old-select").value;
   const statusVal = row.querySelector(".ccp-session-edit-select").value;
   const startVal = ccpNormalizeTimeToHHMMSS_(row.querySelector(".ccp-session-edit-start").value);
   const endVal = ccpNormalizeTimeToHHMMSS_(row.querySelector(".ccp-session-edit-end").value);
@@ -1861,7 +1884,7 @@ async function ccpSaveRowEdit_(row) {
   const cancelBtn = row.querySelector(".ccp-session-cancel-btn");
 
   errEl.textContent = "";
-  if (!dateStr || !startVal || !statusVal) {
+  if (!dateStr || !startVal || !statusVal || !oldStatusVal) {
     errEl.textContent = "⚠️ Fill in time and status.";
     return;
   }
@@ -1877,10 +1900,11 @@ async function ccpSaveRowEdit_(row) {
   const newStartFull = `${dateStr} ${startVal}`;
 
   try {
-    // 1) بداية السيجمنت - الحالة و/أو وقت البداية (نفس نداء واحد بيغطي الاتنين، شوف editAgentStatusPoint_)
-    const startChanged = !originalTime || newStartFull !== originalTime || statusVal !== origStatus;
+    // 1) بداية السيجمنت - "From"/"To" و/أو وقت البداية (نفس نداء واحد بيغطي الكل، شوف editAgentStatusPoint_
+    // - oldStatus بيتبعت صراحة دايمًا هنا عشان الشيت يتضبط بالظبط زي ما الأدمن شايف/مختار، مش تخمين)
+    const startChanged = !originalTime || newStartFull !== originalTime || statusVal !== origStatus || oldStatusVal !== origOldStatus;
     if (startChanged) {
-      const res1 = await ccpPostAgentStatusEdit_(agentName, originalTime, newStartFull, statusVal);
+      const res1 = await ccpPostAgentStatusEdit_(agentName, originalTime, newStartFull, statusVal, oldStatusVal);
       if (res1.status !== "success") {
         errEl.textContent = "❌ " + ccpFriendlyEditError_(res1.message);
         saveBtn.disabled = false; cancelBtn.disabled = false;

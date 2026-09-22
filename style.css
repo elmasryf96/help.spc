@@ -1930,7 +1930,8 @@ input:checked + .slider:before { transform: translateX(20px); }
     color: var(--dark-navy);
 }
 
-/* ---- Inline row edit mode (no popup) - دروب داون الحالة + وقت البداية/النهاية + حفظ/إلغاء ---- */
+/* ---- Inline row edit mode (no popup) - وقت + From/To الحالة + وقت النهاية + حفظ/إلغاء ---- */
+.ccp-session-edit-old-select,
 .ccp-session-edit-select {
     flex-shrink: 0;
     padding: 5px 8px;
@@ -1940,6 +1941,9 @@ input:checked + .slider:before { transform: translateX(20px); }
     color: var(--dark-navy);
     font-weight: 700;
     font-size: 12px;
+}
+.ccp-session-edit-old-select {
+    color: #78716c; /* أخف شوية من "To" - عشان واضح إنها الحالة السابقة مش الحالية */
 }
 .ccp-session-edit-start,
 .ccp-session-edit-end {
