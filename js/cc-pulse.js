@@ -814,6 +814,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
   resultBox.innerHTML = `
     <div class="ccp-export-bar">
       <button type="button" class="ccp-export-btn" onclick="exportCcPulseReportToCsv()">📥 Export to CSV</button>
+      <button type="button" class="ccp-export-btn" onclick="exportCcPulseReportToPdf()">🖨️ Export to PDF</button>
     </div>
     <div class="ccp-mode-bar" style="margin: 4px 0 14px;">
       <button type="button" id="ccpResultViewBtn_queue" class="ccp-mode-btn" onclick="setCcpResultView('queue')"><i class="fa-solid fa-headset"></i> Queue</button>
@@ -1145,6 +1146,33 @@ function downloadCcPulseCsv(rows, filename) {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+// زرار "Export to PDF" - بياخد نفس كارت التقرير المعروض دلوقتي (#ccPulseReportResult)
+// زي ما هو بالظبط (نفس التصميم/الألوان) ويحوله PDF، عن طريق مكتبة html2pdf.js
+// (محمّلة من CDN في tail.html) - من غير أي تعديل في Code.gs أو السيرفر، كله فرونت إند.
+// شريط زراير الـ Export نفسه (CSV/PDF) بيتشال من الـ PDF عشان مايظهرش جوه الملف الناتج.
+function exportCcPulseReportToPdf() {
+  const resultBox = document.getElementById("ccPulseReportResult");
+  if (!resultBox || typeof html2pdf === "undefined") return;
+
+  const uae = getUAECurrentDate();
+  const filename = `cc-pulse-report_${uae.year}-${uae.month}-${uae.day}.pdf`;
+
+  const opt = {
+    margin: 8,
+    filename: filename,
+    image: { type: "jpeg", quality: 0.95 },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      ignoreElements: (el) => Boolean(el.classList && el.classList.contains("ccp-export-bar"))
+    },
+    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+    pagebreak: { mode: ["css", "legacy"] }
+  };
+
+  html2pdf().set(opt).from(resultBox).save();
 }
 
 // زرار "Export to CSV" بيستخدم آخر بيانات تقرير اتحمّلت (اتخزنت في ccPulseLastExportAgentsList وقت الـ render)
@@ -2271,6 +2299,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
   resultBox.innerHTML = `
     <div class="ccp-export-bar">
       <button type="button" class="ccp-export-btn" onclick="exportCcPulseReportToCsv()">📥 Export to CSV</button>
+      <button type="button" class="ccp-export-btn" onclick="exportCcPulseReportToPdf()">🖨️ Export to PDF</button>
     </div>
     ${bodyHtml}
   `;
