@@ -808,6 +808,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
   setCcpResultView(ccpResultView);
   attachCcPulseTimelineHover();
   attachCcPulseTimelineEditHandlers();
+  attachCcPulseSessionListEditHandlers();
 }
 
 function ccPulseTimeToMinutes(ts) {
@@ -1327,9 +1328,11 @@ function ccpOpenEditModal(seg) {
 
   ccpEditState = { agentName: agentName, originalTime: originalTime, isGap: isGap, autoRevertStatus: autoRevertStatus };
 
-  document.getElementById("ccpEditModalTitle").innerHTML = isGap
-    ? `<i class="fa-solid fa-pen"></i> Fill Gap`
-    : `<i class="fa-solid fa-pen"></i> Edit Status`;
+  // بنعدل نقطة موجودة فعلاً (originalTime مش فاضي) -> "Edit Status". مفيش نقطة (originalTime فاضي) وفجوة
+  // Out Of Adherence محسوبة (isGap) -> "Fill Gap". مفيش نقطة ومش فجوة -> إضافة يدوية من زرار "+ Add status"
+  document.getElementById("ccpEditModalTitle").innerHTML = originalTime
+    ? `<i class="fa-solid fa-pen"></i> Edit Status`
+    : (isGap ? `<i class="fa-solid fa-pen"></i> Fill Gap` : `<i class="fa-solid fa-plus"></i> Add Status`);
   document.getElementById("ccpEditAgentDisplay").value = agentName;
   document.getElementById("ccpEditDate").value = dateStr;
   document.getElementById("ccpEditTime").value = originalTime ? originalTime.split(" ")[1] : ((prefillTime ? prefillTime + ":00" : "09:00:00"));
@@ -1532,6 +1535,75 @@ function attachCcPulseTimelineEditHandlers() {
   });
 }
 
+// بيربط أزرار التعديل/الحذف في قايمة الـ Sessions تحت التايم لاين (بديل تاني للدوس على التايم لاين، شوف
+// buildCcPulseSessionListHtml_)، وزرار "+ Add status". نفس isAdmin() check وشكل الاستدعاء بالظبط زي
+// attachCcPulseTimelineEditHandlers - بينادي نفس ccpOpenEditModal، فمفيش منطق مكرر
+function attachCcPulseSessionListEditHandlers() {
+  if (!isAdmin()) return;
+
+  document.querySelectorAll(".ccp-session-list").forEach(list => {
+    if (list.dataset.editBound === "true") return;
+    list.dataset.editBound = "true";
+
+    list.addEventListener("click", (e) => {
+      const row = e.target.closest('.ccp-session-row[data-ccp-edit="1"]');
+      if (!row) return;
+
+      if (e.target.closest(".ccp-session-edit-btn")) {
+        ccpOpenEditModal(row);
+      } else if (e.target.closest(".ccp-session-delete-btn")) {
+        ccpDeleteSessionRow_(row);
+      }
+    });
+  });
+
+  document.querySelectorAll('.ccp-session-add-btn[data-ccp-add="1"]').forEach(btn => {
+    if (btn.dataset.addBound === "true") return;
+    btn.dataset.addBound = "true";
+    btn.addEventListener("click", () => ccpOpenEditModal(btn));
+  });
+}
+
+// حذف مباشر لسطر في قايمة الـ Sessions من غير ما نفتح المودال الأول - نفس فعل "Undo" جوه المودال
+// (deleteAgentStatusPoint) بس خطوة واحدة بدل اتنين. مفيد خصوصًا للسيجمنتات اللي أصلاً بتتعدل من هنا لأنها
+// صغيرة جدًا وصعبة على التايم لاين
+function ccpDeleteSessionRow_(row) {
+  if (!isAdmin()) return;
+  const agentName = row.getAttribute("data-agent") || "";
+  const originalTime = row.getAttribute("data-time") || "";
+  if (!agentName || !originalTime) return;
+  if (!confirm("Delete this status change? This cannot be undone.")) return;
+
+  const btn = row.querySelector(".ccp-session-delete-btn");
+  if (btn) { btn.disabled = true; btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`; }
+
+  fetch(GOOGLE_SHEET_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({
+      action: "deleteAgentStatusPoint",
+      agentName: agentName,
+      originalTime: originalTime,
+      token: localStorage.getItem("sessionToken") || ""
+    })
+  })
+    .then(res => res.json())
+    .then(res => {
+      if (res.status === "success") {
+        ccpShowEditToast_("↩️ Removed — refreshing timeline...");
+        loadCcPulseReport(false);
+      } else {
+        if (btn) { btn.disabled = false; btn.innerHTML = `<i class="fa-solid fa-trash-can"></i>`; }
+        alert("❌ " + (res.message || "Failed to delete"));
+      }
+    })
+    .catch(err => {
+      console.error("Error deleting status point:", err);
+      if (btn) { btn.disabled = false; btn.innerHTML = `<i class="fa-solid fa-trash-can"></i>`; }
+      alert("❌ Network error. Please check your connection and try again.");
+    });
+}
+
 function attachCcPulseTimelineHover() {
   document.querySelectorAll(".ccp-timeline-bar").forEach(bar => {
     const tooltip = bar.parentElement.querySelector(".ccp-tl-tooltip");
@@ -1646,15 +1718,43 @@ function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, 
       ${adherenceCardHtml}
     </div>
     ${renderCcPulseTimelineHtml(day.sessions, statusColors, shiftWindow, dayEffectiveEndMin, { agentName: agentName, dateStr: day.date })}
-    <div class="ccp-session-list">
-      ${(day.sessions || []).map(s => `
-        <div class="ccp-session-row">
+    ${buildCcPulseSessionListHtml_(day.sessions, agentName, day.date)}`;
+}
+
+// قايمة الـ Sessions تحت التايم لاين - طريقة تانية للتعديل غير الدوس على التايم لاين نفسه، مفيدة خصوصًا
+// للسيجمنتات الصغيرة جدًا (كام ثانية) اللي عمليًا مستحيل تدوس عليها بدقة على بار طوله 12 ساعة.
+// نفس صلاحية وباك اند الدوس على التايم لاين بالظبط (editAgentStatusPoint_ / deleteAgentStatusPoint_ في
+// Code.gs) - بس entry point تاني (زرار قلم = يفتح نفس مودال ccpOpenEditModal، زرار سلة = حذف مباشر بضغطة
+// واحدة، وزرار "+ Add status" تحت القايمة يفتح نفس المودال فاضي لإضافة نقطة جديدة). أدمن بس - شوف
+// attachCcPulseSessionListEditHandlers
+function buildCcPulseSessionListHtml_(sessions, agentName, dateStr) {
+  sessions = sessions || [];
+  const canEdit = Boolean(agentName && dateStr && typeof isAdmin === "function" && isAdmin());
+
+  const rowsHtml = sessions.map((s, sIdx) => {
+    const prevStatus = sIdx > 0 ? sessions[sIdx - 1].status : "";
+    const editAttrs = canEdit
+      ? ` data-ccp-edit="1" data-agent="${ccpEscapeAttr_(agentName)}" data-date="${dateStr}" data-time="${s.start}" data-status="${ccpEscapeAttr_(s.status)}" data-prev-status="${ccpEscapeAttr_(prevStatus)}"`
+      : "";
+    const rowActionsHtml = canEdit ? `
+          <button type="button" class="ccp-session-edit-btn" title="Edit this status"><i class="fa-solid fa-pen"></i></button>
+          <button type="button" class="ccp-session-delete-btn" title="Delete this status"><i class="fa-solid fa-trash-can"></i></button>` : "";
+    return `
+        <div class="ccp-session-row"${editAttrs}>
           <span class="ccp-dot" style="background:${ccpStatusColor(s.status)}"></span>
           <span class="ccp-session-status">${ccpDisplayStatusName(s.status)}</span>
           <span class="ccp-session-time">${ccPulseTimeOnly(s.start)} → ${ccPulseTimeOnly(s.end)}</span>
-          <span class="ccp-session-dur">${formatCcPulseDuration(s.durationSeconds)}</span>
-        </div>`).join("")}
-    </div>`;
+          <span class="ccp-session-dur">${formatCcPulseDuration(s.durationSeconds)}</span>${rowActionsHtml}
+        </div>`;
+  }).join("");
+
+  const addBtnHtml = canEdit
+    ? `<button type="button" class="ccp-session-add-btn" data-ccp-add="1" data-agent="${ccpEscapeAttr_(agentName)}" data-date="${dateStr}"><i class="fa-solid fa-plus"></i> Add status</button>`
+    : "";
+
+  return `
+    <div class="ccp-session-list">${rowsHtml}</div>
+    ${addBtnHtml}`;
 }
 
 // ============================================================
@@ -1870,6 +1970,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
 
   attachCcPulseTimelineHover();
   attachCcPulseTimelineEditHandlers();
+  attachCcPulseSessionListEditHandlers();
 }
 
 // ============================================================

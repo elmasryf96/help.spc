@@ -1874,6 +1874,60 @@ input:checked + .slider:before { transform: translateX(20px); }
     border-radius: 50%;
     flex-shrink: 0;
 }
+
+/* ---- Session list edit/delete/add (admin only) - طريقة تانية للتعديل غير الدوس على التايم لاين ---- */
+.ccp-session-edit-btn,
+.ccp-session-delete-btn {
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 7px;
+    border: 1.5px solid #e2e8f0;
+    background: #ffffff;
+    color: #64748b;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.ccp-session-edit-btn:hover {
+    background: var(--badge-bg);
+    border-color: var(--badge-border);
+    color: var(--dark-navy);
+}
+.ccp-session-delete-btn:hover {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: var(--coral-red);
+}
+.ccp-session-delete-btn:disabled {
+    opacity: .6;
+    cursor: default;
+}
+.ccp-session-add-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    margin-top: 6px;
+    padding: 9px;
+    border-radius: 8px;
+    border: 1.5px dashed #cbd5e1;
+    background: #fafafa;
+    color: #64748b;
+    font-weight: 700;
+    font-size: 12.5px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.ccp-session-add-btn:hover {
+    background: var(--badge-bg);
+    border-color: var(--badge-border);
+    color: var(--dark-navy);
+}
 .ccp-total-list {
     display: flex;
     flex-direction: column;
