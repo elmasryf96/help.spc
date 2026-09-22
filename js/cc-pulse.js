@@ -60,6 +60,7 @@ function setCcpResultView(view) {
 let ccPulseReportLiveBase = null; // بيتخزن فيه أرقام آخر تقرير عشان نعد عليها بالثانية زي العداد اللي فوق
 let ccPulseLastExportAgentsList = null; // بيتخزن فيه آخر بيانات تقرير اتحمّلت عشان زرار الـ Export يقدر يستخدمها
 let ccPulseLastExportTrackingStartDate = null; // بيتخزن فيه trackingStartDate بتاع آخر تقرير، عشان الـ CSV يستبعد نفس الأيام
+let ccPulseLastExportCallLogByDay = null; // بيتخزن فيه callLogData.agentsByDay بتاع آخر تقرير (أرقام مكالمات كل إيجنت في كل يوم لوحده) عشان الـ CSV يضيفها لكل صف
 
 // كارت "My Day" (بيانات/تايم لاين الإيجنت لنفسه في الصفحة الرئيسية) كان بيتحمّل مرة واحدة بس وبيفضل واقف زي ما هو،
 // فمع مرور الوقت الداتا بتفضل قديمة والـ Out Of Adherence بيبان غلط لحد ما الإيجنت يعمل refresh يدوي.
@@ -514,6 +515,14 @@ function ccPulseTimeOnly(ts) {
   return parts[1] ? parts[1].slice(0, 5) : ts;
 }
 
+// زي ccPulseTimeOnly بالظبط بس محتفظة بالثواني (HH:MM:SS) - مستخدمة في تصدير الإكسل بس
+// (اليوزر طلب دقة الثانية في وقت الدخول/الخروج في الشيت) - من غير ما تأثر على أي عرض تاني في الواجهة
+function ccPulseTimeWithSeconds_(ts) {
+  if (!ts) return "--";
+  const parts = ts.split(" ");
+  return parts[1] ? parts[1] : ts;
+}
+
 // بيبني كارت "Queue Overview" اللي بيوري أداء الكيو ككل (مش لإيجنت بعينه):
 // إجمالي المكالمات، المردود عليها، نسبة الـ Abandonment، ومتوسط سرعة الرد (ASA)
 function ccPulseBuildQueueSummaryHtml(qs) {
@@ -832,6 +841,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
 
   ccPulseLastExportAgentsList = data.agents.map(a => ({ name: a.name, number: a.number, days: a.days || [] }));
   ccPulseLastExportTrackingStartDate = data.trackingStartDate || null;
+  ccPulseLastExportCallLogByDay = (callLogData && callLogData.agentsByDay) || null;
 
   setCcpResultView(ccpResultView);
   attachCcPulseTimelineHover();
@@ -1066,7 +1076,9 @@ function calculateAdherenceFromDays(agentName, days, trackingStartDate) {
 // ============================================================
 // بياخد قايمة إيجنتس [{ name, number, days }] وبيبني صفوف CSV (هيدر + صف لكل يوم لكل إيجنت)
 // بيتجاهل تلقائيًا أي يوم قبل trackingStartDate (لو اتبعتت) عشان الأرقام تفضل متسقة مع باقي التقرير
-function buildCcPulseExportRows(agentsList, trackingStartDate) {
+// callLogByDay (اختياري) = callLogData.agentsByDay من Code.gs، بصيغة { "2026-09-01": { "Ahmed": {callsAnswered, ahtSeconds, ...}, ... }, ... } -
+// بتضيف أعمدة أرقام المكالمات (Calls Answered / AHT / Occupancy / Outbound) لكل يوم لكل إيجنت بدل ما تفضل مجمّعة على الفترة كلها بس
+function buildCcPulseExportRows(agentsList, trackingStartDate, callLogByDay) {
   // نجمع كل أسماء الـ status الموجودة في كل الأيام لكل الإيجنتس، عشان الأعمدة تبقى موحدة لكل الصفوف
   const statusSet = new Set();
   agentsList.forEach(agent => {
@@ -1077,10 +1089,15 @@ function buildCcPulseExportRows(agentsList, trackingStartDate) {
   });
   const statusColumns = Array.from(statusSet);
 
-  const headers = ["Date", "Agent", "Ext", "Scheduled Shift", "First Login", "End Shift", "Tardy", "Tardy Minutes", "Total Login Time", "Breaks"].concat(statusColumns.map(st => ccpDisplayStatusName(st)));
+  const headers = ["Date", "Agent", "Ext", "Scheduled Shift", "First Login", "End Shift", "Tardy", "Tardy Minutes", "Total Login Time", "Breaks",
+    "Calls Answered", "AHT", "Occupancy %", "Outbound Answered", "Outbound Unanswered", "Outbound Total"
+  ].concat(statusColumns.map(st => ccpDisplayStatusName(st)));
   const rows = [headers];
 
   agentsList.forEach(agent => {
+    const agentDept = getAgentDeptToday(agent.name);
+    const isCallsAgent = agentDept === "Calls";
+
     (agent.days || []).forEach(day => {
       if (trackingStartDate && day.date < trackingStartDate) return; // قبل بداية التتبع، متجاهلش
 
@@ -1103,17 +1120,27 @@ function buildCcPulseExportRows(agentsList, trackingStartDate) {
         .map(s => `${ccPulseTimeOnly(s.start)}\u2192${ccPulseTimeOnly(s.end)}`)
         .join("; ");
 
+      // أرقام مكالمات اليوم دا بالظبط للإيجنت دا (مش مجمّعة على الفترة كلها) - لو متوفرة
+      const dayCallStats = (isCallsAgent && callLogByDay && callLogByDay[day.date]) ? callLogByDay[day.date][agent.name] : null;
+      const dayOccupancyPct = isCallsAgent ? ccpComputeOccupancyPct_(dayCallStats, day.totalLoginSeconds) : null;
+
       const row = [
         day.date,
         agent.name,
         agent.number || "-",
         shiftLabel,
-        ccPulseTimeOnly(day.firstLogin),
-        ccPulseTimeOnly(day.endShift),
+        ccPulseTimeWithSeconds_(day.firstLogin),
+        ccPulseTimeWithSeconds_(day.endShift),
         isTardy,
         tardyMin,
         formatCcPulseDuration(day.totalLoginSeconds),
-        breaksList
+        breaksList,
+        isCallsAgent ? (dayCallStats ? dayCallStats.callsAnswered : 0) : "",
+        isCallsAgent ? formatCcPulseDuration(dayCallStats ? dayCallStats.ahtSeconds : 0) : "",
+        dayOccupancyPct !== null ? `${dayOccupancyPct}%` : "",
+        isCallsAgent ? (dayCallStats ? dayCallStats.outboundAnsweredCount : 0) : "",
+        isCallsAgent ? (dayCallStats ? dayCallStats.outboundUnansweredCount : 0) : "",
+        isCallsAgent ? (dayCallStats ? dayCallStats.outboundCallsCount : 0) : ""
       ];
 
       statusColumns.forEach(st => {
@@ -1178,7 +1205,7 @@ function exportCcPulseReportToPdf() {
 // زرار "Export to CSV" بيستخدم آخر بيانات تقرير اتحمّلت (اتخزنت في ccPulseLastExportAgentsList وقت الـ render)
 function exportCcPulseReportToCsv() {
   if (!ccPulseLastExportAgentsList || !ccPulseLastExportAgentsList.length) return;
-  const rows = buildCcPulseExportRows(ccPulseLastExportAgentsList, ccPulseLastExportTrackingStartDate);
+  const rows = buildCcPulseExportRows(ccPulseLastExportAgentsList, ccPulseLastExportTrackingStartDate, ccPulseLastExportCallLogByDay);
   const uae = getUAECurrentDate();
   const filename = `cc-pulse-report_${uae.year}-${uae.month}-${uae.day}.csv`;
   downloadCcPulseCsv(rows, filename);
@@ -2307,6 +2334,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
   const liveAgentMatch = ccPulseAgentsCache.find(x => x.name === data.agent);
   ccPulseLastExportAgentsList = [{ name: data.agent, number: liveAgentMatch ? liveAgentMatch.number : "-", days: data.days || [] }];
   ccPulseLastExportTrackingStartDate = data.trackingStartDate || null;
+  ccPulseLastExportCallLogByDay = (callLogData && callLogData.agentsByDay) || null;
 
   attachCcPulseTimelineHover();
   attachCcPulseTimelineEditHandlers();
