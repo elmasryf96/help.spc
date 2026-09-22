@@ -495,6 +495,19 @@ function formatCcPulseDuration(totalSeconds) {
   return `${s}s`;
 }
 
+// بيحسب Occupancy % - نسبة الوقت اللي الإيجنت فعليًا مشغول فيه بمكالمات (داخلة +
+// صادرة) من إجمالي وقت الـ Login بتاعه للفترة دي. callStats جاي من callLogReport
+// (totalTalkSeconds = مكالمات داخلة مردود عليها، outboundTalkSeconds = صادرة
+// مردود عليها - كلاهما من Code-8.gs). بيرجع null لو مفيش وقت Login خالص (نتجنب
+// قسمة على صفر)، أو رقم من 0 لحد 100 (ممكن يعدي 100% نظريًا لو فيه تداخل بيانات،
+// بنحطه سقف 100 عشان ميطلعش رقم غريب في الواجهة)
+function ccpComputeOccupancyPct_(callStats, totalLoginSeconds) {
+  if (!totalLoginSeconds || totalLoginSeconds <= 0) return null;
+  const engagedSeconds = (callStats ? (callStats.totalTalkSeconds || 0) + (callStats.outboundTalkSeconds || 0) : 0);
+  const pct = Math.round((engagedSeconds / totalLoginSeconds) * 1000) / 10;
+  return Math.min(100, pct);
+}
+
 function ccPulseTimeOnly(ts) {
   if (!ts) return "--";
   const parts = ts.split(" ");
@@ -701,6 +714,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
 
     const callStats = callLogByAgent[a.name];
     const agentDept = getAgentDeptToday(a.name);
+    const occupancyPct = (agentDept === "Calls") ? ccpComputeOccupancyPct_(callStats, a.totalLoginSeconds) : null;
     const callsHtml = (agentDept === "Calls")
       ? `
       <div class="ccp-metric-card">
@@ -710,7 +724,12 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
       <div class="ccp-metric-card">
         <div class="ccp-metric-label">AHT</div>
         <div class="ccp-metric-value">${callStats ? formatCcPulseDuration(callStats.ahtSeconds) : "0s"}</div>
-      </div>`
+      </div>
+      ${occupancyPct !== null ? `
+      <div class="ccp-metric-card">
+        <div class="ccp-metric-label">Occupancy</div>
+        <div class="ccp-metric-value">${occupancyPct}%</div>
+      </div>` : ""}`
       : "";
     const outboundReportHtml = `
       <div class="ccp-metric-card">
@@ -1654,6 +1673,7 @@ function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, 
   const statusColors = CCP_STATUS_COLORS;
 
   const dept = getAgentDeptToday(agentName);
+  const occupancyPct = (dept === "Calls") ? ccpComputeOccupancyPct_(callStats, day.totalLoginSeconds) : null;
   const callsHtml = (dept === "Calls")
     ? `
     <div class="ccp-metric-card">
@@ -1663,7 +1683,12 @@ function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, 
     <div class="ccp-metric-card">
       <div class="ccp-metric-label">AHT</div>
       <div class="ccp-metric-value">${callStats ? formatCcPulseDuration(callStats.ahtSeconds) : "0s"}</div>
-    </div>`
+    </div>
+    ${occupancyPct !== null ? `
+    <div class="ccp-metric-card">
+      <div class="ccp-metric-label">Occupancy</div>
+      <div class="ccp-metric-value">${occupancyPct}%</div>
+    </div>` : ""}`
     : "";
   const outboundReportHtml = `
     <div class="ccp-metric-card">
@@ -2165,6 +2190,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
   } else {
     // رينج/شهر - نفس المنطق القديم زي ما هو (تقرير مجمّع لأكتر من يوم)
     const singleAgentDept = getAgentDeptToday(data.agent);
+    const occupancyPct = (singleAgentDept === "Calls") ? ccpComputeOccupancyPct_(callStats, data.totalLoginSeconds) : null;
     const callsHtml = (singleAgentDept === "Calls")
       ? `
       <div class="ccp-metric-card">
@@ -2174,7 +2200,12 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
       <div class="ccp-metric-card">
         <div class="ccp-metric-label">AHT</div>
         <div class="ccp-metric-value">${callStats ? formatCcPulseDuration(callStats.ahtSeconds) : "0s"}</div>
-      </div>`
+      </div>
+      ${occupancyPct !== null ? `
+      <div class="ccp-metric-card">
+        <div class="ccp-metric-label">Occupancy</div>
+        <div class="ccp-metric-value">${occupancyPct}%</div>
+      </div>` : ""}`
       : "";
     const outboundReportHtml = `
       <div class="ccp-metric-card">
