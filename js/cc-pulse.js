@@ -496,17 +496,107 @@ function formatCcPulseDuration(totalSeconds) {
   return `${s}s`;
 }
 
-// بيحسب Occupancy % - نسبة الوقت اللي الإيجنت فعليًا مشغول فيه بمكالمات (داخلة +
-// صادرة) من إجمالي وقت الـ Login بتاعه للفترة دي. callStats جاي من callLogReport
-// (totalTalkSeconds = مكالمات داخلة مردود عليها، outboundTalkSeconds = صادرة
-// مردود عليها - كلاهما من Code-8.gs). بيرجع null لو مفيش وقت Login خالص (نتجنب
-// قسمة على صفر)، أو رقم من 0 لحد 100 (ممكن يعدي 100% نظريًا لو فيه تداخل بيانات،
-// بنحطه سقف 100 عشان ميطلعش رقم غريب في الواجهة)
-function ccpComputeOccupancyPct_(callStats, totalLoginSeconds) {
-  if (!totalLoginSeconds || totalLoginSeconds <= 0) return null;
-  const engagedSeconds = (callStats ? (callStats.totalTalkSeconds || 0) + (callStats.outboundTalkSeconds || 0) : 0);
-  const pct = Math.round((engagedSeconds / totalLoginSeconds) * 1000) / 10;
-  return Math.min(100, pct);
+// ============================================================
+// 📈 Occupancy / Utilization (لكل التيمات: Calls / Call Outs / Emails)
+// ------------------------------------------------------------
+// حالات "شغل كامل" (CCP_BUSY_STATUSES): Follow up case (After Call Work) / Emails
+//   -> وقتها كله محسوب شغل (الإيجنت مشغول بكيس/إيميلات حتى لو مش على مكالمة)
+// حالات "مكالمات" (CCP_CALL_STATUSES): Available / Call Outs ("Out of office")
+//   -> بيتحسب منها وقت المكالمات بس: الداخلة (كلام) + الصادرة (رنين + كلام، مردود عليها أو لأ -
+//      المهم إن الإيجنت بيعمل مكالمات). يعني إيجنت Call Outs مبيتحسبش مشغول لو معملش مكالمات
+// وقت الشغل (engaged) = المكالمات الداخلة + وقت حالات الشغل الكامل
+//                       + المكالمات الصادرة اللي مش جوه حالة شغل كامل (عشان متتحسبش مرتين)
+// Occupancy   = engaged ÷ (Available + Call Outs + حالات الشغل الكامل)  -> البريك برا الحسبة خالص (مرن 30 دقيقة في اليوم)
+// Utilization = engaged ÷ إجمالي وقت الـ Login (كل الحالات ماعدا Away، يعني البريك داخل)
+// callStats جاي من callLogReport (Code.gs): totalTalkSeconds (داخلة)، outboundTalkSeconds (كلام الصادر)،
+// outboundCalls = [["yyyy-MM-dd HH:mm:ss", talkSeconds, ringSeconds], ...] (بيترجع مع أرقام اليوم الواحد بس)
+// ============================================================
+const CCP_BUSY_STATUSES = ["Follow up case", "Emails"];
+const CCP_CALL_STATUSES = ["Available", "Out of office"];
+
+function ccpTsToMs_(ts) {
+  return new Date(String(ts || "").replace(" ", "T")).getTime();
+}
+
+// أرقام يوم واحد (بالثواني) - day = { totals, sessions, totalLoginSeconds } من تقرير الحالات
+function ccpDayWorkSeconds_(day, callStats) {
+  const totals = (day && day.totals) || {};
+  const callStatusSec = CCP_CALL_STATUSES.reduce((sum, st) => sum + (totals[st] || 0), 0);
+  const busySec = CCP_BUSY_STATUSES.reduce((sum, st) => sum + (totals[st] || 0), 0);
+  const inboundTalk = callStats ? (callStats.totalTalkSeconds || 0) : 0;
+
+  // وقت الصادر = رنين + كلام لكل مكالمة (مردود عليها أو لأ)، ناقص اللي وقع جوه حالة شغل كامل
+  let outboundSec = 0;
+  const outboundCalls = (callStats && Array.isArray(callStats.outboundCalls)) ? callStats.outboundCalls : [];
+  if (outboundCalls.length) {
+    const busyRanges = ((day && day.sessions) || [])
+      .filter(s => CCP_BUSY_STATUSES.includes(s.status))
+      .map(s => [ccpTsToMs_(s.start), ccpTsToMs_(s.end)]);
+    outboundCalls.forEach(c => {
+      const durationSec = (Number(c[1]) || 0) + (Number(c[2]) || 0);
+      const callStart = ccpTsToMs_(c[0]);
+      if (isNaN(callStart)) { outboundSec += durationSec; return; }
+      const callEnd = callStart + durationSec * 1000;
+      let insideBusySec = 0;
+      busyRanges.forEach(r => {
+        const overlapMs = Math.min(callEnd, r[1]) - Math.max(callStart, r[0]);
+        if (overlapMs > 0) insideBusySec += overlapMs / 1000;
+      });
+      outboundSec += Math.max(0, durationSec - insideBusySec);
+    });
+  } else if (callStats) {
+    // احتياطي لو Code.gs القديم لسه منشور (مفيش outboundCalls): كلام الصادر المردود عليه بس
+    outboundSec = callStats.outboundTalkSeconds || 0;
+  }
+
+  return {
+    engaged: inboundTalk + busySec + outboundSec,
+    workWindow: callStatusSec + busySec,
+    login: (day && day.totalLoginSeconds) || 0
+  };
+}
+
+function ccpPct_(part, whole) {
+  if (!whole || whole <= 0) return null;
+  return Math.min(100, Math.round((part / whole) * 1000) / 10);
+}
+
+// items = [{ day, callStats }, ...] (يوم واحد أو أكتر) -> { occupancyPct, utilizationPct } (null لو مفيش وقت)
+function ccpComputeWorkMetrics_(items) {
+  let engaged = 0, workWindow = 0, login = 0;
+  (items || []).forEach(it => {
+    if (!it || !it.day) return;
+    const s = ccpDayWorkSeconds_(it.day, it.callStats);
+    engaged += s.engaged;
+    workWindow += s.workWindow;
+    login += s.login;
+  });
+  return { occupancyPct: ccpPct_(engaged, workWindow), utilizationPct: ccpPct_(engaged, login) };
+}
+
+// لإيجنت على كذا يوم: بيجيب أرقام مكالمات كل يوم لوحده من agentsByDay
+function ccpComputeWorkMetricsForDays_(agentName, days, agentsByDay, trackingStartDate) {
+  const items = (days || [])
+    .filter(d => !(trackingStartDate && d.date < trackingStartDate))
+    .map(d => ({ day: d, callStats: (agentsByDay && agentsByDay[d.date]) ? agentsByDay[d.date][agentName] : null }));
+  return ccpComputeWorkMetrics_(items);
+}
+
+// كروت Occupancy + Utilization (HTML) - فاضية لو مفيش أرقام
+function ccpWorkMetricsCardsHtml_(m) {
+  if (!m) return "";
+  let html = "";
+  if (m.occupancyPct !== null) html += `
+      <div class="ccp-metric-card" title="Time working (calls made/received + Follow up case / Emails) ÷ time Available, Call Outs, Follow up or Emails - Break not counted">
+        <div class="ccp-metric-label">Occupancy</div>
+        <div class="ccp-metric-value">${m.occupancyPct}%</div>
+      </div>`;
+  if (m.utilizationPct !== null) html += `
+      <div class="ccp-metric-card" title="Time working (calls made/received + Follow up case / Emails) ÷ total login time - Break included">
+        <div class="ccp-metric-label">Utilization</div>
+        <div class="ccp-metric-value">${m.utilizationPct}%</div>
+      </div>`;
+  return html;
 }
 
 function ccPulseTimeOnly(ts) {
@@ -723,7 +813,8 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
 
     const callStats = callLogByAgent[a.name];
     const agentDept = getAgentDeptToday(a.name);
-    const occupancyPct = (agentDept === "Calls") ? ccpComputeOccupancyPct_(callStats, a.totalLoginSeconds) : null;
+    const workMetrics = ccpComputeWorkMetricsForDays_(a.name, a.days || [], callLogData && callLogData.agentsByDay, data.trackingStartDate);
+    const workHtml = ccpWorkMetricsCardsHtml_(workMetrics);
     const callsHtml = (agentDept === "Calls")
       ? `
       <div class="ccp-metric-card">
@@ -734,11 +825,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
         <div class="ccp-metric-label">AHT</div>
         <div class="ccp-metric-value">${callStats ? formatCcPulseDuration(callStats.ahtSeconds) : "0s"}</div>
       </div>
-      ${occupancyPct !== null ? `
-      <div class="ccp-metric-card">
-        <div class="ccp-metric-label">Occupancy</div>
-        <div class="ccp-metric-value">${occupancyPct}%</div>
-      </div>` : ""}`
+`
       : "";
     const outboundReportHtml = `
       <div class="ccp-metric-card">
@@ -815,7 +902,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
           <div class="ccp-metric-label">Total login time</div>
           <div class="ccp-metric-value" data-agent-total="${a.name}">${formatCcPulseDuration(a.totalLoginSeconds)}</div>
         </div>
-        <div class="ccp-metrics-grid">${callsHtml}${outboundReportHtml}${totalsHtml}${adherenceHtml}${tardyHtml}</div>
+        <div class="ccp-metrics-grid">${callsHtml}${workHtml}${outboundReportHtml}${totalsHtml}${adherenceHtml}${tardyHtml}</div>
         ${timelineHtml}
       </div>`;
   }).join("");
@@ -1090,7 +1177,7 @@ function buildCcPulseExportRows(agentsList, trackingStartDate, callLogByDay) {
   const statusColumns = Array.from(statusSet);
 
   const headers = ["Date", "Agent", "Ext", "Scheduled Shift", "First Login", "End Shift", "Tardy", "Tardy Minutes", "Total Login Time", "Breaks",
-    "Calls Answered", "AHT", "Occupancy %", "Outbound Answered", "Outbound Unanswered", "Outbound Total"
+    "Calls Answered", "AHT", "Occupancy %", "Utilization %", "Outbound Answered", "Outbound Unanswered", "Outbound Total"
   ].concat(statusColumns.map(st => ccpDisplayStatusName(st)));
   const rows = [headers];
 
@@ -1122,7 +1209,9 @@ function buildCcPulseExportRows(agentsList, trackingStartDate, callLogByDay) {
 
       // أرقام مكالمات اليوم دا بالظبط للإيجنت دا (مش مجمّعة على الفترة كلها) - لو متوفرة
       const dayCallStats = (isCallsAgent && callLogByDay && callLogByDay[day.date]) ? callLogByDay[day.date][agent.name] : null;
-      const dayOccupancyPct = isCallsAgent ? ccpComputeOccupancyPct_(dayCallStats, day.totalLoginSeconds) : null;
+      // Occupancy / Utilization لكل التيمات (مش Calls بس) - بياخد أرقام مكالمات أي إيجنت
+      const dayAnyCallStats = (callLogByDay && callLogByDay[day.date]) ? callLogByDay[day.date][agent.name] : null;
+      const dayWork = ccpComputeWorkMetrics_([{ day: day, callStats: dayAnyCallStats }]);
 
       const row = [
         day.date,
@@ -1137,7 +1226,8 @@ function buildCcPulseExportRows(agentsList, trackingStartDate, callLogByDay) {
         breaksList,
         isCallsAgent ? (dayCallStats ? dayCallStats.callsAnswered : 0) : "",
         isCallsAgent ? formatCcPulseDuration(dayCallStats ? dayCallStats.ahtSeconds : 0) : "",
-        dayOccupancyPct !== null ? `${dayOccupancyPct}%` : "",
+        dayWork.occupancyPct !== null ? `${dayWork.occupancyPct}%` : "",
+        dayWork.utilizationPct !== null ? `${dayWork.utilizationPct}%` : "",
         isCallsAgent ? (dayCallStats ? dayCallStats.outboundAnsweredCount : 0) : "",
         isCallsAgent ? (dayCallStats ? dayCallStats.outboundUnansweredCount : 0) : "",
         isCallsAgent ? (dayCallStats ? dayCallStats.outboundCallsCount : 0) : ""
@@ -1728,7 +1818,7 @@ function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, 
   const statusColors = CCP_STATUS_COLORS;
 
   const dept = getAgentDeptToday(agentName);
-  const occupancyPct = (dept === "Calls") ? ccpComputeOccupancyPct_(callStats, day.totalLoginSeconds) : null;
+  const workHtml = ccpWorkMetricsCardsHtml_(ccpComputeWorkMetrics_([{ day: day, callStats: callStats }]));
   const callsHtml = (dept === "Calls")
     ? `
     <div class="ccp-metric-card">
@@ -1739,11 +1829,7 @@ function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, 
       <div class="ccp-metric-label">AHT</div>
       <div class="ccp-metric-value">${callStats ? formatCcPulseDuration(callStats.ahtSeconds) : "0s"}</div>
     </div>
-    ${occupancyPct !== null ? `
-    <div class="ccp-metric-card">
-      <div class="ccp-metric-label">Occupancy</div>
-      <div class="ccp-metric-value">${occupancyPct}%</div>
-    </div>` : ""}`
+`
     : "";
   const outboundReportHtml = `
     <div class="ccp-metric-card">
@@ -1800,7 +1886,7 @@ function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, 
       <div class="ccp-metric-label">Total login time</div>
       <div class="ccp-metric-value"${liveIds ? ` id="ccpTotalLoginValue"` : ""}>${formatCcPulseDuration(day.totalLoginSeconds)}</div>
     </div>
-    <div class="ccp-metrics-grid">${callsHtml}${outboundReportHtml}${totalsHtml}${tardyHtml}</div>
+    <div class="ccp-metrics-grid">${callsHtml}${workHtml}${outboundReportHtml}${totalsHtml}${tardyHtml}</div>
     ${dayStatusBannerHtml}
     <div class="ccp-day-highlight">
       <div class="ccp-metric-card ccp-accent">
@@ -2245,7 +2331,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
   } else {
     // رينج/شهر - نفس المنطق القديم زي ما هو (تقرير مجمّع لأكتر من يوم)
     const singleAgentDept = getAgentDeptToday(data.agent);
-    const occupancyPct = (singleAgentDept === "Calls") ? ccpComputeOccupancyPct_(callStats, data.totalLoginSeconds) : null;
+    const workHtml = ccpWorkMetricsCardsHtml_(ccpComputeWorkMetricsForDays_(data.agent, data.days || [], callLogData && callLogData.agentsByDay, data.trackingStartDate));
     const callsHtml = (singleAgentDept === "Calls")
       ? `
       <div class="ccp-metric-card">
@@ -2256,11 +2342,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
         <div class="ccp-metric-label">AHT</div>
         <div class="ccp-metric-value">${callStats ? formatCcPulseDuration(callStats.ahtSeconds) : "0s"}</div>
       </div>
-      ${occupancyPct !== null ? `
-      <div class="ccp-metric-card">
-        <div class="ccp-metric-label">Occupancy</div>
-        <div class="ccp-metric-value">${occupancyPct}%</div>
-      </div>` : ""}`
+`
       : "";
     const outboundReportHtml = `
       <div class="ccp-metric-card">
@@ -2319,7 +2401,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
         <div class="ccp-metric-label">Total login time</div>
         <div class="ccp-metric-value" id="ccpTotalLoginValue">${formatCcPulseDuration(data.totalLoginSeconds)}</div>
       </div>
-      <div class="ccp-metrics-grid">${callsHtml}${outboundReportHtml}${totalsHtml}${tardyHtml}${periodAdherenceHtml}</div>
+      <div class="ccp-metrics-grid">${callsHtml}${workHtml}${outboundReportHtml}${totalsHtml}${tardyHtml}${periodAdherenceHtml}</div>
       ${daysHtml}`;
   }
 
