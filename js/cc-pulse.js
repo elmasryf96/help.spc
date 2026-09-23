@@ -582,6 +582,69 @@ function ccpComputeWorkMetricsForDays_(agentName, days, agentsByDay, trackingSta
   return ccpComputeWorkMetrics_(items);
 }
 
+// ============================================================
+// ⏱️ أرقام المكالمات الخام (من 3CX مباشرة - من غير أي افتراضات) عشان الـ KPIs
+// ------------------------------------------------------------
+// Inbound Talk Time = إجمالي كلام المكالمات الداخلة المردود عليها (totalTalkSeconds)
+// Outbound Talk Time = إجمالي كلام الصادر المردود عليه (outboundTalkSeconds)
+// Outbound Ring Time = إجمالي رنين كل الصادر، رد العميل أو لأ (outboundRingSeconds من Code.gs،
+//                      أو بنجمعه من outboundCalls لو Code.gs قديم)
+// Avg Outbound Talk = كلام الصادر ÷ عدد الصادر المردود عليه
+// Contact Rate = الصادر المردود عليه ÷ إجمالي الصادر
+// ============================================================
+function ccpOutboundRingSeconds_(callStats) {
+  if (!callStats) return 0;
+  if (typeof callStats.outboundRingSeconds === "number") return callStats.outboundRingSeconds;
+  const calls = Array.isArray(callStats.outboundCalls) ? callStats.outboundCalls : [];
+  return calls.reduce((sum, c) => sum + (Number(c[2]) || 0), 0);
+}
+
+function ccpOutboundRawMetrics_(callStats) {
+  const answered = callStats ? (callStats.outboundAnsweredCount || 0) : 0;
+  const total = callStats ? (callStats.outboundCallsCount || 0) : 0;
+  const talk = callStats ? (callStats.outboundTalkSeconds || 0) : 0;
+  return {
+    talkSeconds: talk,
+    ringSeconds: ccpOutboundRingSeconds_(callStats),
+    avgTalkSeconds: answered > 0 ? talk / answered : 0,
+    contactRatePct: total > 0 ? Math.round((answered / total) * 1000) / 10 : null
+  };
+}
+
+function ccpInboundTalkCardHtml_(callStats) {
+  return `
+      <div class="ccp-metric-card" title="Total talk time on answered inbound calls">
+        <div class="ccp-metric-label">Inbound Talk Time</div>
+        <div class="ccp-metric-value">${formatCcPulseDuration(callStats ? callStats.totalTalkSeconds : 0)}</div>
+      </div>`;
+}
+
+function ccpOutboundExtraCardsHtml_(callStats) {
+  const m = ccpOutboundRawMetrics_(callStats);
+  return `
+      <div class="ccp-metric-card" title="Total talk time on answered outbound calls">
+        <div class="ccp-metric-label">Outbound Talk Time</div>
+        <div class="ccp-metric-value">${formatCcPulseDuration(m.talkSeconds)}</div>
+      </div>
+      <div class="ccp-metric-card" title="Total ringing time on all outbound calls (answered or not)">
+        <div class="ccp-metric-label">Outbound Ring Time</div>
+        <div class="ccp-metric-value">${formatCcPulseDuration(m.ringSeconds)}</div>
+      </div>
+      <div class="ccp-metric-card" title="Outbound talk time ÷ answered outbound calls">
+        <div class="ccp-metric-label">Avg Outbound Talk</div>
+        <div class="ccp-metric-value">${formatCcPulseDuration(m.avgTalkSeconds)}</div>
+      </div>
+      <div class="ccp-metric-card" title="Answered outbound calls ÷ all outbound calls">
+        <div class="ccp-metric-label">Contact Rate</div>
+        <div class="ccp-metric-value">${m.contactRatePct !== null ? m.contactRatePct + "%" : "-"}</div>
+      </div>`;
+}
+
+// تيم Emails برا حسبة Occupancy / Utilization (شغال إيميلات طول الشيفت - هيتابَع بطريقة تانية بعدين)
+function ccpShowsWorkMetrics_(agentName) {
+  return getAgentDeptToday(agentName) !== "Emails";
+}
+
 // كروت Occupancy + Utilization (HTML) - فاضية لو مفيش أرقام
 function ccpWorkMetricsCardsHtml_(m) {
   if (!m) return "";
@@ -814,7 +877,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
     const callStats = callLogByAgent[a.name];
     const agentDept = getAgentDeptToday(a.name);
     const workMetrics = ccpComputeWorkMetricsForDays_(a.name, a.days || [], callLogData && callLogData.agentsByDay, data.trackingStartDate);
-    const workHtml = ccpWorkMetricsCardsHtml_(workMetrics);
+    const workHtml = ccpShowsWorkMetrics_(a.name) ? ccpWorkMetricsCardsHtml_(workMetrics) : "";
     const callsHtml = (agentDept === "Calls")
       ? `
       <div class="ccp-metric-card">
@@ -824,7 +887,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
       <div class="ccp-metric-card">
         <div class="ccp-metric-label">AHT</div>
         <div class="ccp-metric-value">${callStats ? formatCcPulseDuration(callStats.ahtSeconds) : "0s"}</div>
-      </div>
+      </div>${ccpInboundTalkCardHtml_(callStats)}
 `
       : "";
     const outboundReportHtml = `
@@ -839,7 +902,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
       <div class="ccp-metric-card">
         <div class="ccp-metric-label">Outbound Unanswered</div>
         <div class="ccp-metric-value" style="cursor:pointer; text-decoration:underline dotted;" title="Click to see each call" onclick="ccpShowOutboundUnansweredModal('${a.name}', 'day', '${a.date}')">${callStats ? callStats.outboundUnansweredCount : 0}</div>
-      </div>`;
+      </div>${ccpOutboundExtraCardsHtml_(callStats)}`;
 
     let adherenceHtml = "";
     let timelineHtml = "";
@@ -1177,7 +1240,8 @@ function buildCcPulseExportRows(agentsList, trackingStartDate, callLogByDay) {
   const statusColumns = Array.from(statusSet);
 
   const headers = ["Date", "Agent", "Ext", "Scheduled Shift", "First Login", "End Shift", "Tardy", "Tardy Minutes", "Total Login Time", "Breaks",
-    "Calls Answered", "AHT", "Occupancy %", "Utilization %", "Outbound Answered", "Outbound Unanswered", "Outbound Total"
+    "Calls Answered", "AHT", "Inbound Talk Time", "Occupancy %", "Utilization %", "Outbound Answered", "Outbound Unanswered", "Outbound Total",
+    "Outbound Talk Time", "Outbound Ring Time", "Avg Outbound Talk", "Contact Rate %"
   ].concat(statusColumns.map(st => ccpDisplayStatusName(st)));
   const rows = [headers];
 
@@ -1211,7 +1275,8 @@ function buildCcPulseExportRows(agentsList, trackingStartDate, callLogByDay) {
       const dayCallStats = (isCallsAgent && callLogByDay && callLogByDay[day.date]) ? callLogByDay[day.date][agent.name] : null;
       // Occupancy / Utilization لكل التيمات (مش Calls بس) - بياخد أرقام مكالمات أي إيجنت
       const dayAnyCallStats = (callLogByDay && callLogByDay[day.date]) ? callLogByDay[day.date][agent.name] : null;
-      const dayWork = ccpComputeWorkMetrics_([{ day: day, callStats: dayAnyCallStats }]);
+      const dayOutbound = ccpOutboundRawMetrics_(dayAnyCallStats);
+      const dayWork = (agentDept !== "Emails") ? ccpComputeWorkMetrics_([{ day: day, callStats: dayAnyCallStats }]) : { occupancyPct: null, utilizationPct: null };
 
       const row = [
         day.date,
@@ -1226,11 +1291,17 @@ function buildCcPulseExportRows(agentsList, trackingStartDate, callLogByDay) {
         breaksList,
         isCallsAgent ? (dayCallStats ? dayCallStats.callsAnswered : 0) : "",
         isCallsAgent ? formatCcPulseDuration(dayCallStats ? dayCallStats.ahtSeconds : 0) : "",
+        isCallsAgent ? formatCcPulseDuration(dayCallStats ? dayCallStats.totalTalkSeconds : 0) : "",
         dayWork.occupancyPct !== null ? `${dayWork.occupancyPct}%` : "",
         dayWork.utilizationPct !== null ? `${dayWork.utilizationPct}%` : "",
-        isCallsAgent ? (dayCallStats ? dayCallStats.outboundAnsweredCount : 0) : "",
-        isCallsAgent ? (dayCallStats ? dayCallStats.outboundUnansweredCount : 0) : "",
-        isCallsAgent ? (dayCallStats ? dayCallStats.outboundCallsCount : 0) : ""
+        // أرقام الصادر لأي إيجنت عمل صادر (مش Calls بس - تيم Call Outs شغله كله صادر)
+        dayAnyCallStats ? dayAnyCallStats.outboundAnsweredCount : 0,
+        dayAnyCallStats ? dayAnyCallStats.outboundUnansweredCount : 0,
+        dayAnyCallStats ? dayAnyCallStats.outboundCallsCount : 0,
+        formatCcPulseDuration(dayOutbound.talkSeconds),
+        formatCcPulseDuration(dayOutbound.ringSeconds),
+        formatCcPulseDuration(dayOutbound.avgTalkSeconds),
+        dayOutbound.contactRatePct !== null ? `${dayOutbound.contactRatePct}%` : ""
       ];
 
       statusColumns.forEach(st => {
@@ -1818,7 +1889,7 @@ function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, 
   const statusColors = CCP_STATUS_COLORS;
 
   const dept = getAgentDeptToday(agentName);
-  const workHtml = ccpWorkMetricsCardsHtml_(ccpComputeWorkMetrics_([{ day: day, callStats: callStats }]));
+  const workHtml = ccpShowsWorkMetrics_(agentName) ? ccpWorkMetricsCardsHtml_(ccpComputeWorkMetrics_([{ day: day, callStats: callStats }])) : "";
   const callsHtml = (dept === "Calls")
     ? `
     <div class="ccp-metric-card">
@@ -1828,7 +1899,7 @@ function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, 
     <div class="ccp-metric-card">
       <div class="ccp-metric-label">AHT</div>
       <div class="ccp-metric-value">${callStats ? formatCcPulseDuration(callStats.ahtSeconds) : "0s"}</div>
-    </div>
+    </div>${ccpInboundTalkCardHtml_(callStats)}
 `
     : "";
   const outboundReportHtml = `
@@ -1843,7 +1914,7 @@ function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, 
     <div class="ccp-metric-card">
       <div class="ccp-metric-label">Outbound Unanswered</div>
       <div class="ccp-metric-value" style="cursor:pointer; text-decoration:underline dotted;" title="Click to see each call" onclick="ccpShowOutboundUnansweredModal('${agentName}', 'day', '${day.date}')">${callStats ? callStats.outboundUnansweredCount : 0}</div>
-    </div>`;
+    </div>${ccpOutboundExtraCardsHtml_(callStats)}`;
 
   const totalsHtml = Object.keys(day.totals || {}).map(st => `
     <div class="ccp-metric-card">
@@ -2331,7 +2402,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
   } else {
     // رينج/شهر - نفس المنطق القديم زي ما هو (تقرير مجمّع لأكتر من يوم)
     const singleAgentDept = getAgentDeptToday(data.agent);
-    const workHtml = ccpWorkMetricsCardsHtml_(ccpComputeWorkMetricsForDays_(data.agent, data.days || [], callLogData && callLogData.agentsByDay, data.trackingStartDate));
+    const workHtml = ccpShowsWorkMetrics_(data.agent) ? ccpWorkMetricsCardsHtml_(ccpComputeWorkMetricsForDays_(data.agent, data.days || [], callLogData && callLogData.agentsByDay, data.trackingStartDate)) : "";
     const callsHtml = (singleAgentDept === "Calls")
       ? `
       <div class="ccp-metric-card">
@@ -2341,7 +2412,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
       <div class="ccp-metric-card">
         <div class="ccp-metric-label">AHT</div>
         <div class="ccp-metric-value">${callStats ? formatCcPulseDuration(callStats.ahtSeconds) : "0s"}</div>
-      </div>
+      </div>${ccpInboundTalkCardHtml_(callStats)}
 `
       : "";
     const outboundReportHtml = `
@@ -2356,7 +2427,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
       <div class="ccp-metric-card">
         <div class="ccp-metric-label">Outbound Unanswered</div>
         <div class="ccp-metric-value" style="cursor:pointer; text-decoration:underline dotted;" title="Click to see each call" onclick="ccpShowOutboundUnansweredModal('${data.agent}', 'range', '${data.days[0].date}', '${data.days[data.days.length - 1].date}')">${callStats ? callStats.outboundUnansweredCount : 0}</div>
-      </div>`;
+      </div>${ccpOutboundExtraCardsHtml_(callStats)}`;
 
     const totalsHtml = Object.keys(data.totals || {}).map(st => `
       <div class="ccp-metric-card">
