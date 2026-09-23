@@ -563,6 +563,19 @@ function swapGetShift(name, dateStr) {
   return String((entry.schedule && entry.schedule[p[2]]) || "").trim();
 }
 
+// تيم الإيجنت (Calls / Call Outs / Emails) في شهر التاريخ ده - أو "" لو مش موجود
+function swapGetDept(name, dateStr) {
+  if (!Array.isArray(rosterData) || !name || !dateStr) return "";
+  const p = dateStr.split("-").map(Number);
+  const wanted = String(name).trim().toLowerCase();
+  const entry = rosterData.find(a => String(a.name).trim().toLowerCase() === wanted && a.month === p[1] && a.year === p[0]);
+  return entry ? String(entry.dept || "").trim() : "";
+}
+
+function swapNormDept(d) {
+  return String(d || "").trim().toLowerCase();
+}
+
 function swapGetToken() {
   return localStorage.getItem("sessionToken") || "";
 }

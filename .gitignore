@@ -4,3 +4,7 @@ search_debug.txt
 search_result.html
 test_search.py
 run_local.py
+
+# كود Google Apps Script والنسخ الشخصية - الريبو عام فممنوع يترفع
+Claude outputs/
+*.gs

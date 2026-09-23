@@ -194,6 +194,10 @@ function requestSwap_(ss, data, session) {
   if (!me) return swapErr_("Your name (" + meRaw + ") was not found in the roster for " + month + "/" + year);
   var target = swapFindAgent_(roster, targetRaw, month, year);
   if (!target) return swapErr_(targetRaw + " was not found in the roster for " + month + "/" + year);
+  // السواب جوه نفس التيم بس (Calls مع Calls / Call Outs مع Call Outs / Emails مع Emails)
+  if (me.dept.toLowerCase() !== target.dept.toLowerCase()) {
+    return swapErr_("You can only swap with someone in your own team (" + me.dept + "). " + target.name + " is in " + target.dept + ".");
+  }
 
   var myShift = swapShiftOf_(roster, me, day);
   var targetShift = swapShiftOf_(roster, target, day);
