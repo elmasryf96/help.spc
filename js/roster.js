@@ -729,27 +729,37 @@ function swapUpdateForm() {
   }
 
   const p = dateStr.split("-").map(Number);
+  const myDept = swapGetDept(me, dateStr);
+  // السواب جوه نفس التيم بس (Calls مع Calls / Call Outs مع Call Outs / Emails مع Emails)
+  // اللي على نفس شيفتي بيظهروا في القايمة بس مقفولين (Same shift) عشان محدش يفتكرهم ناقصين
   const candidates = [];
   (Array.isArray(rosterData) ? rosterData : []).forEach(a => {
     if (a.month !== p[1] || a.year !== p[0]) return;
     if (String(a.name).trim().toLowerCase() === me.trim().toLowerCase()) return;
+    if (swapNormDept(a.dept) !== swapNormDept(myDept)) return;
     const shift = String((a.schedule && a.schedule[p[2]]) || "").trim();
-    if (!SWAP_SHIFT_START_HOUR[shift] || shift === myShift) return;
-    candidates.push({ name: a.name, shift: shift, dept: a.dept });
+    if (!SWAP_SHIFT_START_HOUR[shift]) return;
+    candidates.push({ name: a.name, shift: shift, dept: a.dept, same: shift === myShift });
   });
-  candidates.sort((x, y) => x.name.localeCompare(y.name));
+  // اللي ينفع يتبدل معاهم الأول، وبعدهم اللي على نفس الشيفت
+  candidates.sort((x, y) => (x.same - y.same) || x.name.localeCompare(y.name));
 
   candidates.forEach(c => {
     const opt = document.createElement("option");
     opt.value = c.name;
     opt.dataset.shift = c.shift;
-    opt.textContent = `${c.name} — ${c.shift} (${c.dept})`;
+    if (c.same) {
+      opt.disabled = true;
+      opt.textContent = `${c.name} — ${c.shift} (Same shift)`;
+    } else {
+      opt.textContent = `${c.name} — ${c.shift} (${c.dept})`;
+    }
     sel.appendChild(opt);
   });
-  if (previouslySelected && candidates.some(c => c.name === previouslySelected)) sel.value = previouslySelected;
+  if (previouslySelected && candidates.some(c => !c.same && c.name === previouslySelected)) sel.value = previouslySelected;
 
-  if (candidates.length === 0) {
-    info.innerHTML = `Your shift on <b>${swapEsc(dateStr)}</b>: <b>${swapEsc(myShift)}</b> (${SWAP_SHIFT_LABELS[myShift]}). Nobody has a different shift that day to swap with.`;
+  if (!candidates.some(c => !c.same)) {
+    info.innerHTML = `Your shift on <b>${swapEsc(dateStr)}</b>: <b>${swapEsc(myShift)}</b> (${SWAP_SHIFT_LABELS[myShift]}). Nobody in the <b>${swapEsc(myDept || "")}</b> team has a different shift that day to swap with.`;
     return;
   }
 
