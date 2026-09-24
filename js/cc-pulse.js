@@ -2356,6 +2356,10 @@ async function ccpShowQueueCallDetailModal() {
       return;
     }
 
+    // 🔁 ملخص المتابعة فوق الجدول
+    const fuCounts = { answered: 0, attempted: 0, none: 0 };
+    data.calls.forEach(c => { const st = c.followUp ? c.followUp.status : "none"; fuCounts[st] = (fuCounts[st] || 0) + 1; });
+
     const rowsHtml = data.calls.map(c => `
       <tr>
         <td>${c.date}</td>
@@ -2363,9 +2367,15 @@ async function ccpShowQueueCallDetailModal() {
         <td>${c.customerNumber || "-"}</td>
         <td>${c.queue || "-"}</td>
         <td>${formatCcPulseDuration(c.waitSeconds)}</td>
+        <td style="text-align:left; white-space:normal;">${ccpAbandonFollowUpHtml_(c.followUp)}</td>
       </tr>`).join("");
 
     body.innerHTML = `
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+        <div class="ccp-metric-card"><div class="ccp-metric-label">Reached Later</div><div class="ccp-metric-value ccp-adh-good">${fuCounts.answered}</div></div>
+        <div class="ccp-metric-card"><div class="ccp-metric-label">Tried, No Answer</div><div class="ccp-metric-value ccp-adh-warn">${fuCounts.attempted}</div></div>
+        <div class="ccp-metric-card"><div class="ccp-metric-label">No Follow-up</div><div class="ccp-metric-value ccp-adh-bad">${fuCounts.none}</div></div>
+      </div>
       <div class="ccp-queue-trend-table-wrap">
         <table class="ccp-queue-trend-table">
           <thead>
@@ -2375,6 +2385,7 @@ async function ccpShowQueueCallDetailModal() {
               <th>Customer Number</th>
               <th>Queue</th>
               <th>Waited</th>
+              <th>Follow-up</th>
             </tr>
           </thead>
           <tbody>${rowsHtml}</tbody>
@@ -2383,6 +2394,45 @@ async function ccpShowQueueCallDetailModal() {
   } catch (err) {
     body.innerHTML = `<div class="ccp-error">⚠️ ${err}</div>`;
   }
+}
+
+// 🔁 بيبني خانة "Follow-up" لكل مكالمة Abandoned:
+// العميل اتصل تاني؟ اترد عليه؟ ومين من الإيجنتس كلمه Outbound؟
+function ccpAbandonFollowUpHtml_(fu) {
+  if (!fu) return '<span style="color:#5a6a75">-</span>';
+
+  const when = (ev) => {
+    if (!ev) return "";
+    const t = ev.time ? ev.time.slice(0, 5) : "";
+    return ev.date ? `${ev.date.slice(5)} ${t}` : t;
+  };
+  const lines = [];
+
+  const inb = fu.customerCalledAgain || { count: 0 };
+  if (inb.count > 0) {
+    if (inb.answered) {
+      lines.push(`📲 Called again — <b>answered</b> by ${inb.answered.agent || "?"} (${when(inb.answered)})`);
+    } else {
+      lines.push(`📲 Called again ${inb.count}x — not answered (${when(inb.first)})`);
+    }
+  }
+
+  const outb = fu.weCalledBack || { count: 0 };
+  if (outb.count > 0) {
+    if (outb.answered) {
+      lines.push(`📞 Called back by ${outb.answered.agent || "?"} — <b>answered</b> (${when(outb.answered)})`);
+    } else {
+      lines.push(`📞 Called back ${outb.count}x — no answer (${outb.first && outb.first.agent ? outb.first.agent + ", " : ""}${when(outb.first)})`);
+    }
+  }
+
+  const badge = fu.status === "answered"
+    ? '<span class="ccp-adh-good" style="font-weight:600">✅ Reached</span>'
+    : (fu.status === "attempted"
+      ? '<span class="ccp-adh-warn" style="font-weight:600">⚠️ Tried, no answer</span>'
+      : '<span class="ccp-adh-bad" style="font-weight:600">❌ No follow-up</span>');
+
+  return `${badge}${lines.length ? '<div style="font-size:12px; margin-top:3px; line-height:1.5;">' + lines.join("<br>") + "</div>" : ""}`;
 }
 
 function renderCcPulseSingleAgentReport(data, callLogData) {
