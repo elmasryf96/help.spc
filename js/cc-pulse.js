@@ -2372,7 +2372,7 @@ async function ccpShowQueueCallDetailModal() {
 
     body.innerHTML = `
       <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
-        <div class="ccp-metric-card"><div class="ccp-metric-label">Reached Later</div><div class="ccp-metric-value ccp-adh-good">${fuCounts.answered}</div></div>
+        <div class="ccp-metric-card"><div class="ccp-metric-label">Reached</div><div class="ccp-metric-value ccp-adh-good">${fuCounts.answered}</div></div>
         <div class="ccp-metric-card"><div class="ccp-metric-label">Not Reached</div><div class="ccp-metric-value ccp-adh-warn">${fuCounts.attempted}</div></div>
         <div class="ccp-metric-card"><div class="ccp-metric-label">No Calls After</div><div class="ccp-metric-value ccp-adh-bad">${fuCounts.none}</div></div>
       </div>
@@ -2436,7 +2436,28 @@ function ccpAbandonFollowUpHtml_(fu) {
     badge = '<span class="ccp-adh-bad" style="font-weight:600">❌ No calls after</span>';
   }
 
-  return `${badge}${lines.length ? '<div style="font-size:12px; margin-top:3px; line-height:1.5;">' + lines.join("<br>") + "</div>" : ""}`;
+  // أول 3 مكالمات بس ظاهرين، والباقي مخفي ورا زرار "+N more"
+  const VISIBLE = 3;
+  let listHtml = "";
+  if (lines.length) {
+    const shown = lines.slice(0, VISIBLE).join("<br>");
+    const hidden = lines.slice(VISIBLE);
+    const moreHtml = hidden.length
+      ? `<div style="display:none;">${hidden.join("<br>")}</div>` +
+        `<a href="javascript:void(0)" onclick="ccpToggleAbandonMore_(this)" data-count="${hidden.length}" style="font-weight:600; color:#2c6fbb; text-decoration:none;">+${hidden.length} more</a>`
+      : "";
+    listHtml = `<div style="font-size:12px; margin-top:3px; line-height:1.5;">${shown}${moreHtml}</div>`;
+  }
+
+  return `${badge}${listHtml}`;
+}
+
+// بيفتح/يقفل باقي المكالمات في خانة After Abandon
+function ccpToggleAbandonMore_(link) {
+  const box = link.previousElementSibling;
+  const open = box.style.display === "none";
+  box.style.display = open ? "block" : "none";
+  link.textContent = open ? "Show less" : `+${link.dataset.count} more`;
 }
 
 function renderCcPulseSingleAgentReport(data, callLogData) {
