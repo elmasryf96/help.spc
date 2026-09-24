@@ -762,6 +762,56 @@ function ccPulseBuildQueueTrendHtml(byDay) {
     </div>`;
 }
 
+// بيبني جدول "Peak Hours" - توزيع مكالمات الكيو على 24 ساعة اليوم (Total/Abandonment/ASA)
+// مع بار بصري بسيط لكل ساعة عشان يبان أوقات الزحمة بسرعة - بيستبعد الساعات اللي مفيهاش مكالمات خالص
+function ccPulseBuildPeakHoursHtml(byHour) {
+  if (!byHour || !byHour.length) return "";
+  const activeHours = byHour.filter(h => h.totalCalls > 0);
+  if (activeHours.length === 0) return "";
+
+  const maxCalls = Math.max(...activeHours.map(h => h.totalCalls));
+
+  const rowsHtml = activeHours.map(h => {
+    const abClass = h.abandonmentRatePct <= 5 ? "ccp-adh-good" : (h.abandonmentRatePct <= 10 ? "ccp-adh-warn" : "ccp-adh-bad");
+    const asaClass = h.answered === 0 ? "" : (h.asaSeconds <= 20 ? "ccp-adh-good" : (h.asaSeconds <= 40 ? "ccp-adh-warn" : "ccp-adh-bad"));
+    const slClass = h.answered === 0 ? "" : (h.serviceLevelPct >= 80 ? "ccp-adh-good" : (h.serviceLevelPct >= 70 ? "ccp-adh-warn" : "ccp-adh-bad"));
+    const barPct = maxCalls > 0 ? Math.round((h.totalCalls / maxCalls) * 100) : 0;
+    const hourLabel = String(h.hour).padStart(2, "0") + ":00";
+    return `
+      <tr>
+        <td style="color:#1a252f">${hourLabel}</td>
+        <td style="color:#1a252f">
+          <div class="ccp-peak-bar-wrap">
+            <div class="ccp-peak-bar" style="width:${barPct}%"></div>
+            <span class="ccp-peak-bar-label">${h.totalCalls}</span>
+          </div>
+        </td>
+        <td class="${abClass}">${h.abandonmentRatePct}%</td>
+        <td class="${asaClass}">${h.answered > 0 ? formatCcPulseDuration(h.asaSeconds) : '<span style="color:#5a6a75">-</span>'}</td>
+        <td class="${slClass}">${h.answered > 0 ? h.serviceLevelPct + "%" : '<span style="color:#5a6a75">-</span>'}</td>
+      </tr>`;
+  }).join("");
+
+  return `
+    <div class="ccp-queue-summary-card">
+      <div class="ccp-queue-summary-header"><i class="fa-solid fa-clock"></i> Peak Hours (Call Volume)</div>
+      <div class="ccp-queue-trend-table-wrap">
+        <table class="ccp-queue-trend-table">
+          <thead>
+            <tr>
+              <th>Hour</th>
+              <th>Calls</th>
+              <th>Abandonment %</th>
+              <th>ASA</th>
+              <th>Service Level (20s)</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
 // بيبني جدول Leaderboard لترتيب الإيجنتس - بيظهر بس في تقرير "All agents"، ومقتصر
 // على تيم الـ Calls بس (تيم الإيميلز وتيم الـ Outbound مستبعدين)
 // الترتيب بـ Score من 100 - 4 حاجات بنفس الأهمية (25% لكل واحدة):
