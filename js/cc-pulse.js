@@ -664,6 +664,15 @@ function ccpWorkMetricsCardsHtml_(m) {
   return html;
 }
 
+// "2026-09-23 00:51:00" -> "Sep 23 · 00:51" - للـ Queue Support عشان يومهم داخل في يومين
+function ccpDateTimeLabel_(ts) {
+  if (!ts) return "--";
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const d = ts.slice(0, 10).split("-");
+  if (d.length !== 3) return ccPulseTimeOnly(ts);
+  return `${months[parseInt(d[1], 10) - 1]} ${parseInt(d[2], 10)} · ${ccPulseTimeOnly(ts)}`;
+}
+
 function ccPulseTimeOnly(ts) {
   if (!ts) return "--";
   const parts = ts.split(" ");
@@ -1509,8 +1518,18 @@ function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null, e
 
   const canEdit = Boolean(editCtx && editCtx.agentName && editCtx.dateStr && typeof isAdmin === "function" && isAdmin());
 
-  let dayStart = qsDate ? 21 * 60 : 9 * 60;
-  let dayEnd = qsDate ? 33 * 60 : 21 * 60;
+  let dayStart = 9 * 60;
+  let dayEnd = 21 * 60;
+  if (qsDate) {
+    // 🎧 Queue Support: التايم لاين على قد اللوجن بتاعهم بس (بساعة قبل وبعد)، مش اليوم كله
+    if (sessions.length) {
+      dayStart = Math.floor(Math.min(...sessions.map(s => toMin(s.start))) / 60) * 60 - 60;
+      dayEnd = Math.ceil(Math.max(...sessions.map(s => toMin(s.end))) / 60) * 60 + 60;
+    } else {
+      dayStart = 21 * 60;
+      dayEnd = 33 * 60;
+    }
+  }
   sessions.forEach(s => {
     dayStart = Math.min(dayStart, toMin(s.start));
     dayEnd = Math.max(dayEnd, toMin(s.end));
@@ -1536,7 +1555,8 @@ function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null, e
     const color = ccpStatusColor(s.status);
     const icon = CCP_STATUS_ICONS[s.status] || "fa-circle";
     const iconColor = "#ffffff";
-    const tooltipText = `${ccpDisplayStatusName(s.status)}: ${ccPulseTimeOnly(s.start)} \u2192 ${ccPulseTimeOnly(s.end)} (${formatCcPulseDuration(s.durationSeconds)})`;
+    const tlFmt = qsDate ? ccpDateTimeLabel_ : ccPulseTimeOnly;
+    const tooltipText = `${ccpDisplayStatusName(s.status)}: ${tlFmt(s.start)} \u2192 ${tlFmt(s.end)} (${formatCcPulseDuration(s.durationSeconds)})`;
     // \u0627\u0644\u062d\u0627\u0644\u0629 \u0627\u0644\u0644\u064a \u0643\u0627\u0646\u062a \u0634\u063a\u0627\u0644\u0629 \u0642\u0628\u0644 \u0627\u0644\u0633\u064a\u062c\u0645\u0646\u062a \u062f\u0647 \u0645\u0628\u0627\u0634\u0631\u0629 - \u0639\u0634\u0627\u0646 \u0644\u0648 \u0627\u0644\u0623\u062f\u0645\u0646 \u062d\u062f\u062f "End time" \u0647\u0646\u0627 \u0646\u0631\u062c\u0639\u0644\u0647
     // \u0644\u0646\u0641\u0633 \u0627\u0644\u062d\u0627\u0644\u0629 \u0627\u0644\u0644\u064a \u0643\u0627\u0646 \u0639\u0644\u064a\u0647\u0627 \u0641\u0639\u0644\u0627\u064b \u0642\u0628\u0644 \u0643\u062f\u0647 (\u0645\u0634 \u062a\u062e\u0645\u064a\u0646 \u0639\u0627\u0645 \u0632\u064a Available)\u060c \u0623\u0648\u0644 \u0633\u064a\u062c\u0645\u0646\u062a \u0641\u064a \u0627\u0644\u064a\u0648\u0645 \u0645\u0641\u064a\u0634 \u0642\u0628\u0644\u0647 \u062d\u0627\u062c\u0629
     const prevStatus = sIdx > 0 ? sessions[sIdx - 1].status : "";
@@ -1580,7 +1600,7 @@ function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null, e
   }
 
   const legendHtml = qsDate
-    ? `<div class="ccp-tl-shift-legend">🎧 Queue Support day: 9 AM → 9 AM next day</div>`
+    ? `<div class="ccp-tl-shift-legend">🎧 Queue Support night — every login that started on this date (after 9 AM) until the next morning</div>`
     : shiftWindow
     ? `<div class="ccp-tl-shift-legend"><span class="ccp-tl-shift-swatch"></span> Scheduled shift: ${shiftWindow.label}${outOfAdherenceSegments.length ? ` &nbsp;·&nbsp; <span class="ccp-tl-outofadherence-swatch"></span> Out Of Adherence` : ""}${canEdit ? ` &nbsp;·&nbsp; ✏️ Click a segment to edit` : ""}</div>`
     : "";
@@ -2059,7 +2079,7 @@ function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, 
 
   let dayStatusBannerHtml = "";
   if (isQs) {
-    dayStatusBannerHtml = `<div class="ccp-daystatus-banner" style="background:#ede9fe;color:#5b21b6;">🎧 <strong>Queue Support</strong> — free login, day counted from 9 AM to 9 AM next day</div>`;
+    dayStatusBannerHtml = `<div class="ccp-daystatus-banner" style="background:#ede9fe;color:#5b21b6;">🎧 <strong>Queue Support</strong> — this date's night: any login that started after 9 AM on this date or before 9 AM the next morning</div>`;
   } else if (attendanceStatus === "no-show") {
     dayStatusBannerHtml = `<div class="ccp-daystatus-banner ccp-noshow">🚫 <strong>No Show</strong> — scheduled for ${shiftWindow.label} but worked less than half the shift (${formatCcPulseDuration(day.totalLoginSeconds)})</div>`;
   } else if (attendanceStatus === "off") {
@@ -2085,18 +2105,18 @@ function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, 
     <div class="ccp-day-highlight">
       <div class="ccp-metric-card ccp-accent">
         <div class="ccp-metric-label">First login</div>
-        <div class="ccp-metric-value">${ccPulseTimeOnly(day.firstLogin)}</div>
+        <div class="ccp-metric-value">${isQs ? ccpDateTimeLabel_(day.firstLogin) : ccPulseTimeOnly(day.firstLogin)}</div>
       </div>
       <div class="ccp-metric-card">
         <div class="ccp-metric-label">End shift</div>
-        <div class="ccp-metric-value">${ccPulseTimeOnly(day.endShift)}</div>
+        <div class="ccp-metric-value">${isQs ? ccpDateTimeLabel_(day.endShift) : ccPulseTimeOnly(day.endShift)}</div>
       </div>
       ${adherenceCardHtml}
     </div>
     ${isQs
       ? renderCcPulseTimelineHtml(day.sessions, statusColors, null, null, null, { queueSupportDate: day.date })
       : renderCcPulseTimelineHtml(day.sessions, statusColors, shiftWindow, dayEffectiveEndMin, { agentName: agentName, dateStr: day.date })}
-    ${isQs ? buildCcPulseSessionListHtml_(day.sessions, null, null) : buildCcPulseSessionListHtml_(day.sessions, agentName, day.date)}`;
+    ${isQs ? buildCcPulseSessionListHtml_(day.sessions, null, null, true) : buildCcPulseSessionListHtml_(day.sessions, agentName, day.date)}`;
 }
 
 // كاش بسيط: "<agent>|<date>" -> آخر sessions array اتعرض لليوم ده. مطلوب عشان لو دُست على زرار قلم صف،
@@ -2112,7 +2132,7 @@ const ccpSessionListCache_ = {};
 // الصف اللي بعده (مفيش سجل "نهاية" منفصل في AgentStatusLog)، فتعديلها بيحرك نقطة الصف اللي بعده. لو الصف ده
 // آخر حاجة في اليوم (مفيش صف بعده) وحطينا نهاية، بنضيف نقطة جديدة تقفله (زي خانة "End time" الاختيارية اللي
 // كانت في المودال، بس هنا لكل صف مش بس وقت الفتح). شوف attachCcPulseSessionListEditHandlers
-function buildCcPulseSessionListHtml_(sessions, agentName, dateStr) {
+function buildCcPulseSessionListHtml_(sessions, agentName, dateStr, showDate) {
   sessions = sessions || [];
   const canEdit = Boolean(agentName && dateStr && typeof isAdmin === "function" && isAdmin());
 
@@ -2124,7 +2144,7 @@ function buildCcPulseSessionListHtml_(sessions, agentName, dateStr) {
       ? ` data-ccp-edit="1" data-agent="${ccpEscapeAttr_(agentName)}" data-date="${dateStr}" data-time="${s.start}" data-status="${ccpEscapeAttr_(s.status)}" data-old-status="${ccpEscapeAttr_(s.oldStatus || "")}" data-prev-status="${ccpEscapeAttr_(prevStatus)}" data-idx="${sIdx}"`
       : "";
     return `
-        <div class="ccp-session-row"${attrs}>${ccpSessionRowViewInnerHtml_(s, canEdit)}</div>`;
+        <div class="ccp-session-row"${attrs}>${ccpSessionRowViewInnerHtml_(s, canEdit, showDate)}</div>`;
   }).join("");
 
   const addBtnHtml = canEdit
@@ -2138,14 +2158,15 @@ function buildCcPulseSessionListHtml_(sessions, agentName, dateStr) {
 
 // المحتوى الجوّاني لصف في وضع العرض العادي (مش بيغيّر data-attributes الصف نفسه - دي بتتحط مرة واحدة وبتفضل
 // زي ما هي، سواء الصف في وضع عرض أو تعديل، لأنها بتمثل هوية النقطة الأصلية في الشيت)
-function ccpSessionRowViewInnerHtml_(s, canEdit) {
+function ccpSessionRowViewInnerHtml_(s, canEdit, showDate) {
+  const fmt = showDate ? ccpDateTimeLabel_ : ccPulseTimeOnly;
   const rowActionsHtml = canEdit ? `
           <button type="button" class="ccp-session-edit-btn" title="Edit this status"><i class="fa-solid fa-pen"></i></button>
           <button type="button" class="ccp-session-delete-btn" title="Delete this status"><i class="fa-solid fa-trash-can"></i></button>` : "";
   return `
           <span class="ccp-dot" style="background:${ccpStatusColor(s.status)}"></span>
           <span class="ccp-session-status">${ccpDisplayStatusName(s.status)}</span>
-          <span class="ccp-session-time">${ccPulseTimeOnly(s.start)} → ${ccPulseTimeOnly(s.end)}</span>
+          <span class="ccp-session-time">${fmt(s.start)} → ${fmt(s.end)}</span>
           <span class="ccp-session-dur">${formatCcPulseDuration(s.durationSeconds)}</span>${rowActionsHtml}`;
 }
 
