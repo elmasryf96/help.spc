@@ -894,7 +894,7 @@ function ccPulseBuildLeaderboardHtml(callLogData, loginData) {
     (a.ahtSeconds - b.ahtSeconds)            // وبعدين الأقل AHT
   );
 
-  ccPulseLastLeaderboard = { ranked, isSingleDay }; // للـ Export to CSV
+  ccPulseLastLeaderboard = { ranked, isSingleDay }; // للـ Export to Excel
 
   const medals = ["🥇", "🥈", "🥉"];
   const td = (v) => `<td style="color:#1a252f">${v}</td>`;
@@ -1063,7 +1063,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
 
   resultBox.innerHTML = `
     <div class="ccp-export-bar">
-      <button type="button" class="ccp-export-btn" onclick="exportCcPulseReportToCsv()">📥 Export to CSV</button>
+      <button type="button" class="ccp-export-btn" onclick="exportCcPulseReportToCsv()">📥 Export to Excel</button>
       <button type="button" class="ccp-export-btn" onclick="exportCcPulseReportToPdf()">🖨️ Export to PDF</button>
     </div>
     <div class="ccp-mode-bar" style="margin: 4px 0 14px;">
@@ -1486,93 +1486,289 @@ function exportCcPulseReportToPdf() {
   html2pdf().set(opt).from(resultBox).save();
 }
 
-// زرار "Export to CSV" بيستخدم آخر بيانات تقرير اتحمّلت (اتخزنت في ccPulseLastExportAgentsList وقت الـ render)
+// 📥 زرار "Export to Excel": ملف .xlsx منسّق - أقسام الكيو فوق (لو تقرير All agents) وجدول الإيجنتس تحت
+// (الاسم القديم exportCcPulseReportToCsv متساب زي ما هو عشان الزرار في الـ HTML بيناديه)
 async function exportCcPulseReportToCsv() {
   if (!ccPulseLastExportAgentsList || !ccPulseLastExportAgentsList.length) return;
-  const rows = buildCcPulseExportRows(ccPulseLastExportAgentsList, ccPulseLastExportTrackingStartDate, ccPulseLastExportCallLogByDay);
 
-  // 📥 تقرير All agents: بنضيف أقسام الكيو تحت جدول الإيجنتس في نفس الملف
-  if (ccPulseLastExportCallLogData) {
-    const btn = document.querySelector('.ccp-export-btn[onclick^="exportCcPulseReportToCsv"]');
-    const oldLabel = btn ? btn.innerHTML : "";
-    if (btn) { btn.disabled = true; btn.innerHTML = "⏳ Preparing..."; }
-    try {
-      const queueRows = await buildCcPulseQueueExportRows_(ccPulseLastExportCallLogData, ccPulseLastLeaderboard);
-      rows.push(...queueRows);
-    } finally {
-      if (btn) { btn.disabled = false; btn.innerHTML = oldLabel; }
+  const btn = document.querySelector('.ccp-export-btn[onclick^="exportCcPulseReportToCsv"]');
+  const oldLabel = btn ? btn.innerHTML : "";
+  if (btn) { btn.disabled = true; btn.innerHTML = "⏳ Preparing..."; }
+
+  try {
+    const sections = [];
+    if (ccPulseLastExportCallLogData) {
+      sections.push(...await buildCcPulseQueueExportSections_(ccPulseLastExportCallLogData, ccPulseLastLeaderboard));
     }
-  }
+    const agentRows = buildCcPulseExportRows(ccPulseLastExportAgentsList, ccPulseLastExportTrackingStartDate, ccPulseLastExportCallLogByDay);
+    sections.push({ title: "AGENTS", headers: agentRows[0], rows: agentRows.slice(1) });
 
-  const uae = getUAECurrentDate();
-  const filename = `cc-pulse-report_${uae.year}-${uae.month}-${uae.day}.csv`;
-  downloadCcPulseCsv(rows, filename);
+    const uae = getUAECurrentDate();
+    await downloadCcPulseXlsx_(sections, ccpExportPeriodLabel_(), `cc-pulse-report_${ccpExportPeriodFileTag_() || `${uae.year}-${uae.month}-${uae.day}`}.xlsx`);
+  } catch (err) {
+    console.error("CC Pulse export error:", err);
+    alert("Export failed: " + (err.message || err));
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = oldLabel; }
+  }
 }
 
-// 📥 أقسام الكيو في الـ CSV: Queue Overview + Daily Trend + Peak Hours + Leaderboard + Abandoned Calls
-// كل قسم بيبدأ بسطر فاضي وبعدين عنوانه، عشان يبقوا واضحين تحت بعض في Excel
-async function buildCcPulseQueueExportRows_(callLogData, leaderboard) {
-  const rows = [];
-  const section = (title) => { rows.push([]); rows.push([]); rows.push([`=== ${title} ===`]); };
+// الفترة اللي التقرير معروض عليها (للعنوان واسم الملف)
+function ccpExportPeriodLabel_() {
+  const p = buildCcPulseDateParams();
+  if (p.get("mode") === "day") return p.get("date");
+  if (p.get("mode") === "range") return `${p.get("start")} → ${p.get("end")}`;
+  return p.get("month") || "";
+}
+function ccpExportPeriodFileTag_() {
+  return ccpExportPeriodLabel_().replace(/\s*→\s*/, "_to_");
+}
+
+// بيحمّل مكتبة ExcelJS مرة واحدة بس (أول ما حد يدوس Export)
+let ccpExcelJsPromise_ = null;
+function ccpLoadExcelJs_() {
+  if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  if (ccpExcelJsPromise_) return ccpExcelJsPromise_;
+  const urls = [
+    "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js",
+    "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"
+  ];
+  ccpExcelJsPromise_ = new Promise((resolve, reject) => {
+    const tryUrl = (i) => {
+      if (i >= urls.length) { ccpExcelJsPromise_ = null; reject(new Error("Could not load Excel library")); return; }
+      const sc = document.createElement("script");
+      sc.src = urls[i];
+      sc.onload = () => window.ExcelJS ? resolve(window.ExcelJS) : tryUrl(i + 1);
+      sc.onerror = () => tryUrl(i + 1);
+      document.head.appendChild(sc);
+    };
+    tryUrl(0);
+  });
+  return ccpExcelJsPromise_;
+}
+
+// 🎨 بيبني الشيت المنسّق: عنوان، وكل قسم ليه شريط عنوان غامق + هيدر + جدول بحدود،
+// والنسب ملونة (أخضر/أصفر/أحمر) بنفس ألوان الموقع
+async function downloadCcPulseXlsx_(sections, periodLabel, filename) {
+  const ExcelJS = await ccpLoadExcelJs_();
+  const wb = new ExcelJS.Workbook();
+  // شيت "Queue" الأول (أول حاجة بتفتح) وبعده "Agents" - كل شيت ليه عرض أعمدة على قده
+  const queueSections = sections.filter(sec => sec.title !== "AGENTS");
+  const agentSections = sections.filter(sec => sec.title === "AGENTS");
+  if (queueSections.length) {
+    const wsQ = wb.addWorksheet("Queue", { views: [{ showGridLines: false }] });
+    ccpFillCcPulseWorksheet_(wsQ, queueSections, periodLabel, "Queue");
+  }
+  const wsA = wb.addWorksheet("Agents", { views: [{ showGridLines: false, state: "frozen", xSplit: 2, ySplit: 5 }] });
+  ccpFillCcPulseWorksheet_(wsA, agentSections, periodLabel, "Agents");
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+const CCP_XL = {
+  dark: "FF1E293B", white: "FFFFFFFF", headFill: "FFF1F5F9", border: "FFCBD5E1", zebra: "FFFAFAFA",
+  good: { fill: "FFDCFCE7", font: "FF166534" }, warn: { fill: "FFFEF3C7", font: "FF92400E" }, bad: { fill: "FFFEE2E2", font: "FF991B1B" }
+};
+
+// بيقرر لون الخلية حسب اسم العمود وقيمتها (نفس حدود الموقع) - أو null
+function ccpXlCellTone_(header, value, rawValue) {
+  const n = typeof value === "number" ? value : NaN;
+  if (header === "Abandonment %" && !isNaN(n)) return n <= 0.05 ? "good" : (n <= 0.10 ? "warn" : "bad");
+  if (header === "Service Level (20s) %" && !isNaN(n)) return n >= 0.80 ? "good" : (n >= 0.70 ? "warn" : "bad");
+  if ((header === "Adherence %" || header === "Adherence") && !isNaN(n)) return n >= 0.90 ? "good" : (n >= 0.70 ? "warn" : "bad");
+  if (header === "After Abandon" && typeof rawValue === "string") {
+    if (rawValue === "Reached") return "good";
+    if (rawValue === "No calls after") return "bad";
+    if (rawValue && rawValue !== "-") return "warn";
+  }
+  if (header === "Tardy" && rawValue === "Yes") return "bad";
+  return null;
+}
+
+// "10.7%" -> 0.107 (رقم حقيقي بفورمات %) ، والأرقام اللي كانت نص بتبقى أرقام - بس أرقام التليفون تفضل نص
+function ccpXlValue_(header, v) {
+  if (v === undefined || v === null) return { value: "" };
+  if (typeof v === "number") {
+    if (/%$/.test(header)) return { value: v / 100, numFmt: "0.0%" };
+    return { value: v };
+  }
+  const str = String(v);
+  if (/^-?\d+(\.\d+)?%$/.test(str)) return { value: parseFloat(str) / 100, numFmt: "0.0%" };
+  if (/Number|Ext/.test(header)) return { value: str }; // أرقام تليفون (0 في الأول) / إكستنشن
+  if (/^-?\d+(\.\d+)?$/.test(str) && str.length < 12 && !/^0\d/.test(str)) return { value: parseFloat(str) };
+  return { value: str };
+}
+
+function ccpFillCcPulseWorksheet_(ws, sections, periodLabel, sheetTitle) {
+  const maxCols = Math.max(...sections.map(sec => sec.headers.length));
+  const thin = { style: "thin", color: { argb: CCP_XL.border } };
+  const box = { top: thin, left: thin, bottom: thin, right: thin };
+  const colWidths = new Array(maxCols).fill(8);
+  const WRAP_HEADERS = ["Calls After Abandon (in order)", "Breaks"];
+
+  // العنوان
+  const titleRow = ws.addRow([`CC Pulse Report${sheetTitle ? " — " + sheetTitle : ""}`]);
+  titleRow.font = { bold: true, size: 16, color: { argb: CCP_XL.dark } };
+  const subRow = ws.addRow([`Period: ${periodLabel || "-"}   ·   Exported: ${new Date().toLocaleString("en-GB", { timeZone: "Asia/Dubai" })}`]);
+  subRow.font = { size: 10, color: { argb: "FF64748B" } };
+  ws.addRow([]);
+
+  sections.forEach(sec => {
+    const width = sec.headers.length;
+
+    // شريط عنوان القسم
+    const tRow = ws.addRow([sec.title]);
+    ws.mergeCells(tRow.number, 1, tRow.number, width);
+    tRow.height = 20;
+    const tCell = tRow.getCell(1);
+    tCell.font = { bold: true, size: 12, color: { argb: CCP_XL.white } };
+    tCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: CCP_XL.dark } };
+    tCell.alignment = { vertical: "middle", indent: 1 };
+
+    // الهيدر
+    const hRow = ws.addRow(sec.headers);
+    hRow.eachCell((c, ci) => {
+      c.font = { bold: true, size: 10, color: { argb: CCP_XL.dark } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: CCP_XL.headFill } };
+      c.border = box;
+      c.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+      colWidths[ci - 1] = Math.max(colWidths[ci - 1], Math.min(String(sec.headers[ci - 1]).length + 2, 22));
+    });
+    hRow.height = 30;
+
+    if (!sec.rows.length) {
+      const eRow = ws.addRow([sec.emptyText || "No data"]);
+      ws.mergeCells(eRow.number, 1, eRow.number, width);
+      eRow.getCell(1).font = { italic: true, color: { argb: "FF64748B" } };
+    }
+
+    sec.rows.forEach((r, ri) => {
+      // البريكات كل واحدة في سطر لوحدها
+      r = r.map((v, ci) => (sec.headers[ci] === "Breaks" && typeof v === "string") ? v.replace(/;\s*/g, "\n") : v);
+      const conv = sec.headers.map((h, ci) => ccpXlValue_(h, r[ci]));
+      const row = ws.addRow(conv.map(x => x.value));
+      let maxLines = 1;
+      sec.headers.forEach((h, ci) => {
+        const c = row.getCell(ci + 1);
+        if (conv[ci].numFmt) c.numFmt = conv[ci].numFmt;
+        c.border = box;
+        c.font = { size: 10 };
+        const wrap = WRAP_HEADERS.includes(h);
+        const leftAlign = wrap || ["Agent", "Queue", "Scheduled Shift", "After Abandon"].includes(h);
+        c.alignment = { vertical: "top", horizontal: leftAlign ? "left" : "center", wrapText: wrap };
+        if (ri % 2 === 1) c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: CCP_XL.zebra } };
+
+        const tone = ccpXlCellTone_(h, conv[ci].value, r[ci]);
+        if (tone) {
+          c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: CCP_XL[tone].fill } };
+          c.font = { size: 10, bold: true, color: { argb: CCP_XL[tone].font } };
+        }
+        if (sec.boldFirstCols && ci < sec.boldFirstCols) c.font = Object.assign({}, c.font, { bold: true });
+
+        const text = String(r[ci] === undefined || r[ci] === null ? "" : r[ci]);
+        if (wrap) {
+          const wrapWidth = h === "Breaks" ? 16 : 70;
+          colWidths[ci] = Math.max(colWidths[ci], wrapWidth);
+          const lines = text.split("\n");
+          maxLines = Math.max(maxLines, lines.reduce((sum, ln) => sum + Math.max(1, Math.ceil(ln.length / wrapWidth)), 0));
+        } else {
+          colWidths[ci] = Math.max(colWidths[ci], Math.min(text.length + 2, 34));
+        }
+      });
+      if (maxLines > 1) row.height = Math.min(15 * maxLines, 400);
+    });
+
+    ws.addRow([]);
+    ws.addRow([]);
+  });
+
+  colWidths.forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+}
+
+// 📥 أقسام الكيو في ملف الـ Excel: Queue Overview + Daily Trend + Peak Hours + Leaderboard + Abandoned Calls
+async function buildCcPulseQueueExportSections_(callLogData, leaderboard) {
+  const sections = [];
   const dur = (sec) => formatCcPulseDuration(sec);
 
   const qs = callLogData.queueSummary;
   if (qs) {
-    section("QUEUE OVERVIEW");
-    rows.push(["Total Queue Calls", "Answered", "Abandoned", "Redirected", "Abandonment %", "ASA", "Service Level (20s) %"]);
-    rows.push([qs.totalCalls, qs.answered, qs.abandoned, qs.redirected, qs.abandonmentRatePct, dur(qs.asaSeconds), qs.serviceLevelPct]);
+    sections.push({
+      title: "QUEUE OVERVIEW",
+      headers: ["Total Queue Calls", "Answered", "Abandoned", "Redirected", "Abandonment %", "ASA", "Service Level (20s) %"],
+      rows: [[qs.totalCalls, qs.answered, qs.abandoned, qs.redirected, qs.abandonmentRatePct, dur(qs.asaSeconds), qs.serviceLevelPct]]
+    });
   }
 
   const byDay = callLogData.queueSummaryByDay || [];
   if (byDay.length > 1) {
-    section("DAILY TREND");
-    rows.push(["Date", "Total", "Answered", "Abandoned", "Abandonment %", "ASA", "Service Level (20s) %"]);
-    byDay.forEach(d => rows.push([
-      d.date, d.totalCalls, d.answered, d.abandoned,
-      d.totalCalls > 0 ? d.abandonmentRatePct : "-",
-      d.answered > 0 ? dur(d.asaSeconds) : "-",
-      d.answered > 0 ? d.serviceLevelPct : "-"
-    ]));
+    sections.push({
+      title: "DAILY TREND",
+      headers: ["Date", "Total", "Answered", "Abandoned", "Abandonment %", "ASA", "Service Level (20s) %"],
+      rows: byDay.map(d => [
+        d.date, d.totalCalls, d.answered, d.abandoned,
+        d.totalCalls > 0 ? d.abandonmentRatePct : "-",
+        d.answered > 0 ? dur(d.asaSeconds) : "-",
+        d.answered > 0 ? d.serviceLevelPct : "-"
+      ])
+    });
   }
 
   const byHour = (callLogData.queueSummaryByHour || []).filter(h => h.totalCalls > 0);
   if (byHour.length) {
-    section("PEAK HOURS");
-    rows.push(["Hour", "Calls", "Answered", "Abandoned", "Abandonment %", "ASA", "Service Level (20s) %"]);
-    byHour.forEach(h => rows.push([
-      String(h.hour).padStart(2, "0") + ":00", h.totalCalls, h.answered, h.abandoned, h.abandonmentRatePct,
-      h.answered > 0 ? dur(h.asaSeconds) : "-",
-      h.answered > 0 ? h.serviceLevelPct : "-"
-    ]));
+    sections.push({
+      title: "PEAK HOURS",
+      headers: ["Hour", "Calls", "Answered", "Abandoned", "Abandonment %", "ASA", "Service Level (20s) %"],
+      rows: byHour.map(h => [
+        String(h.hour).padStart(2, "0") + ":00", h.totalCalls, h.answered, h.abandoned, h.abandonmentRatePct,
+        h.answered > 0 ? dur(h.asaSeconds) : "-",
+        h.answered > 0 ? h.serviceLevelPct : "-"
+      ])
+    });
   }
 
   if (leaderboard && leaderboard.ranked && leaderboard.ranked.length) {
-    section("LEADERBOARD");
-    rows.push(["#", "Agent", "Calls Answered", "AHT", "Adherence %", "Follow up case", leaderboard.isSingleDay ? "Tardy" : "Tardy Count", "Tardy Minutes", "Score"]);
-    leaderboard.ranked.forEach((a, i) => rows.push([
-      i + 1, a.agent, a.callsAnswered, dur(a.ahtSeconds),
-      (a.adherencePct !== null && a.adherencePct !== undefined) ? Math.round(a.adherencePct * 100) / 100 : "-",
-      dur(a.followUpSeconds),
-      leaderboard.isSingleDay ? (a.tardyCount > 0 ? "Yes" : "No") : a.tardyCount,
-      Math.round(a.tardyMinutes), a.score
-    ]));
+    sections.push({
+      title: "LEADERBOARD",
+      boldFirstCols: 2,
+      headers: ["#", "Agent", "Calls Answered", "AHT", "Adherence %", "Follow up case", leaderboard.isSingleDay ? "Tardy" : "Tardy Count", "Tardy Minutes", "Score"],
+      rows: leaderboard.ranked.map((a, i) => [
+        i + 1, a.agent, a.callsAnswered, dur(a.ahtSeconds),
+        (a.adherencePct !== null && a.adherencePct !== undefined) ? Math.round(a.adherencePct * 100) / 100 : "-",
+        dur(a.followUpSeconds),
+        leaderboard.isSingleDay ? (a.tardyCount > 0 ? "Yes" : "No") : a.tardyCount,
+        Math.round(a.tardyMinutes), a.score
+      ])
+    });
   }
 
-  // Abandoned Calls بكل تفاصيل "After Abandon" - نفس اللي بيظهر في الـ popup
-  section("ABANDONED CALLS");
-  rows.push(["Date", "Time", "Customer Number", "Queue", "Waited", "After Abandon", "Calls After Abandon (in order)"]);
+  // Abandoned Calls بكل تفاصيل "After Abandon" - كل مكالمة بعدها في سطر لوحده جوه الخلية
+  const abandoned = {
+    title: "ABANDONED CALLS",
+    headers: ["Date", "Time", "Customer Number", "Queue", "Waited", "After Abandon", "Calls After Abandon (in order)"],
+    rows: [],
+    emptyText: "No abandoned calls in this period"
+  };
   try {
     const calls = await ccpFetchAbandonedCalls_();
-    if (!calls.length) rows.push(["No abandoned calls in this period"]);
     calls.forEach(c => {
       const fu = ccpAbandonFollowUpText_(c.followUp);
-      rows.push([c.date, c.time ? c.time.slice(0, 8) : "", c.customerNumber || "-", c.queue || "-", dur(c.waitSeconds), fu.status, fu.timeline]);
+      abandoned.rows.push([c.date, c.time ? c.time.slice(0, 8) : "", c.customerNumber || "-", c.queue || "-", dur(c.waitSeconds), fu.status, fu.timeline]);
     });
   } catch (err) {
-    rows.push([`Could not load abandoned calls: ${err.message || err}`]);
+    abandoned.emptyText = `Could not load abandoned calls: ${err.message || err}`;
   }
+  sections.push(abandoned);
 
-  return rows;
+  return sections;
 }
 
 // نص عادي (من غير HTML) لخانة After Abandon - للـ CSV
@@ -1598,7 +1794,7 @@ function ccpAbandonFollowUpText_(fu) {
     return answered
       ? `${when(ev)} Customer called - answered by ${ev.agent || "?"} (talk ${formatCcPulseDuration(ev.talkSeconds)})`
       : `${when(ev)} Customer called - not answered (${ev.result || "-"})`;
-  }).join(" | ");
+  }).join("\n");
 
   return { status, timeline };
 }
@@ -2819,7 +3015,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
 
   resultBox.innerHTML = `
     <div class="ccp-export-bar">
-      <button type="button" class="ccp-export-btn" onclick="exportCcPulseReportToCsv()">📥 Export to CSV</button>
+      <button type="button" class="ccp-export-btn" onclick="exportCcPulseReportToCsv()">📥 Export to Excel</button>
       <button type="button" class="ccp-export-btn" onclick="exportCcPulseReportToPdf()">🖨️ Export to PDF</button>
     </div>
     ${bodyHtml}
