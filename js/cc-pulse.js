@@ -60,6 +60,8 @@ function setCcpResultView(view) {
 let ccPulseReportLiveBase = null; // بيتخزن فيه أرقام آخر تقرير عشان نعد عليها بالثانية زي العداد اللي فوق
 let ccPulseLastExportAgentsList = null; // بيتخزن فيه آخر بيانات تقرير اتحمّلت عشان زرار الـ Export يقدر يستخدمها
 let ccPulseLastExportTrackingStartDate = null; // بيتخزن فيه trackingStartDate بتاع آخر تقرير، عشان الـ CSV يستبعد نفس الأيام
+let ccPulseLastExportCallLogData = null; // 📥 أرقام الكيو (Summary/Daily/Peak Hours) بتاعة آخر تقرير All agents - للـ CSV
+let ccPulseLastLeaderboard = null; // 📥 ترتيب الـ Leaderboard بتاع آخر تقرير All agents - للـ CSV
 let ccPulseLastExportCallLogByDay = null; // بيتخزن فيه callLogData.agentsByDay بتاع آخر تقرير (أرقام مكالمات كل إيجنت في كل يوم لوحده) عشان الـ CSV يضيفها لكل صف
 
 // كارت "My Day" (بيانات/تايم لاين الإيجنت لنفسه في الصفحة الرئيسية) كان بيتحمّل مرة واحدة بس وبيفضل واقف زي ما هو،
@@ -892,6 +894,8 @@ function ccPulseBuildLeaderboardHtml(callLogData, loginData) {
     (a.ahtSeconds - b.ahtSeconds)            // وبعدين الأقل AHT
   );
 
+  ccPulseLastLeaderboard = { ranked, isSingleDay }; // للـ Export to CSV
+
   const medals = ["🥇", "🥈", "🥉"];
   const td = (v) => `<td style="color:#1a252f">${v}</td>`;
   const rowsHtml = ranked.map((a, i) => {
@@ -1077,6 +1081,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
     </div>`;
 
   ccPulseLastExportAgentsList = data.agents.map(a => ({ name: a.name, number: a.number, days: a.days || [] }));
+  ccPulseLastExportCallLogData = (callLogData && callLogData.status === "success") ? callLogData : null;
   ccPulseLastExportTrackingStartDate = data.trackingStartDate || null;
   ccPulseLastExportCallLogByDay = (callLogData && callLogData.agentsByDay) || null;
 
@@ -1482,12 +1487,120 @@ function exportCcPulseReportToPdf() {
 }
 
 // زرار "Export to CSV" بيستخدم آخر بيانات تقرير اتحمّلت (اتخزنت في ccPulseLastExportAgentsList وقت الـ render)
-function exportCcPulseReportToCsv() {
+async function exportCcPulseReportToCsv() {
   if (!ccPulseLastExportAgentsList || !ccPulseLastExportAgentsList.length) return;
   const rows = buildCcPulseExportRows(ccPulseLastExportAgentsList, ccPulseLastExportTrackingStartDate, ccPulseLastExportCallLogByDay);
+
+  // 📥 تقرير All agents: بنضيف أقسام الكيو تحت جدول الإيجنتس في نفس الملف
+  if (ccPulseLastExportCallLogData) {
+    const btn = document.querySelector('.ccp-export-btn[onclick^="exportCcPulseReportToCsv"]');
+    const oldLabel = btn ? btn.innerHTML : "";
+    if (btn) { btn.disabled = true; btn.innerHTML = "⏳ Preparing..."; }
+    try {
+      const queueRows = await buildCcPulseQueueExportRows_(ccPulseLastExportCallLogData, ccPulseLastLeaderboard);
+      rows.push(...queueRows);
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = oldLabel; }
+    }
+  }
+
   const uae = getUAECurrentDate();
   const filename = `cc-pulse-report_${uae.year}-${uae.month}-${uae.day}.csv`;
   downloadCcPulseCsv(rows, filename);
+}
+
+// 📥 أقسام الكيو في الـ CSV: Queue Overview + Daily Trend + Peak Hours + Leaderboard + Abandoned Calls
+// كل قسم بيبدأ بسطر فاضي وبعدين عنوانه، عشان يبقوا واضحين تحت بعض في Excel
+async function buildCcPulseQueueExportRows_(callLogData, leaderboard) {
+  const rows = [];
+  const section = (title) => { rows.push([]); rows.push([]); rows.push([`=== ${title} ===`]); };
+  const dur = (sec) => formatCcPulseDuration(sec);
+
+  const qs = callLogData.queueSummary;
+  if (qs) {
+    section("QUEUE OVERVIEW");
+    rows.push(["Total Queue Calls", "Answered", "Abandoned", "Redirected", "Abandonment %", "ASA", "Service Level (20s) %"]);
+    rows.push([qs.totalCalls, qs.answered, qs.abandoned, qs.redirected, qs.abandonmentRatePct, dur(qs.asaSeconds), qs.serviceLevelPct]);
+  }
+
+  const byDay = callLogData.queueSummaryByDay || [];
+  if (byDay.length > 1) {
+    section("DAILY TREND");
+    rows.push(["Date", "Total", "Answered", "Abandoned", "Abandonment %", "ASA", "Service Level (20s) %"]);
+    byDay.forEach(d => rows.push([
+      d.date, d.totalCalls, d.answered, d.abandoned,
+      d.totalCalls > 0 ? d.abandonmentRatePct : "-",
+      d.answered > 0 ? dur(d.asaSeconds) : "-",
+      d.answered > 0 ? d.serviceLevelPct : "-"
+    ]));
+  }
+
+  const byHour = (callLogData.queueSummaryByHour || []).filter(h => h.totalCalls > 0);
+  if (byHour.length) {
+    section("PEAK HOURS");
+    rows.push(["Hour", "Calls", "Answered", "Abandoned", "Abandonment %", "ASA", "Service Level (20s) %"]);
+    byHour.forEach(h => rows.push([
+      String(h.hour).padStart(2, "0") + ":00", h.totalCalls, h.answered, h.abandoned, h.abandonmentRatePct,
+      h.answered > 0 ? dur(h.asaSeconds) : "-",
+      h.answered > 0 ? h.serviceLevelPct : "-"
+    ]));
+  }
+
+  if (leaderboard && leaderboard.ranked && leaderboard.ranked.length) {
+    section("LEADERBOARD");
+    rows.push(["#", "Agent", "Calls Answered", "AHT", "Adherence %", "Follow up case", leaderboard.isSingleDay ? "Tardy" : "Tardy Count", "Tardy Minutes", "Score"]);
+    leaderboard.ranked.forEach((a, i) => rows.push([
+      i + 1, a.agent, a.callsAnswered, dur(a.ahtSeconds),
+      (a.adherencePct !== null && a.adherencePct !== undefined) ? Math.round(a.adherencePct * 100) / 100 : "-",
+      dur(a.followUpSeconds),
+      leaderboard.isSingleDay ? (a.tardyCount > 0 ? "Yes" : "No") : a.tardyCount,
+      Math.round(a.tardyMinutes), a.score
+    ]));
+  }
+
+  // Abandoned Calls بكل تفاصيل "After Abandon" - نفس اللي بيظهر في الـ popup
+  section("ABANDONED CALLS");
+  rows.push(["Date", "Time", "Customer Number", "Queue", "Waited", "After Abandon", "Calls After Abandon (in order)"]);
+  try {
+    const calls = await ccpFetchAbandonedCalls_();
+    if (!calls.length) rows.push(["No abandoned calls in this period"]);
+    calls.forEach(c => {
+      const fu = ccpAbandonFollowUpText_(c.followUp);
+      rows.push([c.date, c.time ? c.time.slice(0, 8) : "", c.customerNumber || "-", c.queue || "-", dur(c.waitSeconds), fu.status, fu.timeline]);
+    });
+  } catch (err) {
+    rows.push([`Could not load abandoned calls: ${err.message || err}`]);
+  }
+
+  return rows;
+}
+
+// نص عادي (من غير HTML) لخانة After Abandon - للـ CSV
+function ccpAbandonFollowUpText_(fu) {
+  if (!fu) return { status: "-", timeline: "" };
+  const inb = fu.customerCalledAgain || { count: 0 };
+  const outb = fu.weCalledBack || { count: 0 };
+  let status;
+  if (fu.status === "answered") status = "Reached";
+  else if (fu.status === "attempted") {
+    status = (inb.count > 0 && outb.count > 0) ? "Customer called again & agent called - no answer"
+      : (inb.count > 0 ? "Customer called again - not answered" : "Agent called - customer didn't answer");
+  } else status = "No calls after";
+
+  const when = (ev) => `${(ev.date || "").slice(5)} ${(ev.time || "").slice(0, 5)}`.trim();
+  const timeline = (fu.events || []).map(ev => {
+    const answered = ev.result === "Answered";
+    if (ev.direction === "Outbound") {
+      return answered
+        ? `${when(ev)} ${ev.agent || "?"} called - answered (talk ${formatCcPulseDuration(ev.talkSeconds)})`
+        : `${when(ev)} ${ev.agent || "?"} called - no answer${ev.ringSeconds ? ` (rang ${formatCcPulseDuration(ev.ringSeconds)})` : ""}`;
+    }
+    return answered
+      ? `${when(ev)} Customer called - answered by ${ev.agent || "?"} (talk ${formatCcPulseDuration(ev.talkSeconds)})`
+      : `${when(ev)} Customer called - not answered (${ev.result || "-"})`;
+  }).join(" | ");
+
+  return { status, timeline };
 }
 
 // بيرجع "HH:MM" بصيغة 24 ساعة (الصيغة اللي محتاجها <input type="time">) من رقم دقايق من نص الليل
@@ -2473,6 +2586,18 @@ async function ccpShowOutboundUnansweredModal(agentName, mode, dateOrStart, endD
 // buildCcPulseDateParams() - من Code.gs (action=queueCallDetail، دالة جديدة
 // getQueueCallDetail_ مضافة في Code-7.gs، مش بتلمس أي حاجة موجودة)
 // ============================================================
+// بيجيب مكالمات الـ Abandoned (مع After Abandon) للفترة المعروضة حاليًا - مستخدمة في الـ popup والـ CSV
+async function ccpFetchAbandonedCalls_() {
+  const params = buildCcPulseDateParams();
+  params.set("action", "queueCallDetail");
+  params.set("direction", "Inbound");
+  params.set("result", "Abandoned");
+  const res = await fetch(`${GOOGLE_SHEET_API_URL}?${params.toString()}`);
+  const data = await res.json();
+  if (!data || data.status !== "success") throw new Error(data && data.message ? data.message : "Failed to load");
+  return data.calls || [];
+}
+
 async function ccpShowQueueCallDetailModal() {
   ccpEnsureCallDetailModal_();
 
@@ -2483,17 +2608,12 @@ async function ccpShowQueueCallDetailModal() {
   body.innerHTML = `<div class="ccp-loading">Loading...</div>`;
   modal.style.display = "flex";
 
-  const params = buildCcPulseDateParams();
-  params.set("action", "queueCallDetail");
-  params.set("direction", "Inbound");
-  params.set("result", "Abandoned");
-
   try {
-    const res = await fetch(`${GOOGLE_SHEET_API_URL}?${params.toString()}`);
-    const data = await res.json();
-
-    if (!data || data.status !== "success") {
-      body.innerHTML = `<div class="ccp-error">⚠️ ${data && data.message ? data.message : "Failed to load"}</div>`;
+    let data;
+    try {
+      data = { calls: await ccpFetchAbandonedCalls_() };
+    } catch (loadErr) {
+      body.innerHTML = `<div class="ccp-error">⚠️ ${loadErr.message || "Failed to load"}</div>`;
       return;
     }
 
@@ -2707,6 +2827,8 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
 
   const liveAgentMatch = ccPulseAgentsCache.find(x => x.name === data.agent);
   ccPulseLastExportAgentsList = [{ name: data.agent, number: liveAgentMatch ? liveAgentMatch.number : "-", days: data.days || [] }];
+  ccPulseLastExportCallLogData = null; // تقرير إيجنت واحد - مفيش أقسام كيو في الـ CSV
+  ccPulseLastLeaderboard = null;
   ccPulseLastExportTrackingStartDate = data.trackingStartDate || null;
   ccPulseLastExportCallLogByDay = (callLogData && callLogData.agentsByDay) || null;
 
