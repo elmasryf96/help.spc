@@ -2373,8 +2373,8 @@ async function ccpShowQueueCallDetailModal() {
     body.innerHTML = `
       <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
         <div class="ccp-metric-card"><div class="ccp-metric-label">Reached Later</div><div class="ccp-metric-value ccp-adh-good">${fuCounts.answered}</div></div>
-        <div class="ccp-metric-card"><div class="ccp-metric-label">Tried, No Answer</div><div class="ccp-metric-value ccp-adh-warn">${fuCounts.attempted}</div></div>
-        <div class="ccp-metric-card"><div class="ccp-metric-label">No Follow-up</div><div class="ccp-metric-value ccp-adh-bad">${fuCounts.none}</div></div>
+        <div class="ccp-metric-card"><div class="ccp-metric-label">Not Reached</div><div class="ccp-metric-value ccp-adh-warn">${fuCounts.attempted}</div></div>
+        <div class="ccp-metric-card"><div class="ccp-metric-label">No Calls After</div><div class="ccp-metric-value ccp-adh-bad">${fuCounts.none}</div></div>
       </div>
       <div class="ccp-queue-trend-table-wrap">
         <table class="ccp-queue-trend-table">
@@ -2385,7 +2385,7 @@ async function ccpShowQueueCallDetailModal() {
               <th>Customer Number</th>
               <th>Queue</th>
               <th>Waited</th>
-              <th>Follow-up</th>
+              <th>After Abandon</th>
             </tr>
           </thead>
           <tbody>${rowsHtml}</tbody>
@@ -2426,11 +2426,19 @@ function ccpAbandonFollowUpHtml_(fu) {
     }
   }
 
-  const badge = fu.status === "answered"
-    ? '<span class="ccp-adh-good" style="font-weight:600">✅ Reached</span>'
-    : (fu.status === "attempted"
-      ? '<span class="ccp-adh-warn" style="font-weight:600">⚠️ Tried, no answer</span>'
-      : '<span class="ccp-adh-bad" style="font-weight:600">❌ No follow-up</span>');
+  // الحالة بتوضح مين عمل إيه: العميل اتصل تاني؟ ولا الإيجنت كلمه؟
+  let badge;
+  if (fu.status === "answered") {
+    badge = '<span class="ccp-adh-good" style="font-weight:600">✅ Reached</span>';
+  } else if (fu.status === "attempted") {
+    const custTried = inb.count > 0, agentTried = outb.count > 0;
+    const txt = custTried && agentTried
+      ? "Customer called again &amp; agent called — no answer"
+      : (custTried ? "Customer called again — not answered" : "Agent called — customer didn't answer");
+    badge = `<span class="ccp-adh-warn" style="font-weight:600">⚠️ ${txt}</span>`;
+  } else {
+    badge = '<span class="ccp-adh-bad" style="font-weight:600">❌ No calls after</span>';
+  }
 
   return `${badge}${lines.length ? '<div style="font-size:12px; margin-top:3px; line-height:1.5;">' + lines.join("<br>") + "</div>" : ""}`;
 }
