@@ -1065,6 +1065,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
     <div class="ccp-export-bar">
       <button type="button" class="ccp-export-btn" onclick="exportCcPulseReportToCsv()">📥 Export to Excel</button>
       <button type="button" class="ccp-export-btn" onclick="exportCcPulseReportToPdf()">🖨️ Export to PDF</button>
+      <button type="button" class="ccp-export-btn" id="ccpSendReportBtn" onclick="ccpSendDailyReportNow()">✉️ Send Report</button>
     </div>
     <div class="ccp-mode-bar" style="margin: 4px 0 14px;">
       <button type="button" id="ccpResultViewBtn_queue" class="ccp-mode-btn" onclick="setCcpResultView('queue')"><i class="fa-solid fa-headset"></i> Queue</button>
@@ -1510,6 +1511,34 @@ async function exportCcPulseReportToCsv() {
     alert("Export failed: " + (err.message || err));
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = oldLabel; }
+  }
+}
+
+// ✉️ زرار "Send Report": بيبعت ريبورت امبارح (نفس الإيميل اليومي بتاع 10 الصبح) للمديرين حالًا
+// الإرسال نفسه بيحصل في Apps Script (DailyReport.gs -> action=sendDailyReport في doPost)
+async function ccpSendDailyReportNow() {
+  const uae = getUAECurrentDate();
+  const d = new Date(Date.UTC(parseInt(uae.year, 10), parseInt(uae.month, 10) - 1, parseInt(uae.day, 10) - 1));
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const label = `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+  if (!confirm(`Send the Queue and Agent Report for ${label} to all managers now?`)) return;
+
+  const btn = document.getElementById("ccpSendReportBtn");
+  const oldLabel = btn ? btn.innerHTML : "";
+  if (btn) { btn.disabled = true; btn.innerHTML = "⏳ Sending..."; }
+  try {
+    const res = await fetch(GOOGLE_SHEET_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "sendDailyReport", token: localStorage.getItem("sessionToken") || "" })
+    });
+    const data = await res.json();
+    if (!data || data.status !== "success") throw new Error(data && data.message ? data.message : "Failed to send");
+    if (btn) btn.innerHTML = `✅ Sent to ${data.sentTo} manager${data.sentTo === 1 ? "" : "s"}`;
+    setTimeout(() => { if (btn) { btn.innerHTML = oldLabel; btn.disabled = false; } }, 5000);
+  } catch (err) {
+    alert("Could not send the report: " + (err.message || err));
+    if (btn) { btn.innerHTML = oldLabel; btn.disabled = false; }
   }
 }
 
