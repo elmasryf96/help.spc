@@ -908,10 +908,38 @@ function swapRenderLists() {
     (items.length ? items.map(swapCardHtml).join("") : `<div class="swap-empty">${emptyText}</div>`) +
     `</div>`;
 
-  box.innerHTML =
+  // ✉️ أدمن بس: زرار ريبورت السواب من أول الشهر لحد النهارده للمديرين
+  const adminBar = swapState.isAdmin
+    ? `<div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+         <button type="button" class="swap-btn swap-btn-primary" id="swapReportBtn" onclick="swapSendMonthReport()"><i class="fa-solid fa-envelope"></i> Send Swap Report</button>
+       </div>`
+    : "";
+
+  box.innerHTML = adminBar +
     section("Waiting for your reply", "fa-inbox", incoming, "No requests waiting for you.") +
     section("Your pending requests", "fa-paper-plane", outgoing, "You have no pending requests.") +
     section(swapState.isAdmin ? "All swaps (last 14 days)" : "History (last 14 days)", "fa-clock-rotate-left", history.slice(0, 40), "Nothing here yet.");
+}
+
+// ✉️ بيبعت ريبورت السواب (من أول الشهر لحد النهارده) للمديرين - Swap.gs -> sendSwapReportMonthToDate_
+async function swapSendMonthReport() {
+  const now = swapTodayUaeString(); // yyyy-MM-dd
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const label = `${months[parseInt(now.slice(5, 7), 10) - 1]} ${now.slice(0, 4)} (1 to ${parseInt(now.slice(8, 10), 10)})`;
+  if (!confirm(`Send the Shift Swap Report for ${label} to all managers now?`)) return;
+
+  const btn = document.getElementById("swapReportBtn");
+  const oldLabel = btn ? btn.innerHTML : "";
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...'; }
+  try {
+    const res = await swapPost({ action: "sendSwapReport" });
+    if (!res || res.status !== "success") throw new Error(res && res.message ? res.message : "Failed to send");
+    if (btn) btn.innerHTML = `<i class="fa-solid fa-check"></i> Sent (${res.requests} request${res.requests === 1 ? "" : "s"}) to ${res.sentTo} manager${res.sentTo === 1 ? "" : "s"}`;
+    setTimeout(() => { const b = document.getElementById("swapReportBtn"); if (b) { b.innerHTML = oldLabel; b.disabled = false; } }, 5000);
+  } catch (err) {
+    alert("Could not send the swap report: " + (err.message || err));
+    if (btn) { btn.innerHTML = oldLabel; btn.disabled = false; }
+  }
 }
 
 // event delegation - أزرار الكروت بتتبني ديناميك
