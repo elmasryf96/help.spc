@@ -1796,75 +1796,106 @@ def get_uae_today_str() -> str:
     return uae_now.strftime("%Y-%m-%d")
 
 
+# 🎧 Queue Support (Dept = "Queue Support" في الروستر): يومهم من 9 الصبح لـ 9 الصبح اللي بعده
+# (Code.gs بيحسبها كدا). فقبل 9 الصبح أرقامهم الحية لازم تيجي من "امبارح" مش النهاردة،
+# عشان العداد مايترستش الساعة 12 بالليل وهما لسه في نص شغلهم
+QUEUE_SUPPORT_DAY_START_HOUR = 9
+
+
+async def fetch_day_totals(client: httpx.AsyncClient, sheet_url: str, date_str: str):
+    """بيرجع (per_agent, queue_support_names) ليوم معين - لوجن + بريك + مكالمات"""
+    resp = await client.get(
+        sheet_url,
+        params={
+            "action": "allAgentsLoginTotals",
+            "mode": "day",
+            "date": date_str,
+            # سيكريت خاص بالسيرفر بس (server-to-server) - عشان الأكشن ده يعدي
+            # من غير ما يحتاج session token حقيقي (السيرفر مش متصفح مسجل
+            # دخول). نفس القيمة متخزنة كـ Script Property "SYNC_SECRET" في
+            # Code.gs، وكـ Environment Variable SYNC_SECRET هنا في Render.
+            "syncSecret": os.environ.get("SYNC_SECRET", ""),
+        },
+        timeout=45,  # زودنا شوية (كانت 30) - شيت Call Log بقى أكبر بعد الباكفيل
+    )
+    data = resp.json()
+    if data.get("status") != "success":
+        print(f"❌ allAgentsLoginTotals ({date_str}) مرجعتش success: {data.get('message')}")
+        return None, set()
+
+    per_agent = {}
+    qs_names = set()
+    for agent in data.get("agents", []):
+        totals = agent.get("totals", {}) or {}
+        if agent.get("queueSupport"):
+            qs_names.add(agent["name"])
+        per_agent[agent["name"]] = {
+            "totalSeconds": agent.get("totalLoginSeconds", 0),
+            "breakSeconds": totals.get("Break", 0),
+            "callsAnswered": 0,
+            "outboundCalls": 0,
+            "outboundAnsweredCount": 0,
+            "outboundUnansweredCount": 0,
+        }
+
+    try:
+        calls_resp = await client.get(
+            sheet_url,
+            params={
+                "action": "callLogReport",
+                "mode": "day",
+                "date": date_str,
+                "syncSecret": os.environ.get("SYNC_SECRET", ""),
+            },
+            timeout=45,  # زودنا شوية (كانت 30) - شيت Call Log بقى أكبر بعد الباكفيل
+        )
+        calls_data = calls_resp.json()
+        if calls_data.get("status") != "success":
+            print(f"❌ callLogReport ({date_str}) مرجعتش success: {calls_data.get('message')}")
+        if calls_data.get("status") == "success":
+            for agent in calls_data.get("agents", []):
+                name = agent.get("agent")
+                if name in per_agent:
+                    per_agent[name]["callsAnswered"] = agent.get("callsAnswered", 0)
+                    per_agent[name]["outboundCalls"] = agent.get("outboundCallsCount", 0)
+                    per_agent[name]["outboundAnsweredCount"] = agent.get("outboundAnsweredCount", 0)
+                    per_agent[name]["outboundUnansweredCount"] = agent.get("outboundUnansweredCount", 0)
+                else:
+                    per_agent[name] = {
+                        "totalSeconds": 0,
+                        "breakSeconds": 0,
+                        "callsAnswered": agent.get("callsAnswered", 0),
+                        "outboundCalls": agent.get("outboundCallsCount", 0),
+                        "outboundAnsweredCount": agent.get("outboundAnsweredCount", 0),
+                        "outboundUnansweredCount": agent.get("outboundUnansweredCount", 0),
+                    }
+    except Exception as e:
+        print(f"❌ فشل تحديث عدد المكالمات في كاش اليوم ({date_str}): {e}")
+
+    return per_agent, qs_names
+
+
 async def refresh_daily_totals_cache(client: httpx.AsyncClient):
     try:
         sheet_url = os.environ["GOOGLE_SHEET_API_URL"]
         today_str = get_uae_today_str()
 
-        resp = await client.get(
-            sheet_url,
-            params={
-                "action": "allAgentsLoginTotals",
-                "mode": "day",
-                "date": today_str,
-                # سيكريت خاص بالسيرفر بس (server-to-server) - عشان الأكشن ده يعدي
-                # من غير ما يحتاج session token حقيقي (السيرفر مش متصفح مسجل
-                # دخول). نفس القيمة متخزنة كـ Script Property "SYNC_SECRET" في
-                # Code.gs، وكـ Environment Variable SYNC_SECRET هنا في Render.
-                "syncSecret": os.environ.get("SYNC_SECRET", ""),
-            },
-            timeout=45,  # زودنا شوية (كانت 30) - شيت Call Log بقى أكبر بعد الباكفيل
-        )
-        data = resp.json()
-        if data.get("status") != "success":
-            print(f"❌ allAgentsLoginTotals مرجعتش success: {data.get('message')}")
+        per_agent, _ = await fetch_day_totals(client, sheet_url, today_str)
+        if per_agent is None:
             return
 
-        per_agent = {}
-        for agent in data.get("agents", []):
-            totals = agent.get("totals", {}) or {}
-            per_agent[agent["name"]] = {
-                "totalSeconds": agent.get("totalLoginSeconds", 0),
-                "breakSeconds": totals.get("Break", 0),
-                "callsAnswered": 0,
-                "outboundCalls": 0,
-                "outboundAnsweredCount": 0,
-                "outboundUnansweredCount": 0,
-            }
-
-        try:
-            calls_resp = await client.get(
-                sheet_url,
-                params={
-                    "action": "callLogReport",
-                    "mode": "day",
-                    "date": today_str,
-                    "syncSecret": os.environ.get("SYNC_SECRET", ""),
-                },
-                timeout=45,  # زودنا شوية (كانت 30) - شيت Call Log بقى أكبر بعد الباكفيل
-            )
-            calls_data = calls_resp.json()
-            if calls_data.get("status") != "success":
-                print(f"❌ callLogReport مرجعتش success: {calls_data.get('message')}")
-            if calls_data.get("status") == "success":
-                for agent in calls_data.get("agents", []):
-                    name = agent.get("agent")
-                    if name in per_agent:
-                        per_agent[name]["callsAnswered"] = agent.get("callsAnswered", 0)
-                        per_agent[name]["outboundCalls"] = agent.get("outboundCallsCount", 0)
-                        per_agent[name]["outboundAnsweredCount"] = agent.get("outboundAnsweredCount", 0)
-                        per_agent[name]["outboundUnansweredCount"] = agent.get("outboundUnansweredCount", 0)
-                    else:
-                        per_agent[name] = {
-                            "totalSeconds": 0,
-                            "breakSeconds": 0,
-                            "callsAnswered": agent.get("callsAnswered", 0),
-                            "outboundCalls": agent.get("outboundCallsCount", 0),
-                            "outboundAnsweredCount": agent.get("outboundAnsweredCount", 0),
-                            "outboundUnansweredCount": agent.get("outboundUnansweredCount", 0),
-                        }
-        except Exception as e:
-            print(f"❌ فشل تحديث عدد المكالمات في كاش اليوم: {e}")
+        # 🎧 قبل 9 الصبح: الـ Queue Support لسه في "يوم امبارح" بتاعهم - ناخد أرقامهم من امبارح
+        uae_now = datetime.utcnow() + timedelta(hours=4)
+        if uae_now.hour < QUEUE_SUPPORT_DAY_START_HOUR:
+            try:
+                yesterday_str = (uae_now - timedelta(days=1)).strftime("%Y-%m-%d")
+                y_per_agent, y_qs_names = await fetch_day_totals(client, sheet_url, yesterday_str)
+                if y_per_agent:
+                    for name in y_qs_names:
+                        if name in y_per_agent:
+                            per_agent[name] = y_per_agent[name]
+            except Exception as e:
+                print(f"❌ فشل تحميل أرقام Queue Support من امبارح: {e}")
 
         _daily_totals_cache["date"] = today_str
         _daily_totals_cache["perAgent"] = per_agent

@@ -184,9 +184,11 @@ function ccPulseBuildAgentCardHtml(a, nowSec) {
   const uaeNow = getUAECurrentDate();
   const todayStr = `${uaeNow.year}-${uaeNow.month}-${uaeNow.day}`;
   const shiftWindow = getShiftWindowForAgentDate(a.name, todayStr);
-  const shiftHtml = shiftWindow
-    ? `<div class="ccp-shift-label"><i class="fa-solid fa-calendar-day"></i> ${shiftWindow.label}</div>`
-    : "";
+  const shiftHtml = ccpIsQueueSupport_(a.name)
+    ? `<div class="ccp-shift-label"><i class="fa-solid fa-moon"></i> Queue Support (9 PM – 9 AM)</div>`
+    : (shiftWindow
+      ? `<div class="ccp-shift-label"><i class="fa-solid fa-calendar-day"></i> ${shiftWindow.label}</div>`
+      : "");
 
   // إجمالي وقت الشغل تراكمي طول اليوم (من غير Away): بيعد لايف وهو شغال،
   // وبيفضل واقف على آخر رقم لما يبقى Away (مش بيختفي) - وبيترست لوحده كل يوم جديد
@@ -203,7 +205,7 @@ function ccPulseBuildAgentCardHtml(a, nowSec) {
     </div>`;
 
   const agentDept = getAgentDeptToday(a.name);
-  const callsAnsweredHtml = (agentDept === "Calls")
+  const callsAnsweredHtml = ccpIsInboundAgent_(a.name)
     ? `<div class="ccp-calls-badge"><i class="fa-solid fa-phone-volume"></i> Calls: ${a.todaysCallsAnswered || 0}</div>`
     : "";
   const outboundHtml = `<div class="ccp-outbound-badge" title="Outbound: Answered / Unanswered"><i class="fa-solid fa-arrow-up-right-from-square"></i> Outbound: ${a.todaysOutboundAnswered || 0} / ${a.todaysOutboundUnanswered || 0}</div>`;
@@ -232,8 +234,8 @@ function ccPulseBuildAgentCardHtml(a, nowSec) {
 }
 
 // نفس تصنيف الفرق المستخدم في صفحة الروستر بالظبط (roster.js) - عشان الاتنين يفضلوا متسقين
-const CCP_TEAM_LIST = ["Calls", "Call Outs", "Emails"];
-const CCP_TEAM_ICONS = { "Calls": "fa-headset", "Call Outs": "fa-phone-volume", "Emails": "fa-envelope-open-text" };
+const CCP_TEAM_LIST = ["Calls", "Call Outs", "Emails", "Queue Support"];
+const CCP_TEAM_ICONS = { "Calls": "fa-headset", "Call Outs": "fa-phone-volume", "Emails": "fa-envelope-open-text", "Queue Support": "fa-moon" };
 
 function renderCcPulseLiveGrid() {
   const grid = document.getElementById("ccPulseLiveGrid");
@@ -245,7 +247,7 @@ function renderCcPulseLiveGrid() {
   const byTeam = {};
   CCP_TEAM_LIST.forEach(t => { byTeam[t] = []; });
   ccPulseAgentsCache.forEach(a => {
-    const dept = getAgentDeptToday(a.name);
+    const dept = ccpIsQueueSupport_(a.name) ? CCP_QUEUE_SUPPORT_DEPT : getAgentDeptToday(a.name);
     const team = CCP_TEAM_LIST.includes(dept) ? dept : "Calls";
     byTeam[team].push(a);
   });
@@ -853,7 +855,7 @@ function ccPulseBuildLeaderboardHtml(callLogData, loginData) {
   const isSingleDay = Boolean(loginData && Array.isArray(loginData.agents) && loginData.agents.some(a => a.date));
 
   const eligible = callLogData.agents
-    .filter(a => a.callsAnswered > 0 && getAgentDeptToday(a.agent) === "Calls")
+    .filter(a => a.callsAnswered > 0 && ccpIsInboundAgent_(a.agent))
     .map(a => Object.assign({}, a, ccpLeaderboardAgentExtras_(loginByName[a.agent], trackingStartDate)));
 
   if (eligible.length === 0) return "";
@@ -947,9 +949,10 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
 
     const callStats = callLogByAgent[a.name];
     const agentDept = getAgentDeptToday(a.name);
+    const isQs = ccpIsQueueSupport_(a.name);
     const workMetrics = ccpComputeWorkMetricsForDays_(a.name, a.days || [], callLogData && callLogData.agentsByDay, data.trackingStartDate);
     const workHtml = ccpShowsWorkMetrics_(a.name) ? ccpWorkMetricsCardsHtml_(workMetrics) : "";
-    const callsHtml = (agentDept === "Calls")
+    const callsHtml = (agentDept === "Calls" || isQs)
       ? `
       <div class="ccp-metric-card">
         <div class="ccp-metric-label">Calls Answered</div>
@@ -979,7 +982,11 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
     let timelineHtml = "";
     let attendanceBadgeHtml = "";
 
-    if (a.date) {
+    if (a.date && isQs) {
+      // 🎧 Queue Support: مفيش Day Off / No Show / Adherence، والتايم لاين من 9 الصبح لـ 9 الصبح
+      attendanceBadgeHtml = `<div class="ccp-attendance-badge" style="background:#ede9fe;color:#5b21b6;">🎧 Queue Support</div>`;
+      timelineHtml = renderCcPulseTimelineHtml(a.sessions || [], statusColors, null, null, null, { queueSupportDate: a.date });
+    } else if (a.date) {
       const shiftWindow = getShiftWindowForAgentDate(a.name, a.date);
       const attendanceStatus = getAttendanceStatus(shiftWindow, a.totalLoginSeconds, a.date, a.firstLogin, a.endShift);
       if (attendanceStatus === "off") {
@@ -1015,7 +1022,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
     const isSingleDayView = Boolean(a.date);
     const tardyCountLabel = isSingleDayView ? "Tardy" : "Tardy Count";
     const tardyCountValue = isSingleDayView ? (tardyResult.count > 0 ? "Yes" : "No") : tardyResult.count;
-    const tardyHtml = `
+    const tardyHtml = isQs ? "" : `
       <div class="ccp-metric-card">
         <div class="ccp-metric-label">${tardyCountLabel}</div>
         <div class="ccp-metric-value">${tardyCountValue}</div>
@@ -1112,6 +1119,37 @@ function getAgentDeptToday(agentName) {
   if (!Array.isArray(rosterData)) return "Calls";
   const entry = rosterData.find(a => a.name === agentName && a.month === monthNum && a.year === yearNum);
   return (entry && entry.dept) ? entry.dept : "Calls";
+}
+
+// ============================================================
+// 🎧 QUEUE SUPPORT - إيجنتس لوجن حر (مالهمش شيفت) بيدخلوا سابورت من 9 بالليل لـ 9 الصبح
+// بيتعرفوا من عمود Dept في الروستر = "Queue Support". يومهم من 9 الصبح لـ 9 الصبح اللي بعده
+// (Code.gs بيحسبها كدا). مالهمش Day Off / No Show / Tardy / Adherence
+// ============================================================
+const CCP_QUEUE_SUPPORT_DEPT = "Queue Support";
+const CCP_QS_DAY_START_MIN = 9 * 60;
+
+function ccpIsQueueSupport_(agentName) {
+  if (!agentName || !Array.isArray(rosterData)) return false;
+  return rosterData.some(r => r.name === agentName && r.dept === CCP_QUEUE_SUPPORT_DEPT);
+}
+
+// بيرد على كيو المكالمات الداخلة (Calls أو Queue Support) - عشان كروت Calls Answered / AHT والـ Leaderboard
+function ccpIsInboundAgent_(agentName) {
+  return getAgentDeptToday(agentName) === "Calls" || ccpIsQueueSupport_(agentName);
+}
+
+// "دلوقتي" بالدقايق نسبةً ليوم Queue Support (dateStr 9 الصبح -> اليوم اللي بعده 9 الصبح)، أو null لو برة الفترة
+function ccpQueueSupportNowMin_(dateStr) {
+  const uae = getUAECurrentDate();
+  const todayStr = `${uae.year}-${uae.month}-${uae.day}`;
+  const nowMin = uae.hour24 * 60 + uae.minute;
+  if (todayStr === dateStr && nowMin >= CCP_QS_DAY_START_MIN) return nowMin;
+  const d = new Date(dateStr + "T12:00:00");
+  d.setDate(d.getDate() + 1);
+  const nextStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  if (todayStr === nextStr && nowMin < CCP_QS_DAY_START_MIN) return nowMin + 1440;
+  return null;
 }
 
 function getShiftWindowForAgentDate(agentName, dateStr) {
@@ -1318,13 +1356,13 @@ function buildCcPulseExportRows(agentsList, trackingStartDate, callLogByDay) {
 
   agentsList.forEach(agent => {
     const agentDept = getAgentDeptToday(agent.name);
-    const isCallsAgent = agentDept === "Calls";
+    const isCallsAgent = agentDept === "Calls" || ccpIsQueueSupport_(agent.name);
 
     (agent.days || []).forEach(day => {
       if (trackingStartDate && day.date < trackingStartDate) return; // قبل بداية التتبع، متجاهلش
 
       const shiftWindow = getShiftWindowForAgentDate(agent.name, day.date);
-      const shiftLabel = shiftWindow ? shiftWindow.label : "Day Off";
+      const shiftLabel = ccpIsQueueSupport_(agent.name) ? "Queue Support" : (shiftWindow ? shiftWindow.label : "Day Off");
 
       const firstLoginMin = day.firstLogin ? ccPulseTimeToMinutes(day.firstLogin) : null;
       let isTardy = "No";
@@ -1457,16 +1495,25 @@ function ccpEscapeAttr_(str) {
 
 // editCtx = { agentName, dateStr } - لو موجودة، بيضيف data-attributes لكل جزء تايم لاين (حقيقي أو فجوة
 // Out Of Adherence) عشان يبقى قابل للدوس عليه وتعديله - الدوس نفسه بيتفعّل بس للأدمن (شوف attachCcPulseTimelineEditHandlers)
-function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null, effectiveEndMin = null, editCtx = null) {
+function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null, effectiveEndMin = null, editCtx = null, opts = {}) {
   if (!sessions.length && !shiftWindow) return ""; // مفيش جلسات ولا شيفت متجدول، مفيش حاجة نرسمها
+
+  // 🎧 Queue Support: اليوم من 9 الصبح لـ 9 الصبح اللي بعده - أي وقت في اليوم التاني بيتحسب +24 ساعة
+  // عشان يترسم بعد 12 بالليل مش في أول التايم لاين. والتعديل من التايم لاين مقفول ليهم
+  const qsDate = opts && opts.queueSupportDate;
+  const toMin = (ts) => ccPulseTimeToMinutes(ts) + (qsDate && ts && ts.slice(0, 10) > qsDate ? 1440 : 0);
+  if (qsDate) {
+    editCtx = null;
+    effectiveEndMin = ccpQueueSupportNowMin_(qsDate);
+  }
 
   const canEdit = Boolean(editCtx && editCtx.agentName && editCtx.dateStr && typeof isAdmin === "function" && isAdmin());
 
-  let dayStart = 9 * 60;
-  let dayEnd = 21 * 60;
+  let dayStart = qsDate ? 21 * 60 : 9 * 60;
+  let dayEnd = qsDate ? 33 * 60 : 21 * 60;
   sessions.forEach(s => {
-    dayStart = Math.min(dayStart, ccPulseTimeToMinutes(s.start));
-    dayEnd = Math.max(dayEnd, ccPulseTimeToMinutes(s.end));
+    dayStart = Math.min(dayStart, toMin(s.start));
+    dayEnd = Math.max(dayEnd, toMin(s.end));
   });
   if (shiftWindow) {
     dayStart = Math.min(dayStart, shiftWindow.startMin);
@@ -1482,8 +1529,8 @@ function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null, e
   }
 
   const segmentsHtml = sessions.map((s, sIdx) => {
-    const startMin = ccPulseTimeToMinutes(s.start);
-    const endMin = ccPulseTimeToMinutes(s.end);
+    const startMin = toMin(s.start);
+    const endMin = toMin(s.end);
     const left = ((startMin - dayStart) / span) * 100;
     const width = Math.max(((endMin - startMin) / span) * 100, 0.3);
     const color = ccpStatusColor(s.status);
@@ -1532,7 +1579,9 @@ function renderCcPulseTimelineHtml(sessions, statusColors, shiftWindow = null, e
     axisHtml += `<span class="ccp-tl-mark" style="left:${pos}%;transform:translateX(${translate});">${hour12} ${suffix}</span>`;
   }
 
-  const legendHtml = shiftWindow
+  const legendHtml = qsDate
+    ? `<div class="ccp-tl-shift-legend">🎧 Queue Support day: 9 AM → 9 AM next day</div>`
+    : shiftWindow
     ? `<div class="ccp-tl-shift-legend"><span class="ccp-tl-shift-swatch"></span> Scheduled shift: ${shiftWindow.label}${outOfAdherenceSegments.length ? ` &nbsp;·&nbsp; <span class="ccp-tl-outofadherence-swatch"></span> Out Of Adherence` : ""}${canEdit ? ` &nbsp;·&nbsp; ✏️ Click a segment to edit` : ""}</div>`
     : "";
 
@@ -1960,8 +2009,9 @@ function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, 
   const statusColors = CCP_STATUS_COLORS;
 
   const dept = getAgentDeptToday(agentName);
+  const isQs = ccpIsQueueSupport_(agentName);
   const workHtml = ccpShowsWorkMetrics_(agentName) ? ccpWorkMetricsCardsHtml_(ccpComputeWorkMetrics_([{ day: day, callStats: callStats }])) : "";
-  const callsHtml = (dept === "Calls")
+  const callsHtml = (dept === "Calls" || isQs)
     ? `
     <div class="ccp-metric-card">
       <div class="ccp-metric-label">Calls Answered</div>
@@ -1994,7 +2044,7 @@ function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, 
     </div>`).join("");
 
   const tardyResult = calculateTardyFromDays(agentName, [day], trackingStartDate);
-  const tardyHtml = `
+  const tardyHtml = isQs ? "" : `
     <div class="ccp-metric-card">
       <div class="ccp-metric-label">Tardy</div>
       <div class="ccp-metric-value">${tardyResult.count > 0 ? "Yes" : "No"}</div>
@@ -2008,7 +2058,9 @@ function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, 
   const attendanceStatus = getAttendanceStatus(shiftWindow, day.totalLoginSeconds, day.date, day.firstLogin, day.endShift);
 
   let dayStatusBannerHtml = "";
-  if (attendanceStatus === "no-show") {
+  if (isQs) {
+    dayStatusBannerHtml = `<div class="ccp-daystatus-banner" style="background:#ede9fe;color:#5b21b6;">🎧 <strong>Queue Support</strong> — free login, day counted from 9 AM to 9 AM next day</div>`;
+  } else if (attendanceStatus === "no-show") {
     dayStatusBannerHtml = `<div class="ccp-daystatus-banner ccp-noshow">🚫 <strong>No Show</strong> — scheduled for ${shiftWindow.label} but worked less than half the shift (${formatCcPulseDuration(day.totalLoginSeconds)})</div>`;
   } else if (attendanceStatus === "off") {
     dayStatusBannerHtml = `<div class="ccp-daystatus-banner ccp-dayoff">🏖️ <strong>Day Off</strong> — no shift scheduled for this agent on this date</div>`;
@@ -2041,8 +2093,10 @@ function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, 
       </div>
       ${adherenceCardHtml}
     </div>
-    ${renderCcPulseTimelineHtml(day.sessions, statusColors, shiftWindow, dayEffectiveEndMin, { agentName: agentName, dateStr: day.date })}
-    ${buildCcPulseSessionListHtml_(day.sessions, agentName, day.date)}`;
+    ${isQs
+      ? renderCcPulseTimelineHtml(day.sessions, statusColors, null, null, null, { queueSupportDate: day.date })
+      : renderCcPulseTimelineHtml(day.sessions, statusColors, shiftWindow, dayEffectiveEndMin, { agentName: agentName, dateStr: day.date })}
+    ${isQs ? buildCcPulseSessionListHtml_(day.sessions, null, null) : buildCcPulseSessionListHtml_(day.sessions, agentName, day.date)}`;
 }
 
 // كاش بسيط: "<agent>|<date>" -> آخر sessions array اتعرض لليوم ده. مطلوب عشان لو دُست على زرار قلم صف،
@@ -2549,7 +2603,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
     // رينج/شهر - نفس المنطق القديم زي ما هو (تقرير مجمّع لأكتر من يوم)
     const singleAgentDept = getAgentDeptToday(data.agent);
     const workHtml = ccpShowsWorkMetrics_(data.agent) ? ccpWorkMetricsCardsHtml_(ccpComputeWorkMetricsForDays_(data.agent, data.days || [], callLogData && callLogData.agentsByDay, data.trackingStartDate)) : "";
-    const callsHtml = (singleAgentDept === "Calls")
+    const callsHtml = (singleAgentDept === "Calls" || ccpIsQueueSupport_(data.agent))
       ? `
       <div class="ccp-metric-card">
         <div class="ccp-metric-label">Calls Answered</div>
