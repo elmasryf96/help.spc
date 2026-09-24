@@ -2406,25 +2406,21 @@ function ccpAbandonFollowUpHtml_(fu) {
     const t = ev.time ? ev.time.slice(0, 5) : "";
     return ev.date ? `${ev.date.slice(5)} ${t}` : t;
   };
-  const lines = [];
-
+  // تايم لاين: كل مكالمة بعد الـ Abandoned بترتيبها الزمني (الباك إند بيرجعها مترتبة)
   const inb = fu.customerCalledAgain || { count: 0 };
-  if (inb.count > 0) {
-    if (inb.answered) {
-      lines.push(`📲 Called again — <b>answered</b> by ${inb.answered.agent || "?"} (${when(inb.answered)})`);
-    } else {
-      lines.push(`📲 Called again ${inb.count}x — not answered (${when(inb.first)})`);
-    }
-  }
-
   const outb = fu.weCalledBack || { count: 0 };
-  if (outb.count > 0) {
-    if (outb.answered) {
-      lines.push(`📞 Called back by ${outb.answered.agent || "?"} — <b>answered</b> (${when(outb.answered)})`);
-    } else {
-      lines.push(`📞 Called back ${outb.count}x — no answer (${outb.first && outb.first.agent ? outb.first.agent + ", " : ""}${when(outb.first)})`);
+  const lines = (fu.events || []).map(ev => {
+    const answered = ev.result === "Answered";
+    const t = `<span style="color:#5a6a75">${when(ev)}</span>`;
+    if (ev.direction === "Outbound") {
+      return answered
+        ? `📞 ${t} ${ev.agent || "?"} called — <b>answered</b> (talk ${formatCcPulseDuration(ev.talkSeconds)})`
+        : `📞 ${t} ${ev.agent || "?"} called — no answer${ev.ringSeconds ? ` (rang ${formatCcPulseDuration(ev.ringSeconds)})` : ""}`;
     }
-  }
+    return answered
+      ? `📲 ${t} Customer called — <b>answered</b> by ${ev.agent || "?"} (talk ${formatCcPulseDuration(ev.talkSeconds)})`
+      : `📲 ${t} Customer called — not answered (${ev.result || "-"})`;
+  });
 
   // الحالة بتوضح مين عمل إيه: العميل اتصل تاني؟ ولا الإيجنت كلمه؟
   let badge;
