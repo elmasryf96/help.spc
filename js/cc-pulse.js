@@ -762,89 +762,110 @@ function ccPulseBuildQueueTrendHtml(byDay) {
     </div>`;
 }
 
-// بيبني جدول Leaderboard لترتيب الإيجنتس حسب عدد المكالمات المردود عليها (والـ AHT
-// جنبها للسياق) - بيظهر بس في تقرير "All agents"، ومقتصر على تيم الـ Calls بس
-// (تيم الإيميلز وتيم الـ Outbound مستبعدين، مش هدفهم عدد مكالمات الكيو)
-function ccPulseBuildLeaderboardHtml(callLogData) {
+// بيبني جدول Leaderboard لترتيب الإيجنتس - بيظهر بس في تقرير "All agents"، ومقتصر
+// على تيم الـ Calls بس (تيم الإيميلز وتيم الـ Outbound مستبعدين)
+// الترتيب بـ Score من 100 - 4 حاجات بنفس الأهمية (25% لكل واحدة):
+//   1) عدد المكالمات: الأعلى أحسن  -> مكالماته ÷ أعلى عدد في التيم
+//   2) Adherence: الأعلى أحسن       -> النسبة نفسها ÷ 100
+//   3) AHT: الأقل أحسن              -> أقل AHT في التيم ÷ الـ AHT بتاعه
+//   4) Follow up case: الأقل أحسن   -> 1 - (وقته ÷ أطول وقت في التيم)
+// الـ Tardy بيظهر في الجدول للعلم بس ومش داخل في السكور، لأن التأخير أصلاً
+// بيقلل الـ Adherence - فلو دخلناه هيتحسب على الإيجنت مرتين
+const CCP_LEADERBOARD_WEIGHTS = { calls: 0.25, adherence: 0.25, aht: 0.25, followUp: 0.25 };
+
+// بيطلع Adherence و Tardy و Follow up case لإيجنت من داتا تقرير الـ login
+// (نفس الحسابات اللي في كروت الإيجنتس بالظبط)
+function ccpLeaderboardAgentExtras_(loginAgent, trackingStartDate) {
+  if (!loginAgent) return { adherencePct: null, tardyCount: 0, tardyMinutes: 0, followUpSeconds: 0 };
+
+  let adherencePct = null;
+  if (loginAgent.date) {
+    const shiftWindow = getShiftWindowForAgentDate(loginAgent.name, loginAgent.date);
+    adherencePct = calculateShiftAdherence(loginAgent.sessions || [], shiftWindow, getEffectiveShiftEndMin(loginAgent.date));
+  } else {
+    adherencePct = calculateAdherenceFromDays(loginAgent.name, loginAgent.days || [], trackingStartDate);
+  }
+
+  const tardy = calculateTardyFromDays(loginAgent.name, loginAgent.days || [], trackingStartDate);
+  const followUpSeconds = (loginAgent.totals && loginAgent.totals["Follow up case"]) || 0;
+
+  return { adherencePct, tardyCount: tardy.count, tardyMinutes: tardy.minutes, followUpSeconds };
+}
+
+function ccPulseBuildLeaderboardHtml(callLogData, loginData) {
   if (!callLogData || callLogData.status !== "success" || !Array.isArray(callLogData.agents)) return "";
 
-  const ranked = callLogData.agents
-    .filter(a => a.callsAnswered > 0 && getAgentDeptToday(a.agent) === "Calls")
-    .slice()
-    .sort((a, b) => b.callsAnswered - a.callsAnswered);
+  const loginByName = {};
+  const trackingStartDate = loginData && loginData.trackingStartDate;
+  if (loginData && Array.isArray(loginData.agents)) {
+    loginData.agents.forEach(a => { loginByName[a.name] = a; });
+  }
+  const isSingleDay = Boolean(loginData && Array.isArray(loginData.agents) && loginData.agents.some(a => a.date));
 
-  if (ranked.length === 0) return "";
+  const eligible = callLogData.agents
+    .filter(a => a.callsAnswered > 0 && getAgentDeptToday(a.agent) === "Calls")
+    .map(a => Object.assign({}, a, ccpLeaderboardAgentExtras_(loginByName[a.agent], trackingStartDate)));
+
+  if (eligible.length === 0) return "";
+
+  const maxCalls = Math.max(...eligible.map(a => a.callsAnswered));
+  const ahtValues = eligible.map(a => a.ahtSeconds).filter(v => v > 0);
+  const minAht = ahtValues.length ? Math.min(...ahtValues) : 0;
+  const maxFollowUp = Math.max(...eligible.map(a => a.followUpSeconds));
+  const adhValues = eligible.map(a => a.adherencePct).filter(v => v !== null && v !== undefined);
+  // لو إيجنت مالوش Adherence (مثلاً اشتغل في يوم الأوف بتاعه) بياخد متوسط التيم عشان مايتظلمش
+  const avgAdh = adhValues.length ? adhValues.reduce((x, y) => x + y, 0) / adhValues.length : 100;
+
+  const W = CCP_LEADERBOARD_WEIGHTS;
+  const ranked = eligible.map(a => {
+    const callsPart = maxCalls > 0 ? a.callsAnswered / maxCalls : 0;
+    const ahtPart = (a.ahtSeconds > 0 && minAht > 0) ? minAht / a.ahtSeconds : 0;
+    const adh = (a.adherencePct !== null && a.adherencePct !== undefined) ? a.adherencePct : avgAdh;
+    const adhPart = Math.max(0, Math.min(adh, 100)) / 100;
+    const fuPart = maxFollowUp > 0 ? 1 - (a.followUpSeconds / maxFollowUp) : 1;
+    const score = Math.round((W.calls * callsPart + W.aht * ahtPart + W.adherence * adhPart + W.followUp * fuPart) * 100);
+    return Object.assign({}, a, { score });
+  }).sort((a, b) =>
+    (b.score - a.score) ||
+    (b.callsAnswered - a.callsAnswered) ||   // تعادل في السكور: الأكتر مكالمات
+    (a.ahtSeconds - b.ahtSeconds)            // وبعدين الأقل AHT
+  );
 
   const medals = ["🥇", "🥈", "🥉"];
-  const rowsHtml = ranked.map((a, i) => `
+  const td = (v) => `<td style="color:#1a252f">${v}</td>`;
+  const rowsHtml = ranked.map((a, i) => {
+    const adhText = (a.adherencePct !== null && a.adherencePct !== undefined) ? ccpFormatAdherencePct(a.adherencePct) : "-";
+    const tardyText = isSingleDay ? (a.tardyCount > 0 ? "Yes" : "No") : a.tardyCount;
+    return `
       <tr class="${i < 3 ? 'ccp-leaderboard-top' : ''}">
-        <td style="color:#1a252f">${medals[i] || (i + 1)}</td>
-        <td style="color:#1a252f">${a.agent}</td>
-        <td style="color:#1a252f">${a.callsAnswered}</td>
-        <td style="color:#1a252f">${formatCcPulseDuration(a.ahtSeconds)}</td>
-      </tr>`).join("");
+        ${td(medals[i] || (i + 1))}
+        ${td(a.agent)}
+        ${td(a.callsAnswered)}
+        ${td(formatCcPulseDuration(a.ahtSeconds))}
+        ${td(adhText)}
+        ${td(formatCcPulseDuration(a.followUpSeconds))}
+        ${td(tardyText)}
+        ${td(formatCcPulseDuration(a.tardyMinutes * 60))}
+        ${td(`<b>${a.score}</b>`)}
+      </tr>`;
+  }).join("");
 
   return `
     <div class="ccp-queue-summary-card">
-      <div class="ccp-queue-summary-header"><i class="fa-solid fa-trophy"></i> Leaderboard (Calls Answered)</div>
+      <div class="ccp-queue-summary-header"><i class="fa-solid fa-trophy"></i> Leaderboard</div>
       <div class="ccp-queue-trend-table-wrap">
         <table class="ccp-queue-trend-table">
           <thead>
             <tr>
               <th>#</th>
               <th>Agent</th>
-              <th>Calls Answered</th>
-              <th>AHT</th>
-            </tr>
-          </thead>
-          <tbody>${rowsHtml}</tbody>
-        </table>
-      </div>
-    </div>`;
-}
-
-// بيبني جدول "Peak Hours" - توزيع مكالمات الكيو على 24 ساعة اليوم (Total/Abandonment/ASA)
-// مع بار بصري بسيط لكل ساعة عشان يبان أوقات الزحمة بسرعة - بيستبعد الساعات اللي مفيهاش مكالمات خالص
-function ccPulseBuildPeakHoursHtml(byHour) {
-  if (!byHour || !byHour.length) return "";
-  const activeHours = byHour.filter(h => h.totalCalls > 0);
-  if (activeHours.length === 0) return "";
-
-  const maxCalls = Math.max(...activeHours.map(h => h.totalCalls));
-
-  const rowsHtml = activeHours.map(h => {
-    const abClass = h.abandonmentRatePct <= 5 ? "ccp-adh-good" : (h.abandonmentRatePct <= 10 ? "ccp-adh-warn" : "ccp-adh-bad");
-    const asaClass = h.answered === 0 ? "" : (h.asaSeconds <= 20 ? "ccp-adh-good" : (h.asaSeconds <= 40 ? "ccp-adh-warn" : "ccp-adh-bad"));
-    const slClass = h.answered === 0 ? "" : (h.serviceLevelPct >= 80 ? "ccp-adh-good" : (h.serviceLevelPct >= 70 ? "ccp-adh-warn" : "ccp-adh-bad"));
-    const barPct = maxCalls > 0 ? Math.round((h.totalCalls / maxCalls) * 100) : 0;
-    const hourLabel = String(h.hour).padStart(2, "0") + ":00";
-    return `
-      <tr>
-        <td style="color:#1a252f">${hourLabel}</td>
-        <td style="color:#1a252f">
-          <div class="ccp-peak-bar-wrap">
-            <div class="ccp-peak-bar" style="width:${barPct}%"></div>
-            <span class="ccp-peak-bar-label">${h.totalCalls}</span>
-          </div>
-        </td>
-        <td class="${abClass}">${h.abandonmentRatePct}%</td>
-        <td class="${asaClass}">${h.answered > 0 ? formatCcPulseDuration(h.asaSeconds) : '<span style="color:#5a6a75">-</span>'}</td>
-        <td class="${slClass}">${h.answered > 0 ? h.serviceLevelPct + "%" : '<span style="color:#5a6a75">-</span>'}</td>
-      </tr>`;
-  }).join("");
-
-  return `
-    <div class="ccp-queue-summary-card">
-      <div class="ccp-queue-summary-header"><i class="fa-solid fa-clock"></i> Peak Hours (Call Volume)</div>
-      <div class="ccp-queue-trend-table-wrap">
-        <table class="ccp-queue-trend-table">
-          <thead>
-            <tr>
-              <th>Hour</th>
-              <th>Calls</th>
-              <th>Abandonment %</th>
-              <th>ASA</th>
-              <th>Service Level (20s)</th>
+              <th title="Higher is better">Calls Answered</th>
+              <th title="Lower is better">AHT</th>
+              <th title="Higher is better">Adherence</th>
+              <th title="Lower is better">Follow up case</th>
+              <th>${isSingleDay ? "Tardy" : "Tardy Count"}</th>
+              <th>Tardy Minutes</th>
+              <th title="25% Calls + 25% Adherence + 25% low AHT + 25% low Follow up case">Score</th>
             </tr>
           </thead>
           <tbody>${rowsHtml}</tbody>
@@ -983,7 +1004,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
       ${ccPulseBuildQueueSummaryHtml(callLogData && callLogData.queueSummary)}
       ${ccPulseBuildQueueTrendHtml(callLogData && callLogData.queueSummaryByDay)}
       ${ccPulseBuildPeakHoursHtml(callLogData && callLogData.queueSummaryByHour)}
-      ${ccPulseBuildLeaderboardHtml(callLogData)}
+      ${ccPulseBuildLeaderboardHtml(callLogData, data)}
     </div>
     <div id="ccpAgentsSection">
       <div class="ccp-all-agents-report">${cardsHtml || '<div class="ccp-empty">No data for this period</div>'}</div>
