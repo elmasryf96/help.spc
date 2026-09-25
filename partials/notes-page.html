@@ -1,0 +1,219 @@
+<!-- Partial: notes-page.html - My Notes & Reminders (added 2026-09-25) -->
+<!-- الصفحة نفسها + المنبّه (Alarm) + لوحة الجرس 🔔 - الاتنين الأخيرين عالميين فوق أي صفحة، ومنطقهم كله في js/notes.js -->
+    <div id="notes-page" class="page hidden-page">
+        <div class="container">
+            <div data-include="partials/sub-page-header.html"></div>
+
+            <div class="system-title">📝 My Notes & Reminders</div>
+
+            <!-- ✍️ COMPOSER: نوت جديدة / تعديل نوت -->
+            <div class="agent-lookup-card" id="notesComposerCard">
+                <div class="lookup-header-box">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                    <h3 id="notesComposerTitle">New Note</h3>
+                </div>
+
+                <div class="notes-form">
+                    <div class="form-group">
+                        <label for="noteTitleInput"><i class="fa-solid fa-heading"></i> Title:</label>
+                        <input type="text" id="noteTitleInput" class="combo-input" maxlength="200" placeholder="What do you need to remember?">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="noteDetailsInput"><i class="fa-solid fa-align-left"></i> Details (optional):</label>
+                        <textarea id="noteDetailsInput" class="combo-input notes-textarea" maxlength="5000" placeholder="Contract number, customer name, anything useful..."></textarea>
+                    </div>
+
+                    <div class="notes-type-toggle" role="group" aria-label="Note type">
+                        <button type="button" class="notes-type-btn active" data-note-type="Pinned" onclick="notesSetType('Pinned')">
+                            <i class="fa-solid fa-thumbtack"></i> Pinned <span class="notes-type-hint">no date, always visible</span>
+                        </button>
+                        <button type="button" class="notes-type-btn" data-note-type="Reminder" onclick="notesSetType('Reminder')">
+                            <i class="fa-solid fa-alarm-clock"></i> Reminder <span class="notes-type-hint">email + alarm at a time</span>
+                        </button>
+                    </div>
+
+                    <div id="noteDueRow" class="notes-due-row" style="display: none;">
+                        <div class="form-group">
+                            <label for="noteDueDate"><i class="fa-solid fa-calendar-day"></i> Date:</label>
+                            <input type="date" id="noteDueDate" class="date-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="noteDueTime"><i class="fa-solid fa-clock"></i> Time (UAE):</label>
+                            <input type="time" id="noteDueTime" class="date-input">
+                        </div>
+                        <div class="notes-quick-times">
+                            <button type="button" class="notes-chip" onclick="notesQuickDue('1h')">In 1 hour</button>
+                            <button type="button" class="notes-chip" onclick="notesQuickDue('eod')">Today 5 PM</button>
+                            <button type="button" class="notes-chip" onclick="notesQuickDue('tomorrow')">Tomorrow 9 AM</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="noteAssigneeSelect"><i class="fa-solid fa-user-check"></i> Assign to:</label>
+                        <select id="noteAssigneeSelect" class="combo-input">
+                            <option value="">Me</option>
+                        </select>
+                        <div id="noteAssigneeHint" class="notes-hint" style="display: none;"></div>
+                    </div>
+
+                    <div class="form-group" id="noteUpdateRow" style="display: none;">
+                        <label for="noteUpdateInput"><i class="fa-solid fa-comment-dots"></i> Add an update (optional):</label>
+                        <textarea id="noteUpdateInput" class="combo-input notes-textarea notes-textarea-sm" maxlength="1000" placeholder="e.g. Called the customer, waiting for documents..."></textarea>
+                    </div>
+
+                    <div class="notes-form-actions">
+                        <button type="button" id="noteSaveBtn" class="notes-btn notes-btn-primary" onclick="notesSave()">
+                            <i class="fa-solid fa-floppy-disk"></i> Save Note
+                        </button>
+                        <button type="button" id="noteCancelEditBtn" class="notes-btn notes-btn-ghost" onclick="notesResetComposer()" style="display: none;">
+                            <i class="fa-solid fa-xmark"></i> Cancel edit
+                        </button>
+                    </div>
+                    <div id="notesFormMsg" class="notes-msg" style="display: none;"></div>
+                </div>
+            </div>
+
+            <!-- 📑 TABS -->
+            <div class="roster-tabs-bar notes-tabs-bar">
+                <button class="tab-btn active" data-notes-tab="mine" onclick="notesSwitchTab('mine')">
+                    <i class="fa-solid fa-list-check"></i> My Notes <span class="notes-count" id="notesCountMine">0</span>
+                </button>
+                <button class="tab-btn" data-notes-tab="assigned" onclick="notesSwitchTab('assigned')">
+                    <i class="fa-solid fa-share-from-square"></i> Assigned by me <span class="notes-count" id="notesCountAssigned">0</span>
+                </button>
+                <button class="tab-btn" data-notes-tab="done" onclick="notesSwitchTab('done')">
+                    <i class="fa-solid fa-box-archive"></i> Done <span class="notes-count" id="notesCountDone">0</span>
+                </button>
+                <button type="button" id="notesDesktopAlertsBtn" class="tab-btn notes-alerts-btn" onclick="notesEnableDesktopAlerts()" style="display: none;">
+                    <i class="fa-solid fa-desktop"></i> Enable desktop alerts
+                </button>
+            </div>
+
+            <div class="cards-wrapper">
+                <div id="notesListContainer" class="notes-list">
+                    <div class="notes-empty">Loading...</div>
+                </div>
+            </div>
+
+            <div id="notes-banner-container"></div>
+        </div>
+    </div>
+
+    <!-- ⏰ ALARM: بيظهر فوق أي صفحة لما معاد ريمايندر ييجي، والصوت مش بيقف غير بإيد اليوزر (Done / Snooze / Dismiss) -->
+    <div id="notesAlarmModal" class="modal-overlay notes-alarm-overlay" style="display: none;">
+        <div class="modal-content notes-alarm-box">
+            <div class="notes-alarm-head">
+                <i class="fa-solid fa-bell fa-shake"></i>
+                <h3>Reminder</h3>
+            </div>
+            <div id="notesAlarmList" class="notes-alarm-list"></div>
+            <div class="notes-alarm-foot">
+                <button type="button" class="notes-btn notes-btn-ghost" onclick="notesAlarmDismissAll()">
+                    <i class="fa-solid fa-volume-xmark"></i> Dismiss all
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🔔 لوحة الجرس (بتتفتح من زرار الجرس اللي في الهيدر) -->
+    <div id="notesBellPanel" class="notes-bell-panel" style="display: none;">
+        <div class="notes-bell-panel-head">
+            <b><i class="fa-solid fa-bell"></i> Notifications</b>
+            <button type="button" class="notes-link-btn" onclick="notesMarkAllSeen()">Mark all as read</button>
+        </div>
+        <div id="notesBellList" class="notes-bell-list"></div>
+        <button type="button" class="notes-btn notes-btn-primary notes-bell-open" onclick="notesOpenPage()">
+            <i class="fa-solid fa-note-sticky"></i> Open My Notes
+        </button>
+    </div>
+
+    <div id="notesToastStack" class="notes-toast-stack"></div>
+
+    <style>
+        /* 📝 Notes & Reminders */
+        .notes-form { display: flex; flex-direction: column; gap: 12px; text-align: left; }
+        .notes-form .form-group { margin: 0; }
+        .notes-textarea { min-height: 80px; resize: vertical; font-family: inherit; line-height: 1.5; }
+        .notes-textarea-sm { min-height: 56px; }
+        .notes-type-toggle { display: flex; gap: 10px; flex-wrap: wrap; }
+        .notes-type-btn { flex: 1 1 200px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 14px; border-radius: 12px; border: 2px solid rgba(148, 163, 184, 0.45); background: rgba(255, 255, 255, 0.55); color: var(--dark-navy, #0f172a); font-weight: 800; font-size: 13px; cursor: pointer; text-align: left; }
+        .notes-type-btn.active { border-color: var(--primary-yellow, #E8D567); background: rgba(232, 213, 103, 0.28); }
+        .notes-type-hint { font-weight: 600; font-size: 11.5px; opacity: 0.7; }
+        .notes-due-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+        .notes-due-row .form-group { flex: 1 1 160px; }
+        .notes-quick-times { display: flex; gap: 6px; flex-wrap: wrap; padding-bottom: 4px; }
+        .notes-chip { border: 1px solid rgba(148, 163, 184, 0.55); background: rgba(255, 255, 255, 0.6); border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer; color: var(--dark-navy, #0f172a); }
+        .notes-chip:hover { background: rgba(232, 213, 103, 0.35); }
+        .notes-hint { margin-top: 6px; font-size: 12px; font-weight: 600; opacity: 0.75; }
+        .notes-form-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .notes-btn { border: none; border-radius: 10px; padding: 9px 14px; font-weight: 800; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+        .notes-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .notes-btn-primary { background: var(--primary-yellow, #E8D567); color: var(--dark-navy, #0f172a); }
+        .notes-btn-ghost { background: rgba(148, 163, 184, 0.2); color: var(--dark-navy, #0f172a); }
+        .notes-btn-ok { background: #16a34a; color: #fff; }
+        .notes-btn-danger { background: #ef4444; color: #fff; }
+        .notes-btn-sm { padding: 6px 10px; font-size: 12px; border-radius: 8px; }
+        .notes-msg { padding: 10px 12px; border-radius: 10px; font-size: 13px; font-weight: 700; }
+        .notes-msg-ok { background: #dcfce7; color: #166534; }
+        .notes-msg-error { background: #fee2e2; color: #991b1b; }
+        .notes-tabs-bar { flex-wrap: wrap; }
+        .notes-count { display: inline-block; min-width: 18px; padding: 1px 6px; margin-left: 6px; border-radius: 10px; background: rgba(148, 163, 184, 0.3); font-size: 11px; font-weight: 800; line-height: 16px; text-align: center; }
+        .notes-alerts-btn { margin-left: auto; }
+        .notes-list { display: flex; flex-direction: column; gap: 16px; text-align: left; }
+        .notes-section h4 { margin: 0 0 8px; font-size: 14px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+        .notes-empty { padding: 14px; text-align: center; font-size: 13px; font-weight: 600; opacity: 0.7; }
+        .note-card { padding: 12px 14px; border-radius: 12px; background: rgba(255, 255, 255, 0.6); border: 1px solid rgba(148, 163, 184, 0.35); border-left: 4px solid var(--primary-yellow, #E8D567); margin-bottom: 8px; transition: box-shadow 0.3s; }
+        .note-card.note-overdue { border-left-color: #ef4444; background: rgba(254, 226, 226, 0.6); }
+        .note-card.note-done { border-left-color: #16a34a; opacity: 0.85; }
+        .note-card.note-flash { box-shadow: 0 0 0 3px rgba(232, 213, 103, 0.9); }
+        .note-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+        .note-title { font-size: 15px; font-weight: 800; word-break: break-word; }
+        .note-card.note-done .note-title { text-decoration: line-through; }
+        .note-details { margin-top: 6px; font-size: 13.5px; white-space: pre-wrap; word-break: break-word; line-height: 1.5; }
+        .note-meta { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .note-tag { font-size: 11.5px; font-weight: 800; padding: 2px 9px; border-radius: 10px; background: rgba(148, 163, 184, 0.22); }
+        .note-tag-due { background: #e0f2fe; color: #075985; }
+        .note-tag-overdue { background: #fee2e2; color: #991b1b; }
+        .note-tag-from { background: #ede9fe; color: #5b21b6; }
+        .note-tag-done { background: #dcfce7; color: #166534; }
+        .note-tag-new { background: #ef4444; color: #fff; }
+        .note-updates { margin-top: 8px; font-size: 12.5px; }
+        .note-updates summary { cursor: pointer; font-weight: 800; opacity: 0.8; }
+        .note-update { margin-top: 6px; padding: 6px 10px; border-radius: 8px; background: rgba(148, 163, 184, 0.14); white-space: pre-wrap; word-break: break-word; }
+        .note-update-meta { font-size: 11px; font-weight: 700; opacity: 0.65; margin-bottom: 2px; }
+        .note-actions { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+        .note-cal-link { font-size: 12px; font-weight: 800; color: #1d4ed8; text-decoration: none; margin-left: 4px; }
+        .note-cal-link:hover { text-decoration: underline; }
+
+        /* 🔔 bell */
+        .notes-bell-btn { position: relative; }
+        .notes-bell-badge { position: absolute; top: -7px; right: -7px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #ef4444; color: #fff; font-size: 10.5px; font-weight: 800; line-height: 18px; text-align: center; }
+        .notes-bell-panel { position: fixed; top: 70px; right: 16px; z-index: 10040; width: min(360px, calc(100vw - 32px)); max-height: 70vh; display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 14px; background: #ffffff; color: #0f172a; box-shadow: 0 12px 34px rgba(0, 0, 0, 0.28); text-align: left; }
+        .notes-bell-panel-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 14px; }
+        .notes-link-btn { border: none; background: none; color: #1d4ed8; font-weight: 700; font-size: 12px; cursor: pointer; padding: 0; }
+        .notes-bell-list { overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+        .notes-bell-item { display: block; width: 100%; text-align: left; border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px 10px; background: #f8fafc; cursor: pointer; font-size: 12.5px; color: #0f172a; }
+        .notes-bell-item:hover { background: #fef9e3; }
+        .notes-bell-item b { display: block; font-size: 13px; margin-bottom: 2px; word-break: break-word; }
+        .notes-bell-item.overdue { border-color: #fca5a5; background: #fef2f2; }
+        .notes-bell-open { justify-content: center; }
+
+        /* ⏰ alarm */
+        .notes-alarm-overlay { z-index: 10060; }
+        .notes-alarm-box { max-width: 480px; width: calc(100vw - 32px); max-height: 86vh; display: flex; flex-direction: column; border: 3px solid #ef4444; text-align: left; }
+        .notes-alarm-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px; background: #ef4444; color: #fff; }
+        .notes-alarm-head h3 { margin: 0; font-size: 18px; color: #fff; }
+        .notes-alarm-list { overflow-y: auto; padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
+        .notes-alarm-item { padding: 12px 14px; border-radius: 12px; background: #fef2f2; border: 1px solid #fecaca; color: #0f172a; }
+        .notes-alarm-item .note-title { font-size: 16px; }
+        .notes-alarm-actions { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+        .notes-alarm-foot { padding: 10px 18px 16px; display: flex; justify-content: flex-end; }
+        .notes-snooze-select { border-radius: 8px; padding: 6px 8px; font-weight: 700; font-size: 12px; border: 1px solid #cbd5e1; }
+
+        /* toast */
+        .notes-toast-stack { position: fixed; left: 16px; bottom: 16px; z-index: 10050; display: flex; flex-direction: column; gap: 8px; max-width: min(360px, calc(100vw - 32px)); }
+        .notes-toast { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; background: #0f172a; color: #fff; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3); cursor: pointer; font-size: 13px; text-align: left; }
+        .notes-toast b { display: block; margin-bottom: 2px; word-break: break-word; }
+        .notes-toast-x { margin-left: auto; background: none; border: none; color: #94a3b8; font-size: 16px; cursor: pointer; line-height: 1; }
+    </style>

@@ -39,6 +39,7 @@ function navigateTo(pageId) {
       'noc-page': { id: 'noc-banner-container', feedback: false },
       'tech-page': { id: 'tech-banner-container', feedback: false },
       'roster-page': { id: 'roster-banner-container', feedback: false },
+      'notes-page': { id: 'notes-banner-container', feedback: false },
       'admin-page': { id: 'admin-banner-container', feedback: false }
     };
 
@@ -71,6 +72,11 @@ function navigateTo(pageId) {
       switchAdminTab('towers');
     } else if (pageId === 'cc-pulse-page') {
       initCcPulsePage();
+    } else if (pageId === 'notes-page') {
+      initNotesPage();
     }
+
+    // 🔔 الجرس موجود في هيدر كل صفحة - بنحدّث العداد بعد أي تنقل
+    if (typeof notesUpdateBell === "function") notesUpdateBell();
   }
 }

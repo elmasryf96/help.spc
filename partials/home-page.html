@@ -15,6 +15,11 @@
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 10px;">
+                    <!-- 🔔 NOTES BELL - ريمايندرز جه معادها + نوتس جديدة (js/notes.js) -->
+                    <button type="button" class="admin-mini-btn notes-bell-btn" onclick="notesToggleBellPanel(event)" title="Notifications" aria-label="Notifications">
+                        <i class="fa-solid fa-bell"></i><span class="notes-bell-badge" style="display: none;">0</span>
+                    </button>
+
                     <!-- ☕ MY BREAK - بيفتح بوب أب عالمي، شغال في الخلفية دايمًا -->
                     <button type="button" class="admin-mini-btn" onclick="openBreakQueueModal()" style="white-space: nowrap;">
                         <i class="fa-solid fa-mug-hot"></i> <span class="myBreakNavBtnLabel">My Break</span>
@@ -101,6 +106,12 @@
                     <div class="menu-icon"><i class="fa-solid fa-users-gear"></i></div>
                     <h3>Monthly Duty Roster</h3>
                     <div class="btn-primary">Open Roster <i class="fa-solid fa-clock"></i></div>
+                </div>
+
+                <div class="menu-card" onclick="navigateTo('notes-page')">
+                    <div class="menu-icon"><i class="fa-solid fa-note-sticky"></i></div>
+                    <h3>My Notes & Reminders</h3>
+                    <div class="btn-primary">Open Notes <i class="fa-solid fa-bell"></i></div>
                 </div>
 
                 <div class="menu-card" id="ccPulseMenuCard" onclick="navigateTo('cc-pulse-page')" style="display: none;">

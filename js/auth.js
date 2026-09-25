@@ -246,6 +246,7 @@ function handleLogout() {
   clearSchedSearch();
   clearMappingSearch();
   if (typeof stopBreakQueuePolling === "function") stopBreakQueuePolling();
+  if (typeof notesClearAll === "function") notesClearAll(); // 📝 خروج يدوي = نمسح النوتس ونوقف أي منبّه
   navigateTo('login-page');
 }
 
@@ -268,6 +269,9 @@ async function checkForceLogoutSignal() {
 
     // 🔄 إشارة تغيّر طلبات الـ Shift Swap (بتيجي مع نفس الطلب الخفيف ده، من غير Polling إضافي) - roster.js
     if (typeof swapOnServerSignal === "function") swapOnServerSignal(data.swapChangedAt);
+
+    // 📝 نفس الفكرة للنوتس والريمايندرز - js/notes.js
+    if (typeof notesOnServerSignal === "function") notesOnServerSignal(data.notesChangedAt);
 
     const serverTimestamp = String(data.forceLogoutAt || "0");
     const seenTimestamp = localStorage.getItem(FORCE_LOGOUT_SEEN_KEY);
