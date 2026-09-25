@@ -13,9 +13,9 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <link rel="stylesheet" href="./style.css?v=20260925.181757">
+    <link rel="stylesheet" href="./style.css?v=20260925.184022">
     <!-- 🧊 Liquid Glass theme (override layer). لو عايز ترجع الشكل القديم: شيل السطرين اللي تحت (link + script) -->
-    <link rel="stylesheet" href="./glass.css?v=20260925.181757">
+    <link rel="stylesheet" href="./glass.css?v=20260925.184022">
     <script>
         // بيقرر قبل أول رسم لو نقفل البلور (Lite): الاختيار اليدوي "glassMode" أقوى، ولو مفيش بنقرر بالجهاز (ذاكرة <= 4GB أو أنوية <= 2)
         (function () {
@@ -93,6 +93,11 @@
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 10px;">
+                    <!-- 📌 PINNED NOTES - لوحة جانبية فيها النوتس المثبتة (js/notes.js) -->
+                    <button type="button" class="admin-mini-btn notes-pin-btn" onclick="notesTogglePinnedDrawer(event)" title="Pinned notes" aria-label="Pinned notes">
+                        <i class="fa-solid fa-thumbtack"></i>
+                    </button>
+
                     <!-- 🔔 NOTES BELL - ريمايندرز جه معادها + نوتس جديدة (js/notes.js) -->
                     <button type="button" class="admin-mini-btn notes-bell-btn" onclick="notesToggleBellPanel(event)" title="Notifications" aria-label="Notifications">
                         <i class="fa-solid fa-bell"></i><span class="notes-bell-badge" style="display: none;">0</span>
@@ -229,6 +234,11 @@
             <i class="fa-solid fa-house"></i> Dashboard
         </button>
 
+        <!-- 📌 PINNED NOTES - لوحة جانبية فيها النوتس المثبتة (js/notes.js) -->
+        <button type="button" class="admin-mini-btn notes-pin-btn" onclick="notesTogglePinnedDrawer(event)" title="Pinned notes" aria-label="Pinned notes">
+            <i class="fa-solid fa-thumbtack"></i>
+        </button>
+
         <!-- 🔔 NOTES BELL - ريمايندرز جه معادها + نوتس جديدة (js/notes.js) -->
         <button type="button" class="admin-mini-btn notes-bell-btn" onclick="notesToggleBellPanel(event)" title="Notifications" aria-label="Notifications">
             <i class="fa-solid fa-bell"></i><span class="notes-bell-badge" style="display: none;">0</span>
@@ -328,6 +338,11 @@
     <div style="display: flex; align-items: center; gap: 10px;">
         <button type="button" class="admin-mini-btn" onclick="navigateTo('home-page')" style="white-space: nowrap;">
             <i class="fa-solid fa-house"></i> Dashboard
+        </button>
+
+        <!-- 📌 PINNED NOTES - لوحة جانبية فيها النوتس المثبتة (js/notes.js) -->
+        <button type="button" class="admin-mini-btn notes-pin-btn" onclick="notesTogglePinnedDrawer(event)" title="Pinned notes" aria-label="Pinned notes">
+            <i class="fa-solid fa-thumbtack"></i>
         </button>
 
         <!-- 🔔 NOTES BELL - ريمايندرز جه معادها + نوتس جديدة (js/notes.js) -->
@@ -512,6 +527,11 @@
             <i class="fa-solid fa-house"></i> Dashboard
         </button>
 
+        <!-- 📌 PINNED NOTES - لوحة جانبية فيها النوتس المثبتة (js/notes.js) -->
+        <button type="button" class="admin-mini-btn notes-pin-btn" onclick="notesTogglePinnedDrawer(event)" title="Pinned notes" aria-label="Pinned notes">
+            <i class="fa-solid fa-thumbtack"></i>
+        </button>
+
         <!-- 🔔 NOTES BELL - ريمايندرز جه معادها + نوتس جديدة (js/notes.js) -->
         <button type="button" class="admin-mini-btn notes-bell-btn" onclick="notesToggleBellPanel(event)" title="Notifications" aria-label="Notifications">
             <i class="fa-solid fa-bell"></i><span class="notes-bell-badge" style="display: none;">0</span>
@@ -601,6 +621,11 @@
     <div style="display: flex; align-items: center; gap: 10px;">
         <button type="button" class="admin-mini-btn" onclick="navigateTo('home-page')" style="white-space: nowrap;">
             <i class="fa-solid fa-house"></i> Dashboard
+        </button>
+
+        <!-- 📌 PINNED NOTES - لوحة جانبية فيها النوتس المثبتة (js/notes.js) -->
+        <button type="button" class="admin-mini-btn notes-pin-btn" onclick="notesTogglePinnedDrawer(event)" title="Pinned notes" aria-label="Pinned notes">
+            <i class="fa-solid fa-thumbtack"></i>
         </button>
 
         <!-- 🔔 NOTES BELL - ريمايندرز جه معادها + نوتس جديدة (js/notes.js) -->
@@ -787,6 +812,11 @@
             <i class="fa-solid fa-house"></i> Dashboard
         </button>
 
+        <!-- 📌 PINNED NOTES - لوحة جانبية فيها النوتس المثبتة (js/notes.js) -->
+        <button type="button" class="admin-mini-btn notes-pin-btn" onclick="notesTogglePinnedDrawer(event)" title="Pinned notes" aria-label="Pinned notes">
+            <i class="fa-solid fa-thumbtack"></i>
+        </button>
+
         <!-- 🔔 NOTES BELL - ريمايندرز جه معادها + نوتس جديدة (js/notes.js) -->
         <button type="button" class="admin-mini-btn notes-bell-btn" onclick="notesToggleBellPanel(event)" title="Notifications" aria-label="Notifications">
             <i class="fa-solid fa-bell"></i><span class="notes-bell-badge" style="display: none;">0</span>
@@ -928,6 +958,11 @@
             <i class="fa-solid fa-house"></i> Dashboard
         </button>
 
+        <!-- 📌 PINNED NOTES - لوحة جانبية فيها النوتس المثبتة (js/notes.js) -->
+        <button type="button" class="admin-mini-btn notes-pin-btn" onclick="notesTogglePinnedDrawer(event)" title="Pinned notes" aria-label="Pinned notes">
+            <i class="fa-solid fa-thumbtack"></i>
+        </button>
+
         <!-- 🔔 NOTES BELL - ريمايندرز جه معادها + نوتس جديدة (js/notes.js) -->
         <button type="button" class="admin-mini-btn notes-bell-btn" onclick="notesToggleBellPanel(event)" title="Notifications" aria-label="Notifications">
             <i class="fa-solid fa-bell"></i><span class="notes-bell-badge" style="display: none;">0</span>
@@ -1036,6 +1071,11 @@
     <div style="display: flex; align-items: center; gap: 10px;">
         <button type="button" class="admin-mini-btn" onclick="navigateTo('home-page')" style="white-space: nowrap;">
             <i class="fa-solid fa-house"></i> Dashboard
+        </button>
+
+        <!-- 📌 PINNED NOTES - لوحة جانبية فيها النوتس المثبتة (js/notes.js) -->
+        <button type="button" class="admin-mini-btn notes-pin-btn" onclick="notesTogglePinnedDrawer(event)" title="Pinned notes" aria-label="Pinned notes">
+            <i class="fa-solid fa-thumbtack"></i>
         </button>
 
         <!-- 🔔 NOTES BELL - ريمايندرز جه معادها + نوتس جديدة (js/notes.js) -->
@@ -1315,6 +1355,11 @@
             <i class="fa-solid fa-house"></i> Dashboard
         </button>
 
+        <!-- 📌 PINNED NOTES - لوحة جانبية فيها النوتس المثبتة (js/notes.js) -->
+        <button type="button" class="admin-mini-btn notes-pin-btn" onclick="notesTogglePinnedDrawer(event)" title="Pinned notes" aria-label="Pinned notes">
+            <i class="fa-solid fa-thumbtack"></i>
+        </button>
+
         <!-- 🔔 NOTES BELL - ريمايندرز جه معادها + نوتس جديدة (js/notes.js) -->
         <button type="button" class="admin-mini-btn notes-bell-btn" onclick="notesToggleBellPanel(event)" title="Notifications" aria-label="Notifications">
             <i class="fa-solid fa-bell"></i><span class="notes-bell-badge" style="display: none;">0</span>
@@ -1476,6 +1521,23 @@
         </button>
     </div>
 
+    <!-- 📌 لوحة الـ Pinned الجانبية (بتتفتح من زرار 📌 في الهيدر، وبتفضل مفتوحة لحد ما تتقفل) -->
+    <div id="notesPinnedDrawer" class="notes-pinned-drawer" style="display: none;">
+        <div class="notes-bell-panel-head">
+            <b><i class="fa-solid fa-thumbtack"></i> Pinned notes</b>
+            <div class="notes-pinned-head-btns">
+                <button type="button" id="notesPinnedShowAllBtn" class="notes-btn notes-btn-sm notes-btn-ghost" onclick="notesPinnedToggleAll()" style="display: none;">
+                    <i class="fa-solid fa-eye"></i> Show all
+                </button>
+                <button type="button" class="notes-icon-btn" onclick="notesClosePinnedDrawer()" title="Close" aria-label="Close">&times;</button>
+            </div>
+        </div>
+        <div id="notesPinnedList" class="notes-pinned-list"></div>
+        <button type="button" class="notes-btn notes-btn-ghost notes-bell-open" onclick="notesNewPinnedFromDrawer()">
+            <i class="fa-solid fa-plus"></i> New pinned note
+        </button>
+    </div>
+
     <div id="notesToastStack" class="notes-toast-stack"></div>
 
     <style>
@@ -1547,6 +1609,19 @@
         .notes-bell-item.overdue { border-color: #fca5a5; background: #fef2f2; }
         .notes-bell-open { justify-content: center; }
 
+        /* 📌 pinned (hidden details + side drawer) */
+        .note-secret.is-hidden { filter: blur(6px); user-select: none; -webkit-user-select: none; pointer-events: none; }
+        .notes-pinned-drawer { position: fixed; top: 70px; right: 16px; z-index: 10030; width: min(380px, calc(100vw - 32px)); max-height: calc(100vh - 90px); display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 14px; background: #ffffff; color: #0f172a; box-shadow: 0 12px 34px rgba(0, 0, 0, 0.28); border-top: 4px solid var(--primary-yellow, #E8D567); text-align: left; }
+        .notes-pinned-head-btns { display: flex; align-items: center; gap: 6px; }
+        .notes-icon-btn { border: none; background: rgba(148, 163, 184, 0.2); color: #0f172a; border-radius: 8px; width: 30px; height: 30px; font-size: 16px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+        .notes-icon-btn:hover { background: rgba(232, 213, 103, 0.45); }
+        .notes-pinned-list { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        .notes-pinned-item { padding: 10px 12px; border-radius: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid var(--primary-yellow, #E8D567); }
+        .notes-pinned-item-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+        .notes-pinned-item .note-title { font-size: 14px; }
+        .notes-pinned-item-btns { display: flex; gap: 4px; flex-shrink: 0; }
+        .notes-pinned-item .note-details { font-size: 13px; }
+
         /* ⏰ alarm */
         .notes-alarm-overlay { z-index: 10060; }
         .notes-alarm-box { max-width: 480px; width: calc(100vw - 32px); max-height: 86vh; display: flex; flex-direction: column; border: 3px solid #ef4444; text-align: left; }
@@ -1584,6 +1659,11 @@
     <div style="display: flex; align-items: center; gap: 10px;">
         <button type="button" class="admin-mini-btn" onclick="navigateTo('home-page')" style="white-space: nowrap;">
             <i class="fa-solid fa-house"></i> Dashboard
+        </button>
+
+        <!-- 📌 PINNED NOTES - لوحة جانبية فيها النوتس المثبتة (js/notes.js) -->
+        <button type="button" class="admin-mini-btn notes-pin-btn" onclick="notesTogglePinnedDrawer(event)" title="Pinned notes" aria-label="Pinned notes">
+            <i class="fa-solid fa-thumbtack"></i>
         </button>
 
         <!-- 🔔 NOTES BELL - ريمايندرز جه معادها + نوتس جديدة (js/notes.js) -->
@@ -1844,20 +1924,20 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.14.0/html2pdf.bundle.min.js"></script>
 
     <!-- 📜 Main Application Script -->
-    <script src="js/core.js?v=20260925.181757"></script>
-    <script src="js/auth.js?v=20260925.181757"></script>
-    <script src="js/noc.js?v=20260925.181757"></script>
-    <script src="js/break-queue.js?v=20260925.181757"></script>
-    <script src="js/navigation.js?v=20260925.181757"></script>
-    <script src="js/unit-mapping.js?v=20260925.181757"></script>
-    <script src="js/calculator.js?v=20260925.181757"></script>
-    <script src="js/towers.js?v=20260925.181757"></script>
-    <script src="js/tech-schedule.js?v=20260925.181757"></script>
-    <script src="js/roster.js?v=20260925.181757"></script>
-    <script src="js/admin.js?v=20260925.181757"></script>
-    <script src="js/notes.js?v=20260925.181757"></script>
-    <script src="js/cc-pulse.js?v=20260925.181757"></script>
-    <script src="js/glass.js?v=20260925.181757"></script>
-    <script src="js/init.js?v=20260925.181757"></script>
+    <script src="js/core.js?v=20260925.184022"></script>
+    <script src="js/auth.js?v=20260925.184022"></script>
+    <script src="js/noc.js?v=20260925.184022"></script>
+    <script src="js/break-queue.js?v=20260925.184022"></script>
+    <script src="js/navigation.js?v=20260925.184022"></script>
+    <script src="js/unit-mapping.js?v=20260925.184022"></script>
+    <script src="js/calculator.js?v=20260925.184022"></script>
+    <script src="js/towers.js?v=20260925.184022"></script>
+    <script src="js/tech-schedule.js?v=20260925.184022"></script>
+    <script src="js/roster.js?v=20260925.184022"></script>
+    <script src="js/admin.js?v=20260925.184022"></script>
+    <script src="js/notes.js?v=20260925.184022"></script>
+    <script src="js/cc-pulse.js?v=20260925.184022"></script>
+    <script src="js/glass.js?v=20260925.184022"></script>
+    <script src="js/init.js?v=20260925.184022"></script>
 </body>
 </html>

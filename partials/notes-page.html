@@ -128,6 +128,23 @@
         </button>
     </div>
 
+    <!-- 📌 لوحة الـ Pinned الجانبية (بتتفتح من زرار 📌 في الهيدر، وبتفضل مفتوحة لحد ما تتقفل) -->
+    <div id="notesPinnedDrawer" class="notes-pinned-drawer" style="display: none;">
+        <div class="notes-bell-panel-head">
+            <b><i class="fa-solid fa-thumbtack"></i> Pinned notes</b>
+            <div class="notes-pinned-head-btns">
+                <button type="button" id="notesPinnedShowAllBtn" class="notes-btn notes-btn-sm notes-btn-ghost" onclick="notesPinnedToggleAll()" style="display: none;">
+                    <i class="fa-solid fa-eye"></i> Show all
+                </button>
+                <button type="button" class="notes-icon-btn" onclick="notesClosePinnedDrawer()" title="Close" aria-label="Close">&times;</button>
+            </div>
+        </div>
+        <div id="notesPinnedList" class="notes-pinned-list"></div>
+        <button type="button" class="notes-btn notes-btn-ghost notes-bell-open" onclick="notesNewPinnedFromDrawer()">
+            <i class="fa-solid fa-plus"></i> New pinned note
+        </button>
+    </div>
+
     <div id="notesToastStack" class="notes-toast-stack"></div>
 
     <style>
@@ -198,6 +215,19 @@
         .notes-bell-item b { display: block; font-size: 13px; margin-bottom: 2px; word-break: break-word; }
         .notes-bell-item.overdue { border-color: #fca5a5; background: #fef2f2; }
         .notes-bell-open { justify-content: center; }
+
+        /* 📌 pinned (hidden details + side drawer) */
+        .note-secret.is-hidden { filter: blur(6px); user-select: none; -webkit-user-select: none; pointer-events: none; }
+        .notes-pinned-drawer { position: fixed; top: 70px; right: 16px; z-index: 10030; width: min(380px, calc(100vw - 32px)); max-height: calc(100vh - 90px); display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 14px; background: #ffffff; color: #0f172a; box-shadow: 0 12px 34px rgba(0, 0, 0, 0.28); border-top: 4px solid var(--primary-yellow, #E8D567); text-align: left; }
+        .notes-pinned-head-btns { display: flex; align-items: center; gap: 6px; }
+        .notes-icon-btn { border: none; background: rgba(148, 163, 184, 0.2); color: #0f172a; border-radius: 8px; width: 30px; height: 30px; font-size: 16px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+        .notes-icon-btn:hover { background: rgba(232, 213, 103, 0.45); }
+        .notes-pinned-list { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        .notes-pinned-item { padding: 10px 12px; border-radius: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid var(--primary-yellow, #E8D567); }
+        .notes-pinned-item-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+        .notes-pinned-item .note-title { font-size: 14px; }
+        .notes-pinned-item-btns { display: flex; gap: 4px; flex-shrink: 0; }
+        .notes-pinned-item .note-details { font-size: 13px; }
 
         /* ⏰ alarm */
         .notes-alarm-overlay { z-index: 10060; }

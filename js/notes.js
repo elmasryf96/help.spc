@@ -19,6 +19,7 @@ let notesRinging = [];        // IDs النوتس اللي بترن دلوقتي
 let notesDesktopPopups = {};  // id -> Notification
 let notesTitleBlinkTimer = null;
 let notesOriginalTitle = document.title;
+let notesRevealed = new Set(); // IDs النوتس اللي تفاصيلها ظاهرة دلوقتي (أي حاجة غيرها متغطية) - مش بيتحفظ، بيرجع مخفي مع أي Refresh
 
 // ------------------------------------------------------------
 // أدوات
@@ -176,7 +177,9 @@ function notesClearAll() {
   notesStopAllRinging();
   notesState = { notes: [], users: [], me: null, loaded: false, busy: false, tab: "mine", editingId: null, type: "Pinned", owner: "" };
   notesLastSignal = null;
+  notesRevealed.clear();
   notesHideBellPanel();
+  notesClosePinnedDrawer();
   notesUpdateBell();
 }
 
@@ -227,6 +230,7 @@ function notesAfterDataChange() {
     notesRenderList();
   }
   notesUpdateBell();
+  notesRenderPinnedDrawer();
   notesTick();
 }
 
@@ -518,6 +522,7 @@ function notesCardHtml(n, seen) {
 
   const b = (action, cls, icon, label) => `<button type="button" class="notes-btn notes-btn-sm ${cls}" data-note-action="${action}" data-note-id="${id}"><i class="fa-solid ${icon}"></i> ${label}</button>`;
   const actions = [];
+  if (n.type === "Pinned" && n.details) actions.push(notesRevealBtnHtml(n.id));
   if (!isDone) {
     if (n.isAssignee) actions.push(b("done", "notes-btn-ok", "fa-check", "Done"));
     actions.push(b("edit", "notes-btn-ghost", "fa-pen", n.isOwner ? "Edit" : "Update / Reschedule"));
@@ -529,7 +534,7 @@ function notesCardHtml(n, seen) {
 
   return `<div class="note-card${overdue ? " note-overdue" : ""}${isDone ? " note-done" : ""}" id="note-card-${id}">
     <div class="note-card-top"><div class="note-title">${n.type === "Reminder" ? "⏰" : "📌"} ${notesEsc(n.title)}</div></div>
-    ${n.details ? `<div class="note-details">${notesEsc(n.details)}</div>` : ""}
+    ${n.details ? (n.type === "Pinned" ? notesSecretHtml(n) : `<div class="note-details">${notesEsc(n.details)}</div>`) : ""}
     <div class="note-meta">${tags.join("")}</div>
     ${updatesHtml}
     <div class="note-actions">${actions.join("")}</div>
@@ -548,6 +553,140 @@ document.addEventListener("click", function (ev) {
     btn.disabled = true;
     notesSetDone(id, action === "done").finally(() => { btn.disabled = false; });
   }
+});
+
+
+// ============================================================
+// 📌 PINNED: تفاصيل النوت الـ Pinned متغطية (Blur) لحد ما اليوزر يظهرها بزرار 👁️
+// + لوحة جانبية (زرار 📌 في الهيدر) فيها كل الـ Pinned، فاتحة فوق أي صفحة لحد ما تتقفل
+// ============================================================
+function notesSecretHtml(n) {
+  const shown = notesRevealed.has(n.id);
+  return `<div class="note-details note-secret${shown ? "" : " is-hidden"}" data-secret-id="${notesEsc(n.id)}"${shown ? "" : ' title="Hidden - press Show to see it"'}>${notesEsc(n.details)}</div>`;
+}
+
+function notesRevealBtnHtml(id) {
+  const shown = notesRevealed.has(id);
+  return `<button type="button" class="notes-btn notes-btn-sm notes-btn-ghost" data-note-reveal="${notesEsc(id)}">` +
+    `<i class="fa-solid ${shown ? "fa-eye-slash" : "fa-eye"}"></i> ${shown ? "Hide" : "Show"}</button>`;
+}
+
+function notesMyPinned() {
+  return notesState.notes
+    .filter(n => n.status === "Open" && n.isAssignee && n.type === "Pinned")
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+}
+
+function notesToggleReveal(id) {
+  if (notesRevealed.has(id)) notesRevealed.delete(id); else notesRevealed.add(id);
+  notesRefreshSecrets();
+}
+
+// بيحدّث الـ Blur والزراير في الصفحة واللوحة من غير ما يعيد رسم كل حاجة
+function notesRefreshSecrets() {
+  document.querySelectorAll("[data-secret-id]").forEach(el => {
+    const shown = notesRevealed.has(el.getAttribute("data-secret-id"));
+    el.classList.toggle("is-hidden", !shown);
+    if (shown) el.removeAttribute("title"); else el.setAttribute("title", "Hidden - press Show to see it");
+  });
+  document.querySelectorAll("[data-note-reveal]").forEach(btn => {
+    const shown = notesRevealed.has(btn.getAttribute("data-note-reveal"));
+    btn.innerHTML = `<i class="fa-solid ${shown ? "fa-eye-slash" : "fa-eye"}"></i> ${shown ? "Hide" : "Show"}`;
+  });
+  notesUpdateShowAllBtn();
+}
+
+function notesUpdateShowAllBtn() {
+  const btn = document.getElementById("notesPinnedShowAllBtn");
+  if (!btn) return;
+  const withDetails = notesMyPinned().filter(n => n.details);
+  const anyHidden = withDetails.some(n => !notesRevealed.has(n.id));
+  btn.style.display = withDetails.length ? "inline-flex" : "none";
+  btn.innerHTML = anyHidden ? '<i class="fa-solid fa-eye"></i> Show all' : '<i class="fa-solid fa-eye-slash"></i> Hide all';
+}
+
+function notesPinnedToggleAll() {
+  const withDetails = notesMyPinned().filter(n => n.details);
+  const anyHidden = withDetails.some(n => !notesRevealed.has(n.id));
+  withDetails.forEach(n => { if (anyHidden) notesRevealed.add(n.id); else notesRevealed.delete(n.id); });
+  notesRefreshSecrets();
+}
+
+function notesPinnedDrawerIsOpen() {
+  const d = document.getElementById("notesPinnedDrawer");
+  return !!(d && d.style.display !== "none");
+}
+
+function notesTogglePinnedDrawer(ev) {
+  if (ev) ev.stopPropagation();
+  if (notesPinnedDrawerIsOpen()) { notesClosePinnedDrawer(); return; }
+  notesOpenPinnedDrawer();
+}
+
+function notesOpenPinnedDrawer() {
+  const d = document.getElementById("notesPinnedDrawer");
+  if (!d || !notesLoggedInUser()) return;
+  notesHideBellPanel();
+  d.style.display = "flex";
+  try { localStorage.setItem("notesPinnedOpen", "1"); } catch (e) { /* مش مهم */ }
+  notesRenderPinnedDrawer();
+  if (!notesState.loaded && notesToken()) notesFetch().catch(() => {});
+}
+
+// القفل بيخبّي كل التفاصيل تاني - المرة الجاية تفتح متغطية
+function notesClosePinnedDrawer() {
+  const d = document.getElementById("notesPinnedDrawer");
+  if (d) d.style.display = "none";
+  try { localStorage.removeItem("notesPinnedOpen"); } catch (e) { /* مش مهم */ }
+  notesMyPinned().forEach(n => notesRevealed.delete(n.id));
+  notesRefreshSecrets();
+}
+
+function notesRenderPinnedDrawer() {
+  const list = document.getElementById("notesPinnedList");
+  if (!list || !notesPinnedDrawerIsOpen()) return;
+  if (!notesLoggedInUser()) { notesClosePinnedDrawer(); return; }
+  if (!notesState.loaded) { list.innerHTML = `<div class="notes-empty">Loading...</div>`; return; }
+
+  const pinned = notesMyPinned();
+  list.innerHTML = pinned.length
+    ? pinned.map(n => `<div class="notes-pinned-item">
+        <div class="notes-pinned-item-top">
+          <div class="note-title">📌 ${notesEsc(n.title)}</div>
+          <div class="notes-pinned-item-btns">
+            ${n.details ? notesRevealBtnHtml(n.id) : ""}
+            <button type="button" class="notes-icon-btn" data-note-edit-from-drawer="${notesEsc(n.id)}" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i></button>
+          </div>
+        </div>
+        ${n.details ? notesSecretHtml(n) : ""}
+      </div>`).join("")
+    : `<div class="notes-empty">No pinned notes yet.<br>Add one from My Notes and choose <b>Pinned</b>.</div>`;
+  notesUpdateShowAllBtn();
+}
+
+function notesNewPinnedFromDrawer() {
+  notesOpenPage();
+  notesResetComposer();
+  const t = document.getElementById("noteTitleInput");
+  if (t) setTimeout(() => t.focus(), 100);
+}
+
+document.addEventListener("click", function (ev) {
+  const reveal = ev.target.closest && ev.target.closest("[data-note-reveal]");
+  if (reveal) { notesToggleReveal(reveal.getAttribute("data-note-reveal")); return; }
+  const edit = ev.target.closest && ev.target.closest("[data-note-edit-from-drawer]");
+  if (edit) {
+    const id = edit.getAttribute("data-note-edit-from-drawer");
+    notesOpenPage();
+    setTimeout(() => notesStartEdit(id), 100);
+  }
+});
+
+// لو اللوحة كانت مفتوحة قبل الـ Refresh، ترجع مفتوحة (بس التفاصيل متغطية)
+document.addEventListener("DOMContentLoaded", () => {
+  try {
+    if (localStorage.getItem("notesPinnedOpen") === "1" && notesLoggedInUser()) setTimeout(notesOpenPinnedDrawer, 300);
+  } catch (e) { /* مش مهم */ }
 });
 
 // ------------------------------------------------------------
