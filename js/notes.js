@@ -11,7 +11,10 @@ const NOTES_ALARM_LOOKBACK_HOURS = 24;   // ريمايندر عدّى معاده
 
 let notesState = {
   notes: [], users: [], me: null, loaded: false, busy: false,
-  tab: "mine", editingId: null, type: "Pinned", owner: ""   // owner = اليوزر اللي الداتا دي بتاعته
+  tab: "mine", editingId: null, type: "Pinned", owner: "",  // owner = اليوزر اللي الداتا دي بتاعته
+  share: [],          // usernames اللي في الـ Share في الـ Composer
+  pendingFiles: [],   // ملفات مستنية تترفع مع الحفظ
+  maxFileBytes: 10 * 1024 * 1024
 };
 let notesLastSignal = null;
 let notesTickTimer = null;
@@ -80,8 +83,21 @@ function notesNiceStamp(ts) {
   return ts ? notesNiceDue(String(ts).slice(0, 16)) : "";
 }
 
+// النوت مفتوحة "عندي أنا": أنا عضو فيها (Assignee أو في الـ Share) ولسه ماعملتش Done
+function notesIsMineOpen(n) {
+  return !!(n.isMember && !n.myDone);
+}
+
 function notesIsOverdue(n) {
-  return n.status === "Open" && n.type === "Reminder" && n.due && n.due <= notesNowMinute(0);
+  const open = n.isMember ? !n.myDone : n.status === "Open";
+  return open && n.type === "Reminder" && n.due && n.due <= notesNowMinute(0);
+}
+
+function notesFmtSize(bytes) {
+  const b = Number(bytes) || 0;
+  if (b >= 1024 * 1024) return (b / 1024 / 1024).toFixed(1) + " MB";
+  if (b >= 1024) return Math.round(b / 1024) + " KB";
+  return b + " B";
 }
 
 // ------------------------------------------------------------
@@ -133,6 +149,7 @@ function notesFetch() {
       notesState.notes = Array.isArray(res.notes) ? res.notes : [];
       notesState.users = Array.isArray(res.users) ? res.users : [];
       notesState.me = res.me || null;
+      if (res.maxFileBytes) notesState.maxFileBytes = res.maxFileBytes;
       notesState.owner = notesLoggedInUser();
       notesState.loaded = true;
       notesPruneStores();
@@ -175,7 +192,8 @@ function notesOnServerSignal(value) {
 // بيتنادى من handleLogout (خروج يدوي) - بيمسح كل حاجة ويوقف أي منبّه
 function notesClearAll() {
   notesStopAllRinging();
-  notesState = { notes: [], users: [], me: null, loaded: false, busy: false, tab: "mine", editingId: null, type: "Pinned", owner: "" };
+  notesState = { notes: [], users: [], me: null, loaded: false, busy: false, tab: "mine", editingId: null, type: "Pinned", owner: "",
+    share: [], pendingFiles: [], maxFileBytes: 10 * 1024 * 1024 };
   notesLastSignal = null;
   notesRevealed.clear();
   notesHideBellPanel();
@@ -205,7 +223,7 @@ function notesOpenPage(highlightId) {
   if (highlightId) {
     const n = notesState.notes.find(x => x.id === highlightId);
     if (n) {
-      const tab = n.status === "Done" ? "done" : (n.isAssignee ? "mine" : "assigned");
+      const tab = n.isMember ? (n.myDone ? "done" : "mine") : (n.status === "Done" ? "done" : "assigned");
       notesSwitchTab(tab);
       setTimeout(() => {
         const card = document.getElementById("note-card-" + highlightId);
@@ -227,7 +245,10 @@ function notesPageIsOpen() {
 function notesAfterDataChange() {
   if (notesPageIsOpen()) {
     notesFillAssigneeSelect();
-    notesRenderList();
+    // لو اليوزر بيكتب رد جوه كارت دلوقتي، مانعيدش الرسم (هيضيّع الـ focus) - الـ tick هيرسم بعد ما يخلص
+    const box = document.getElementById("notesListContainer");
+    const typing = box && document.activeElement && box.contains(document.activeElement);
+    if (typing) notesTick.lastMinute = null; else notesRenderList();
   }
   notesUpdateBell();
   notesRenderPinnedDrawer();
@@ -288,7 +309,199 @@ function notesFillAssigneeSelect() {
   sel.innerHTML = `<option value="">Me</option>` +
     others.map(u => `<option value="${notesEsc(u.username)}">${notesEsc(u.fullName)}</option>`).join("");
   if (current && others.some(u => u.username === current)) sel.value = current;
+  notesRenderShareChips();
 }
+
+// ------------------------------------------------------------
+// 👥 Share with (Chips)
+// ------------------------------------------------------------
+function notesMeUser() {
+  return ((notesState.me && notesState.me.username) || notesLoggedInUser());
+}
+
+function notesUserFullName(username) {
+  const u = notesState.users.find(x => x.username.toLowerCase() === String(username).toLowerCase());
+  return u ? u.fullName : username;
+}
+
+function notesCurrentAssignee() {
+  const sel = document.getElementById("noteAssigneeSelect");
+  return (sel && sel.value) ? sel.value : notesMeUser();
+}
+
+function notesRenderShareChips() {
+  const chips = document.getElementById("noteShareChips");
+  const sel = document.getElementById("noteShareSelect");
+  const editing = notesState.editingId ? notesState.notes.find(x => x.id === notesState.editingId) : null;
+  const locked = !!(editing && !editing.isOwner);
+  const assignee = notesCurrentAssignee().toLowerCase();
+  // اللي اتعمله Assign مايبقاش في الـ Share كمان
+  notesState.share = notesState.share.filter(u => u.toLowerCase() !== assignee);
+
+  if (chips) {
+    chips.innerHTML = notesState.share.map(u =>
+      `<span class="notes-person-chip">${notesEsc(notesUserFullName(u))}${locked ? "" : `<button type="button" data-share-remove="${notesEsc(u)}" aria-label="Remove">&times;</button>`}</span>`
+    ).join("");
+  }
+  if (sel) {
+    const taken = new Set(notesState.share.map(u => u.toLowerCase()).concat([assignee]));
+    const options = notesState.users.filter(u => !taken.has(u.username.toLowerCase()));
+    sel.innerHTML = `<option value="">+ Add person...</option>` +
+      options.map(u => `<option value="${notesEsc(u.username)}">${notesEsc(u.username.toLowerCase() === notesMeUser().toLowerCase() ? u.fullName + " (me)" : u.fullName)}</option>`).join("");
+    sel.value = "";
+    sel.disabled = locked;
+  }
+}
+
+function notesAddShare(username) {
+  if (!username) return;
+  if (!notesState.share.some(u => u.toLowerCase() === username.toLowerCase())) notesState.share.push(username);
+  notesRenderShareChips();
+}
+
+// ------------------------------------------------------------
+// 📎 Attachments (Composer)
+// ------------------------------------------------------------
+function notesAddFiles(fileList) {
+  const input = document.getElementById("noteFileInput");
+  const tooBig = [];
+  Array.from(fileList || []).forEach(f => {
+    if (f.size > notesState.maxFileBytes) { tooBig.push(f.name); return; }
+    notesState.pendingFiles.push(f);
+  });
+  if (input) input.value = "";
+  if (tooBig.length) notesShowMsg(`Too big (max ${notesFmtSize(notesState.maxFileBytes)}): ${tooBig.join(", ")}`, "error");
+  notesRenderComposerFiles();
+}
+
+function notesRenderComposerFiles() {
+  const box = document.getElementById("noteFilesList");
+  if (!box) return;
+  const editing = notesState.editingId ? notesState.notes.find(x => x.id === notesState.editingId) : null;
+  const existing = editing ? (editing.attachments || []) : [];
+  box.innerHTML =
+    existing.map(a => `<span class="notes-file-chip"><button type="button" class="notes-file-open" data-note-file="${notesEsc(editing.id)}|${notesEsc(a.fileId)}"><i class="fa-solid fa-paperclip"></i> ${notesEsc(a.name)}</button>` +
+      (a.canDelete ? `<button type="button" class="notes-file-x" data-file-remove="${notesEsc(editing.id)}|${notesEsc(a.fileId)}" aria-label="Remove file">&times;</button>` : "") + `</span>`).join("") +
+    notesState.pendingFiles.map((f, i) => `<span class="notes-file-chip notes-file-pending"><i class="fa-solid fa-arrow-up-from-bracket"></i> ${notesEsc(f.name)} <small>${notesFmtSize(f.size)}</small>` +
+      `<button type="button" class="notes-file-x" data-pending-remove="${i}" aria-label="Remove file">&times;</button></span>`).join("");
+}
+
+function notesReadFileB64(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(",")[1] || "");
+    r.onerror = () => reject(new Error("Could not read " + file.name));
+    r.readAsDataURL(file);
+  });
+}
+
+async function notesUploadPending(noteId) {
+  const files = notesState.pendingFiles.slice();
+  const failed = [];
+  for (let i = 0; i < files.length; i++) {
+    notesShowMsg(`Uploading ${i + 1} of ${files.length}: ${files[i].name}...`, "info");
+    try {
+      const dataB64 = await notesReadFileB64(files[i]);
+      const res = await notesPost({ action: "uploadNoteAttachment", id: noteId, name: files[i].name, mime: files[i].type || "application/octet-stream", dataB64 });
+      if (!res || res.status !== "success") throw new Error((res && res.message) || "Upload failed");
+    } catch (err) {
+      failed.push(`${files[i].name} (${err.message || err})`);
+    }
+  }
+  notesState.pendingFiles = [];
+  return failed;
+}
+
+async function notesRemoveAttachment(noteId, fileId) {
+  const n = notesState.notes.find(x => x.id === noteId);
+  const a = n && (n.attachments || []).find(x => x.fileId === fileId);
+  if (!a || !confirm(`Remove "${a.name}" from this note?`)) return;
+  try {
+    const res = await notesPost({ action: "deleteNoteAttachment", id: noteId, fileId });
+    if (!res || res.status !== "success") throw new Error((res && res.message) || "Could not remove the file");
+    n.attachments = n.attachments.filter(x => x.fileId !== fileId);
+    notesRenderComposerFiles();
+    notesAfterDataChange();
+    notesFetch().catch(() => {});
+  } catch (err) {
+    alert(err.message || String(err));
+  }
+}
+
+// 📂 فتح/تحميل مرفق: بيتجاب من السيرفر بتوكن اليوزر (مفيش لينك Public) - الصور والـ PDF بتتفتح في تاب جديد، والباقي بيتحمّل
+async function notesOpenFile(noteId, fileId, btn) {
+  const n = notesState.notes.find(x => x.id === noteId);
+  const a = n && (n.attachments || []).find(x => x.fileId === fileId);
+  if (!a) return;
+  const previewable = /^(image\/|application\/pdf|text\/plain)/.test(a.mime || "");
+  const win = previewable ? window.open("", "_blank") : null;
+  if (win) win.document.write('<p style="font-family:Arial;padding:20px">Loading ' + notesEsc(a.name) + '...</p>');
+  const oldHtml = btn ? btn.innerHTML : "";
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ' + notesEsc(a.name); }
+  try {
+    const url = GOOGLE_SHEET_API_URL + "?action=notesAttachment&t=" + Date.now() + "&id=" + encodeURIComponent(noteId) +
+      "&fileId=" + encodeURIComponent(fileId) + "&token=" + encodeURIComponent(notesToken());
+    const res = await fetch(url, { method: "GET", redirect: "follow" }).then(r => r.json());
+    if (!res || res.status !== "success") throw new Error((res && res.message) || "Could not open the file");
+    const bin = atob(res.dataB64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const blobUrl = URL.createObjectURL(new Blob([bytes], { type: res.mime || "application/octet-stream" }));
+    if (win) {
+      win.location.href = blobUrl;
+    } else {
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = res.name || a.name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 120000);
+  } catch (err) {
+    if (win) win.close();
+    alert(err.message || String(err));
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
+  }
+}
+
+function notesAttachmentsHtml(n) {
+  const list = n.attachments || [];
+  if (!list.length) return "";
+  return `<div class="note-files">` + list.map(a =>
+    `<button type="button" class="notes-file-open" data-note-file="${notesEsc(n.id)}|${notesEsc(a.fileId)}" title="${notesEsc(a.byName)} &middot; ${notesEsc(notesFmtSize(a.size))}"><i class="fa-solid fa-paperclip"></i> ${notesEsc(a.name)}</button>`
+  ).join("") + `</div>`;
+}
+
+document.addEventListener("click", function (ev) {
+  const t = ev.target;
+  if (!t.closest) return;
+  const shareX = t.closest("[data-share-remove]");
+  if (shareX) {
+    const u = shareX.getAttribute("data-share-remove");
+    notesState.share = notesState.share.filter(x => x !== u);
+    notesRenderShareChips();
+    return;
+  }
+  const pendingX = t.closest("[data-pending-remove]");
+  if (pendingX) {
+    notesState.pendingFiles.splice(parseInt(pendingX.getAttribute("data-pending-remove"), 10), 1);
+    notesRenderComposerFiles();
+    return;
+  }
+  const fileX = t.closest("[data-file-remove]");
+  if (fileX) {
+    const parts = fileX.getAttribute("data-file-remove").split("|");
+    notesRemoveAttachment(parts[0], parts[1]);
+    return;
+  }
+  const fileOpen = t.closest("[data-note-file]");
+  if (fileOpen && !fileOpen.disabled) {
+    const parts = fileOpen.getAttribute("data-note-file").split("|");
+    notesOpenFile(parts[0], parts[1], fileOpen);
+  }
+});
 
 function notesResetComposer() {
   notesState.editingId = null;
@@ -303,6 +516,10 @@ function notesResetComposer() {
   if (sel) sel.disabled = false;
   const hint = document.getElementById("noteAssigneeHint");
   if (hint) hint.style.display = "none";
+  notesState.share = [];
+  notesState.pendingFiles = [];
+  notesRenderShareChips();
+  notesRenderComposerFiles();
   notesSetType("Pinned");
   const title = document.getElementById("notesComposerTitle");
   if (title) title.textContent = "New Note";
@@ -343,9 +560,13 @@ function notesStartEdit(id) {
   }
   const hint = document.getElementById("noteAssigneeHint");
   if (hint) {
-    hint.textContent = n.isOwner ? "" : `Assigned to you by ${n.ownerName} - only they can reassign it.`;
+    hint.textContent = n.isOwner ? "" : `This note is from ${n.ownerName} - only they can change who it's assigned or shared to.`;
     hint.style.display = n.isOwner ? "none" : "block";
   }
+  notesState.share = (n.sharedWith || []).map(u => u.username);
+  notesState.pendingFiles = [];
+  notesRenderShareChips();
+  notesRenderComposerFiles();
   const title = document.getElementById("notesComposerTitle");
   if (title) title.textContent = "Edit Note";
   const updRow = document.getElementById("noteUpdateRow");
@@ -383,7 +604,7 @@ async function notesSave() {
     if (dueChanged && due <= notesNowMinute(0)) { notesShowMsg("This time has already passed - please choose a time in the future.", "error"); return; }
   }
 
-  const payload = { action: "saveNote", title, details, type, due, assignee, updateText };
+  const payload = { action: "saveNote", title, details, type, due, assignee, updateText, sharedWith: notesState.share.slice() };
   if (notesState.editingId) payload.id = notesState.editingId;
 
   const btn = document.getElementById("noteSaveBtn");
@@ -393,16 +614,19 @@ async function notesSave() {
   try {
     const res = await notesPost(payload);
     if (!res || res.status !== "success") throw new Error((res && res.message) || "Could not save the note");
+    const iAmMember = assignee.toLowerCase() === notesMeUser().toLowerCase() || notesState.share.some(u => u.toLowerCase() === notesMeUser().toLowerCase());
+    if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading...';
+    const failed = notesState.pendingFiles.length ? await notesUploadPending(res.id) : [];
     notesResetComposer();
-    notesShowMsg(res.message || "Saved", "ok");
+    if (failed.length) notesShowMsg(`Note saved, but these files failed: ${failed.join(" · ")}`, "error");
+    else notesShowMsg(res.message || "Saved", "ok");
     await notesFetch().catch(() => {});
-    notesSwitchTab(assignee.toLowerCase() === notesLoggedInUser().toLowerCase() ? "mine" : "assigned");
+    notesSwitchTab(iAmMember ? "mine" : "assigned");
   } catch (err) {
     notesShowMsg(err.message || String(err), "error");
-    if (btn) btn.innerHTML = oldLabel;
   } finally {
     notesState.busy = false;
-    if (btn) btn.disabled = false;
+    if (btn) { btn.disabled = false; btn.innerHTML = notesState.editingId ? '<i class="fa-solid fa-floppy-disk"></i> Save Changes' : '<i class="fa-solid fa-floppy-disk"></i> Save Note'; }
   }
 }
 
@@ -414,10 +638,8 @@ async function notesSetDone(id, done, fromAlarm) {
     // تحديث فوري محلي لحد ما الداتا الجديدة توصل
     const n = notesState.notes.find(x => x.id === id);
     if (n) {
-      n.status = done ? "Done" : "Open";
-      n.doneAt = done ? notesNowMinute(0) + ":00" : "";
-      n.doneBy = done ? notesLoggedInUser() : "";
-      n.doneByName = done ? ((notesState.me && notesState.me.fullName) || "") : "";
+      if (n.isMember) n.myDone = !!done;
+      if (!n.isMember || n.memberCount <= 1) n.status = done ? "Done" : "Open";
     }
     notesAfterDataChange();
     notesFetch().catch(() => {});
@@ -458,9 +680,9 @@ function notesRenderList() {
   const box = document.getElementById("notesListContainer");
   if (!box) return;
   const all = notesState.notes;
-  const mine = all.filter(n => n.status === "Open" && n.isAssignee);
-  const assigned = all.filter(n => n.isOwner && !n.isAssignee);
-  const done = all.filter(n => n.status === "Done" && (n.isAssignee || n.isOwner));
+  const mine = all.filter(notesIsMineOpen);
+  const assigned = all.filter(n => n.isOwner && !n.isMember);
+  const done = all.filter(n => (n.isMember && n.myDone) || (!n.isMember && n.isOwner && n.status === "Done"));
 
   const setCount = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = String(v); };
   setCount("notesCountMine", mine.length);
@@ -497,7 +719,7 @@ function notesRenderList() {
 
 function notesCardHtml(n, seen) {
   const overdue = notesIsOverdue(n);
-  const isDone = n.status === "Done";
+  const isDone = n.isMember ? n.myDone : n.status === "Done";
   const tags = [];
   const id = notesEsc(n.id);
 
@@ -508,24 +730,40 @@ function notesCardHtml(n, seen) {
   } else {
     tags.push(`<span class="note-tag"><i class="fa-solid fa-thumbtack"></i> Pinned</span>`);
   }
-  if (n.isAssignee && !n.isOwner) tags.push(`<span class="note-tag note-tag-from"><i class="fa-solid fa-user-tag"></i> From ${notesEsc(n.ownerName)}</span>`);
-  if (n.isOwner && !n.isAssignee) tags.push(`<span class="note-tag note-tag-from"><i class="fa-solid fa-share"></i> To ${notesEsc(n.assigneeName)}</span>`);
-  if (isDone) tags.push(`<span class="note-tag note-tag-done"><i class="fa-solid fa-check"></i> Done${n.doneByName && !n.isAssignee ? " by " + notesEsc(n.doneByName) : ""} &middot; ${notesEsc(notesNiceStamp(n.doneAt))}</span>`);
+  const shared = (n.sharedWith || []).length > 0;
+  if (n.isMember && !n.isOwner) tags.push(`<span class="note-tag note-tag-from"><i class="fa-solid fa-user-tag"></i> From ${notesEsc(n.ownerName)}</span>`);
+  if (n.isOwner && !n.isMember) tags.push(`<span class="note-tag note-tag-from"><i class="fa-solid fa-share"></i> To ${notesEsc(n.assigneeName)}</span>`);
+  if (shared) {
+    // كل الأعضاء (غيري) - واللي خلّص نصيبه عليه ✓
+    const me = notesMeUser().toLowerCase();
+    const doneSet = new Set((n.doneFor || []).map(d => d.username.toLowerCase()));
+    const people = [{ username: n.assignee, fullName: n.assigneeName }].concat(n.sharedWith)
+      .filter((p, i, arr) => arr.findIndex(x => x.username.toLowerCase() === p.username.toLowerCase()) === i)
+      .filter(p => p.username.toLowerCase() !== me);
+    if (people.length) {
+      tags.push(`<span class="note-tag note-tag-share"><i class="fa-solid fa-user-group"></i> With ${people.map(p =>
+        notesEsc(p.fullName) + (doneSet.has(p.username.toLowerCase()) ? " ✓" : "")).join(", ")}</span>`);
+    }
+  }
+  if (isDone) {
+    const when = n.isMember ? n.myDoneAt : n.doneAt;
+    const by = !n.isMember && n.doneByName ? " by " + notesEsc(n.doneByName) : "";
+    tags.push(`<span class="note-tag note-tag-done"><i class="fa-solid fa-check"></i> Done${by} &middot; ${notesEsc(notesNiceStamp(when))}</span>`);
+  } else if (!n.isMember && (n.doneFor || []).length) {
+    tags.push(`<span class="note-tag note-tag-done"><i class="fa-solid fa-list-check"></i> ${n.doneFor.length} of ${n.memberCount} done</span>`);
+  }
+  if ((n.attachments || []).length) tags.push(`<span class="note-tag"><i class="fa-solid fa-paperclip"></i> ${n.attachments.length}</span>`);
   if (seen && notesUnseenKeys(n, seen).length) tags.push(`<span class="note-tag note-tag-new">NEW</span>`);
 
-  const updates = (n.updates || []);
-  const updatesHtml = updates.length
-    ? `<details class="note-updates"${updates.length <= 2 ? " open" : ""}><summary>${updates.length} update${updates.length > 1 ? "s" : ""}</summary>` +
-      updates.slice().reverse().map(u => `<div class="note-update"><div class="note-update-meta">${notesEsc(u.byName || u.by)} &middot; ${notesEsc(notesNiceStamp(u.at))}</div>${notesEsc(u.text)}</div>`).join("") +
-      `</details>`
-    : "";
+  const updatesHtml = notesThreadHtml(n);
 
   const b = (action, cls, icon, label) => `<button type="button" class="notes-btn notes-btn-sm ${cls}" data-note-action="${action}" data-note-id="${id}"><i class="fa-solid ${icon}"></i> ${label}</button>`;
   const actions = [];
   if (n.type === "Pinned" && n.details) actions.push(notesRevealBtnHtml(n.id));
   if (!isDone) {
-    if (n.isAssignee) actions.push(b("done", "notes-btn-ok", "fa-check", "Done"));
-    actions.push(b("edit", "notes-btn-ghost", "fa-pen", n.isOwner ? "Edit" : "Update / Reschedule"));
+    if (n.isMember) actions.push(b("done", "notes-btn-ok", "fa-check", shared ? "Done (for me)" : "Done"));
+    actions.push(`<button type="button" class="notes-btn notes-btn-sm notes-btn-reply" data-note-reply-toggle="${id}"><i class="fa-solid fa-reply"></i> Reply</button>`);
+    actions.push(b("edit", "notes-btn-ghost", "fa-pen", n.isOwner ? "Edit" : "Edit / Reschedule"));
   } else {
     actions.push(b("restore", "notes-btn-ghost", "fa-rotate-left", "Restore"));
   }
@@ -535,11 +773,135 @@ function notesCardHtml(n, seen) {
   return `<div class="note-card${overdue ? " note-overdue" : ""}${isDone ? " note-done" : ""}" id="note-card-${id}">
     <div class="note-card-top"><div class="note-title">${n.type === "Reminder" ? "⏰" : "📌"} ${notesEsc(n.title)}</div></div>
     ${n.details ? (n.type === "Pinned" ? notesSecretHtml(n) : `<div class="note-details">${notesEsc(n.details)}</div>`) : ""}
+    ${notesAttachmentsHtml(n)}
     <div class="note-meta">${tags.join("")}</div>
     ${updatesHtml}
     <div class="note-actions">${actions.join("")}</div>
+    ${notesReplyBoxHtml(n)}
   </div>`;
 }
+
+// ------------------------------------------------------------
+// 💬 الردود (Thread) + خانة الرد جوه الكارت
+// ------------------------------------------------------------
+let notesReplyOpen = new Set();   // IDs النوتس اللي خانة الرد فيها مفتوحة
+let notesReplyDrafts = {};        // id -> النص اللي بيتكتب (عشان مايضيعش لو الكارت اترسم تاني)
+let notesReplyFiles = {};         // id -> [File]
+let notesReplyBusy = new Set();
+const NOTES_THREAD_VISIBLE = 3;
+
+function notesThreadHtml(n) {
+  const list = (n.updates || []);
+  if (!list.length) return "";
+  const me = notesMeUser().toLowerCase();
+  const item = u => {
+    const mine = String(u.by).toLowerCase() === me;
+    return `<div class="note-update${mine ? " note-update-mine" : ""}"><div class="note-update-meta">${mine ? "You" : notesEsc(u.byName || u.by)} &middot; ${notesEsc(notesNiceStamp(u.at))}</div>${notesEsc(u.text)}</div>`;
+  };
+  const older = list.slice(0, Math.max(0, list.length - NOTES_THREAD_VISIBLE));
+  const recent = list.slice(-NOTES_THREAD_VISIBLE);
+  return `<div class="note-thread"><div class="note-thread-head"><i class="fa-solid fa-comments"></i> Replies (${list.length})</div>` +
+    (older.length ? `<details class="note-updates"><summary>Show ${older.length} older</summary>${older.map(item).join("")}</details>` : "") +
+    recent.map(item).join("") + `</div>`;
+}
+
+function notesReplyBoxHtml(n) {
+  if (!notesReplyOpen.has(n.id)) return "";
+  const id = notesEsc(n.id);
+  const files = notesReplyFiles[n.id] || [];
+  const busy = notesReplyBusy.has(n.id);
+  return `<div class="note-reply-box">
+    <textarea class="combo-input notes-textarea notes-textarea-sm" data-reply-input="${id}" maxlength="1000" placeholder="Write a reply..."${busy ? " disabled" : ""}>${notesEsc(notesReplyDrafts[n.id] || "")}</textarea>
+    <div class="notes-chips">${files.map((f, i) => `<span class="notes-file-chip notes-file-pending"><i class="fa-solid fa-arrow-up-from-bracket"></i> ${notesEsc(f.name)} <small>${notesFmtSize(f.size)}</small><button type="button" class="notes-file-x" data-reply-file-remove="${id}|${i}" aria-label="Remove file">&times;</button></span>`).join("")}</div>
+    <div class="note-reply-actions">
+      <input type="file" multiple style="display: none;" data-reply-file-input="${id}">
+      <button type="button" class="notes-btn notes-btn-sm notes-btn-ghost" data-reply-attach="${id}"${busy ? " disabled" : ""}><i class="fa-solid fa-paperclip"></i> Attach</button>
+      <button type="button" class="notes-btn notes-btn-sm notes-btn-primary" data-reply-send="${id}"${busy ? " disabled" : ""}>${busy ? '<i class="fa-solid fa-spinner fa-spin"></i> Sending...' : '<i class="fa-solid fa-paper-plane"></i> Send'}</button>
+      <button type="button" class="notes-btn notes-btn-sm notes-btn-ghost" data-note-reply-toggle="${id}"${busy ? " disabled" : ""}>Cancel</button>
+    </div>
+  </div>`;
+}
+
+async function notesSendReply(id) {
+  const text = String(notesReplyDrafts[id] || "").trim();
+  const files = (notesReplyFiles[id] || []).slice();
+  if (!text && !files.length) { alert("Write a reply or attach a file first."); return; }
+  notesReplyBusy.add(id);
+  notesRenderList();
+  const failed = [];
+  try {
+    if (text) {
+      const res = await notesPost({ action: "addNoteComment", id, text });
+      if (!res || res.status !== "success") throw new Error((res && res.message) || "Could not send the reply");
+    }
+    for (const f of files) {
+      try {
+        const dataB64 = await notesReadFileB64(f);
+        const r = await notesPost({ action: "uploadNoteAttachment", id, name: f.name, mime: f.type || "application/octet-stream", dataB64 });
+        if (!r || r.status !== "success") throw new Error((r && r.message) || "Upload failed");
+      } catch (err) {
+        failed.push(`${f.name} (${err.message || err})`);
+      }
+    }
+    delete notesReplyDrafts[id];
+    delete notesReplyFiles[id];
+    notesReplyOpen.delete(id);
+    if (failed.length) alert("Reply sent, but these files failed: " + failed.join(" · "));
+  } catch (err) {
+    alert(err.message || String(err));
+  } finally {
+    notesReplyBusy.delete(id);
+    await notesFetch().catch(() => {});
+    notesRenderList();
+  }
+}
+
+document.addEventListener("input", function (ev) {
+  const t = ev.target;
+  if (t && t.getAttribute && t.hasAttribute("data-reply-input")) notesReplyDrafts[t.getAttribute("data-reply-input")] = t.value;
+});
+
+document.addEventListener("change", function (ev) {
+  const t = ev.target;
+  if (!t || !t.hasAttribute || !t.hasAttribute("data-reply-file-input")) return;
+  const id = t.getAttribute("data-reply-file-input");
+  const list = notesReplyFiles[id] || (notesReplyFiles[id] = []);
+  const tooBig = [];
+  Array.from(t.files || []).forEach(f => { if (f.size > notesState.maxFileBytes) tooBig.push(f.name); else list.push(f); });
+  if (tooBig.length) alert(`Too big (max ${notesFmtSize(notesState.maxFileBytes)}): ${tooBig.join(", ")}`);
+  notesRenderList();
+});
+
+document.addEventListener("click", function (ev) {
+  const t = ev.target;
+  if (!t.closest) return;
+  const toggle = t.closest("[data-note-reply-toggle]");
+  if (toggle && !toggle.disabled) {
+    const id = toggle.getAttribute("data-note-reply-toggle");
+    if (notesReplyOpen.has(id)) notesReplyOpen.delete(id); else notesReplyOpen.add(id);
+    notesRenderList();
+    if (notesReplyOpen.has(id)) {
+      const box = document.querySelector(`[data-reply-input="${CSS.escape(id)}"]`);
+      if (box) box.focus();
+    }
+    return;
+  }
+  const attach = t.closest("[data-reply-attach]");
+  if (attach && !attach.disabled) {
+    const input = document.querySelector(`[data-reply-file-input="${CSS.escape(attach.getAttribute("data-reply-attach"))}"]`);
+    if (input) input.click();
+    return;
+  }
+  const rm = t.closest("[data-reply-file-remove]");
+  if (rm) {
+    const parts = rm.getAttribute("data-reply-file-remove").split("|");
+    (notesReplyFiles[parts[0]] || []).splice(parseInt(parts[1], 10), 1);
+    notesRenderList();
+    return;
+  }
+  const send = t.closest("[data-reply-send]");
+  if (send && !send.disabled) notesSendReply(send.getAttribute("data-reply-send"));
+});
 
 // event delegation - أزرار الكروت بتتبني ديناميك
 document.addEventListener("click", function (ev) {
@@ -573,7 +935,7 @@ function notesRevealBtnHtml(id) {
 
 function notesMyPinned() {
   return notesState.notes
-    .filter(n => n.status === "Open" && n.isAssignee && n.type === "Pinned")
+    .filter(n => notesIsMineOpen(n) && n.type === "Pinned")
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
@@ -659,6 +1021,7 @@ function notesRenderPinnedDrawer() {
           </div>
         </div>
         ${n.details ? notesSecretHtml(n) : ""}
+        ${notesAttachmentsHtml(n)}
       </div>`).join("")
     : `<div class="notes-empty">No pinned notes yet.<br>Add one from My Notes and choose <b>Pinned</b>.</div>`;
   notesUpdateShowAllBtn();
@@ -696,8 +1059,12 @@ document.addEventListener("DOMContentLoaded", () => {
 function notesUnseenKeys(n, seen) {
   const keys = [];
   const me = notesLoggedInUser().toLowerCase();
-  if (n.isAssignee && !n.isOwner && n.status === "Open" && !seen["a:" + n.id]) keys.push("a:" + n.id);
-  if (n.isOwner && !n.isAssignee && n.status === "Done" && !seen["d:" + n.id + "|" + n.doneAt]) keys.push("d:" + n.id + "|" + n.doneAt);
+  if (n.isMember && !n.isOwner && !n.myDone && !seen["a:" + n.id]) keys.push("a:" + n.id);
+  // Done من حد تاني (لصاحب النوت أو لباقي الأعضاء في الـ Share)
+  (n.doneFor || []).forEach(d => {
+    const k = "d:" + n.id + "|" + d.username.toLowerCase() + "|" + d.at;
+    if (d.username.toLowerCase() !== me && (n.isOwner || n.isMember) && !seen[k]) keys.push(k);
+  });
   const last = (n.updates || [])[(n.updates || []).length - 1];
   if (last && String(last.by).toLowerCase() !== me && !seen["u:" + n.id + "|" + last.at]) keys.push("u:" + n.id + "|" + last.at);
   return keys;
@@ -708,13 +1075,16 @@ function notesBellItems() {
   const seen = notesLoad("seen");
   const items = [];
   notesState.notes.forEach(n => {
-    if (n.isAssignee && notesIsOverdue(n)) {
+    if (n.isMember && notesIsOverdue(n)) {
       items.push({ id: n.id, overdue: true, title: n.title, text: `⏰ Due ${notesNiceDue(n.due)}`, sort: "0" + n.due });
     }
     notesUnseenKeys(n, seen).forEach(k => {
       let text = "";
       if (k.startsWith("a:")) text = `📥 New note from ${n.ownerName}`;
-      else if (k.startsWith("d:")) text = `✅ Done by ${n.doneByName || n.assigneeName}`;
+      else if (k.startsWith("d:")) {
+        const who = (n.doneFor || []).find(d => k.indexOf("|" + d.username.toLowerCase() + "|") !== -1);
+        text = `✅ Done by ${who ? who.fullName : n.assigneeName}`;
+      }
       else {
         const last = n.updates[n.updates.length - 1];
         text = `💬 ${last.byName || last.by}: ${String(last.text).slice(0, 80)}`;
@@ -788,13 +1158,15 @@ function notesAnnounceChanges(before, after) {
   const me = notesLoggedInUser().toLowerCase();
   after.forEach(n => {
     const old = beforeMap[n.id];
-    if (n.isAssignee && !n.isOwner && n.status === "Open" && (!old || !old.isAssignee)) {
-      notesToast(`📥 New note from ${n.ownerName}`, n.title, n.id);
-    } else if (old && n.isOwner && !n.isAssignee && n.status === "Done" && old.status !== "Done") {
-      notesToast(`✅ Done by ${n.doneByName || n.assigneeName}`, n.title, n.id);
+    const newDone = old ? (n.doneFor || []).filter(d => d.username.toLowerCase() !== me &&
+      !(old.doneFor || []).some(o => o.username.toLowerCase() === d.username.toLowerCase())) : [];
+    if (n.isMember && !n.isOwner && !n.myDone && (!old || !old.isMember)) {
+      notesToast(`${(n.sharedWith || []).length ? "👥 Shared with you by" : "📥 New note from"} ${n.ownerName}`, n.title, n.id);
+    } else if (newDone.length) {
+      notesToast(`✅ Done by ${newDone.map(d => d.fullName).join(", ")}`, n.title, n.id);
     } else if (old && (n.updates || []).length > (old.updates || []).length) {
       const last = n.updates[n.updates.length - 1];
-      if (String(last.by).toLowerCase() !== me) notesToast(`💬 Update from ${last.byName || last.by}`, n.title, n.id);
+      if (String(last.by).toLowerCase() !== me) notesToast(`💬 Reply from ${last.byName || last.by}`, n.title, n.id);
     }
   });
 }
@@ -928,7 +1300,9 @@ function notesTick() {
   if (notesPageIsOpen() && notesState.loaded) {
     // تحديث كلمة Overdue / Today مع مرور الوقت (مرة كل دقيقة بس)
     const minute = notesNowMinute(0);
-    if (notesTick.lastMinute !== minute) { notesTick.lastMinute = minute; notesRenderList(); }
+    const box = document.getElementById("notesListContainer");
+    const typing = box && document.activeElement && box.contains(document.activeElement);
+    if (notesTick.lastMinute !== minute && !typing) { notesTick.lastMinute = minute; notesRenderList(); }
   }
   if (!notesState.loaded) return;
 
@@ -938,7 +1312,7 @@ function notesTick() {
   let added = false;
 
   notesState.notes.forEach(n => {
-    if (n.status !== "Open" || !n.isAssignee || n.type !== "Reminder" || !n.due) return;
+    if (!notesIsMineOpen(n) || n.type !== "Reminder" || !n.due) return;
     if (n.due > now || n.due < oldest) return;
     const key = n.id + "|" + n.due;
     if (store["x:" + key]) return;
@@ -954,7 +1328,7 @@ function notesTick() {
   // أي نوت بترن واتقفلت/اتمسحت/اتأجلت من تاب تاني أو من جهاز تاني -> تقف هنا كمان
   notesRinging = notesRinging.filter(id => {
     const n = notesState.notes.find(x => x.id === id);
-    const keep = n && n.status === "Open" && n.type === "Reminder" && n.due <= now && !store["x:" + id + "|" + n.due];
+    const keep = n && notesIsMineOpen(n) && n.type === "Reminder" && n.due <= now && !store["x:" + id + "|" + n.due];
     if (!keep) notesCloseDesktopPopup(id);
     return keep;
   });

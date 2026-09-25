@@ -13,9 +13,9 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <link rel="stylesheet" href="./style.css?v=20260925.184022">
+    <link rel="stylesheet" href="./style.css?v=20260925.190356">
     <!-- 🧊 Liquid Glass theme (override layer). لو عايز ترجع الشكل القديم: شيل السطرين اللي تحت (link + script) -->
-    <link rel="stylesheet" href="./glass.css?v=20260925.184022">
+    <link rel="stylesheet" href="./glass.css?v=20260925.190356">
     <script>
         // بيقرر قبل أول رسم لو نقفل البلور (Lite): الاختيار اليدوي "glassMode" أقوى، ولو مفيش بنقرر بالجهاز (ذاكرة <= 4GB أو أنوية <= 2)
         (function () {
@@ -1444,14 +1444,34 @@
 
                     <div class="form-group">
                         <label for="noteAssigneeSelect"><i class="fa-solid fa-user-check"></i> Assign to:</label>
-                        <select id="noteAssigneeSelect" class="combo-input">
+                        <select id="noteAssigneeSelect" class="combo-input" onchange="notesRenderShareChips()">
                             <option value="">Me</option>
                         </select>
                         <div id="noteAssigneeHint" class="notes-hint" style="display: none;"></div>
                     </div>
 
+                    <div class="form-group">
+                        <label for="noteShareSelect"><i class="fa-solid fa-user-group"></i> Share with (optional):</label>
+                        <select id="noteShareSelect" class="combo-input" onchange="notesAddShare(this.value)">
+                            <option value="">+ Add person...</option>
+                        </select>
+                        <div id="noteShareChips" class="notes-chips"></div>
+                        <div class="notes-hint">Everyone you share with sees it in their My Notes, gets the reminder, and marks it Done for themselves only.</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fa-solid fa-paperclip"></i> Attachments (optional, up to 10 MB each):</label>
+                        <input type="file" id="noteFileInput" multiple style="display: none;" onchange="notesAddFiles(this.files)">
+                        <div>
+                            <button type="button" class="notes-btn notes-btn-ghost notes-btn-sm" onclick="document.getElementById('noteFileInput').click()">
+                                <i class="fa-solid fa-paperclip"></i> Attach files
+                            </button>
+                        </div>
+                        <div id="noteFilesList" class="notes-chips"></div>
+                    </div>
+
                     <div class="form-group" id="noteUpdateRow" style="display: none;">
-                        <label for="noteUpdateInput"><i class="fa-solid fa-comment-dots"></i> Add an update (optional):</label>
+                        <label for="noteUpdateInput"><i class="fa-solid fa-comment-dots"></i> Add a reply (optional):</label>
                         <textarea id="noteUpdateInput" class="combo-input notes-textarea notes-textarea-sm" maxlength="1000" placeholder="e.g. Called the customer, waiting for documents..."></textarea>
                     </div>
 
@@ -1567,6 +1587,25 @@
         .notes-msg { padding: 10px 12px; border-radius: 10px; font-size: 13px; font-weight: 700; }
         .notes-msg-ok { background: #dcfce7; color: #166534; }
         .notes-msg-error { background: #fee2e2; color: #991b1b; }
+        .notes-msg-info { background: #e0f2fe; color: #075985; }
+        .notes-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+        .notes-chips:empty { display: none; }
+        .notes-person-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 12px; border-radius: 999px; background: #ede9fe; color: #5b21b6; font-size: 12.5px; font-weight: 800; }
+        .notes-person-chip button, .notes-file-x { border: none; background: rgba(0, 0, 0, 0.08); color: inherit; width: 20px; height: 20px; border-radius: 50%; cursor: pointer; font-size: 14px; line-height: 1; padding: 0; }
+        .notes-file-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 6px 3px 4px; border-radius: 10px; background: rgba(148, 163, 184, 0.18); font-size: 12.5px; font-weight: 700; }
+        .notes-file-pending { padding-left: 10px; background: #e0f2fe; color: #075985; }
+        .notes-file-pending small { opacity: 0.7; }
+        .notes-file-open { border: 1px solid rgba(148, 163, 184, 0.45); background: rgba(255, 255, 255, 0.7); border-radius: 8px; padding: 4px 10px; font-size: 12.5px; font-weight: 700; color: #1d4ed8; cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .notes-file-open:hover { background: #eff6ff; }
+        .notes-file-chip .notes-file-open { border: none; background: none; padding: 2px 4px; }
+        .note-files { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .note-tag-share { background: #ede9fe; color: #5b21b6; }
+        .notes-btn-reply { background: #dbeafe; color: #1e40af; }
+        .note-thread { margin-top: 10px; padding: 8px 10px; border-radius: 10px; background: rgba(148, 163, 184, 0.1); }
+        .note-thread-head { font-size: 12px; font-weight: 800; opacity: 0.75; margin-bottom: 2px; }
+        .note-update-mine { background: rgba(232, 213, 103, 0.28); }
+        .note-reply-box { margin-top: 10px; padding: 10px; border-radius: 10px; border: 1px dashed rgba(148, 163, 184, 0.7); background: rgba(255, 255, 255, 0.55); }
+        .note-reply-actions { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
         .notes-tabs-bar { flex-wrap: wrap; }
         .notes-count { display: inline-block; min-width: 18px; padding: 1px 6px; margin-left: 6px; border-radius: 10px; background: rgba(148, 163, 184, 0.3); font-size: 11px; font-weight: 800; line-height: 16px; text-align: center; }
         .notes-alerts-btn { margin-left: auto; }
@@ -1924,20 +1963,20 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.14.0/html2pdf.bundle.min.js"></script>
 
     <!-- 📜 Main Application Script -->
-    <script src="js/core.js?v=20260925.184022"></script>
-    <script src="js/auth.js?v=20260925.184022"></script>
-    <script src="js/noc.js?v=20260925.184022"></script>
-    <script src="js/break-queue.js?v=20260925.184022"></script>
-    <script src="js/navigation.js?v=20260925.184022"></script>
-    <script src="js/unit-mapping.js?v=20260925.184022"></script>
-    <script src="js/calculator.js?v=20260925.184022"></script>
-    <script src="js/towers.js?v=20260925.184022"></script>
-    <script src="js/tech-schedule.js?v=20260925.184022"></script>
-    <script src="js/roster.js?v=20260925.184022"></script>
-    <script src="js/admin.js?v=20260925.184022"></script>
-    <script src="js/notes.js?v=20260925.184022"></script>
-    <script src="js/cc-pulse.js?v=20260925.184022"></script>
-    <script src="js/glass.js?v=20260925.184022"></script>
-    <script src="js/init.js?v=20260925.184022"></script>
+    <script src="js/core.js?v=20260925.190356"></script>
+    <script src="js/auth.js?v=20260925.190356"></script>
+    <script src="js/noc.js?v=20260925.190356"></script>
+    <script src="js/break-queue.js?v=20260925.190356"></script>
+    <script src="js/navigation.js?v=20260925.190356"></script>
+    <script src="js/unit-mapping.js?v=20260925.190356"></script>
+    <script src="js/calculator.js?v=20260925.190356"></script>
+    <script src="js/towers.js?v=20260925.190356"></script>
+    <script src="js/tech-schedule.js?v=20260925.190356"></script>
+    <script src="js/roster.js?v=20260925.190356"></script>
+    <script src="js/admin.js?v=20260925.190356"></script>
+    <script src="js/notes.js?v=20260925.190356"></script>
+    <script src="js/cc-pulse.js?v=20260925.190356"></script>
+    <script src="js/glass.js?v=20260925.190356"></script>
+    <script src="js/init.js?v=20260925.190356"></script>
 </body>
 </html>
