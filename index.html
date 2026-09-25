@@ -13,9 +13,9 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <link rel="stylesheet" href="./style.css?v=20260925.190356">
+    <link rel="stylesheet" href="./style.css?v=20260925.194613">
     <!-- 🧊 Liquid Glass theme (override layer). لو عايز ترجع الشكل القديم: شيل السطرين اللي تحت (link + script) -->
-    <link rel="stylesheet" href="./glass.css?v=20260925.190356">
+    <link rel="stylesheet" href="./glass.css?v=20260925.194613">
     <script>
         // بيقرر قبل أول رسم لو نقفل البلور (Lite): الاختيار اليدوي "glassMode" أقوى، ولو مفيش بنقرر بالجهاز (ذاكرة <= 4GB أو أنوية <= 2)
         (function () {
@@ -1418,13 +1418,18 @@
                     </div>
 
                     <div class="notes-type-toggle" role="group" aria-label="Note type">
-                        <button type="button" class="notes-type-btn active" data-note-type="Pinned" onclick="notesSetType('Pinned')">
-                            <i class="fa-solid fa-thumbtack"></i> Pinned <span class="notes-type-hint">no date, always visible</span>
+                        <button type="button" class="notes-type-btn active" data-note-type="Note" onclick="notesSetType('Note')">
+                            <i class="fa-solid fa-note-sticky"></i> Note <span class="notes-type-hint">no date</span>
                         </button>
                         <button type="button" class="notes-type-btn" data-note-type="Reminder" onclick="notesSetType('Reminder')">
                             <i class="fa-solid fa-alarm-clock"></i> Reminder <span class="notes-type-hint">email + alarm at a time</span>
                         </button>
                     </div>
+
+                    <label class="notes-pin-check">
+                        <input type="checkbox" id="notePinCheck" onchange="notesSetPinChoice(this.checked)">
+                        <span><i class="fa-solid fa-thumbtack"></i> <b>Pin it</b> &mdash; show it in my Pinned panel 📌 (details stay hidden until I press Show)</span>
+                    </label>
 
                     <div id="noteDueRow" class="notes-due-row" style="display: none;">
                         <div class="form-group">
@@ -1600,6 +1605,9 @@
         .notes-file-chip .notes-file-open { border: none; background: none; padding: 2px 4px; }
         .note-files { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
         .note-tag-share { background: #ede9fe; color: #5b21b6; }
+        .note-tag-pin { background: #fef3c7; color: #92400e; }
+        .notes-pin-check { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer; line-height: 1.4; }
+        .notes-pin-check input { margin-top: 2px; width: 16px; height: 16px; cursor: pointer; }
         .notes-btn-reply { background: #dbeafe; color: #1e40af; }
         .note-thread { margin-top: 10px; padding: 8px 10px; border-radius: 10px; background: rgba(148, 163, 184, 0.1); }
         .note-thread-head { font-size: 12px; font-weight: 800; opacity: 0.75; margin-bottom: 2px; }
@@ -1963,20 +1971,20 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.14.0/html2pdf.bundle.min.js"></script>
 
     <!-- 📜 Main Application Script -->
-    <script src="js/core.js?v=20260925.190356"></script>
-    <script src="js/auth.js?v=20260925.190356"></script>
-    <script src="js/noc.js?v=20260925.190356"></script>
-    <script src="js/break-queue.js?v=20260925.190356"></script>
-    <script src="js/navigation.js?v=20260925.190356"></script>
-    <script src="js/unit-mapping.js?v=20260925.190356"></script>
-    <script src="js/calculator.js?v=20260925.190356"></script>
-    <script src="js/towers.js?v=20260925.190356"></script>
-    <script src="js/tech-schedule.js?v=20260925.190356"></script>
-    <script src="js/roster.js?v=20260925.190356"></script>
-    <script src="js/admin.js?v=20260925.190356"></script>
-    <script src="js/notes.js?v=20260925.190356"></script>
-    <script src="js/cc-pulse.js?v=20260925.190356"></script>
-    <script src="js/glass.js?v=20260925.190356"></script>
-    <script src="js/init.js?v=20260925.190356"></script>
+    <script src="js/core.js?v=20260925.194613"></script>
+    <script src="js/auth.js?v=20260925.194613"></script>
+    <script src="js/noc.js?v=20260925.194613"></script>
+    <script src="js/break-queue.js?v=20260925.194613"></script>
+    <script src="js/navigation.js?v=20260925.194613"></script>
+    <script src="js/unit-mapping.js?v=20260925.194613"></script>
+    <script src="js/calculator.js?v=20260925.194613"></script>
+    <script src="js/towers.js?v=20260925.194613"></script>
+    <script src="js/tech-schedule.js?v=20260925.194613"></script>
+    <script src="js/roster.js?v=20260925.194613"></script>
+    <script src="js/admin.js?v=20260925.194613"></script>
+    <script src="js/notes.js?v=20260925.194613"></script>
+    <script src="js/cc-pulse.js?v=20260925.194613"></script>
+    <script src="js/glass.js?v=20260925.194613"></script>
+    <script src="js/init.js?v=20260925.194613"></script>
 </body>
 </html>

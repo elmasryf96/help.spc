@@ -1,6 +1,6 @@
 // ============================================================
 // 📝 NOTES & REMINDERS (added 2026-09-25)
-// - صفحة My Notes: نوتس Pinned (من غير معاد) و Reminder (بمعاد) + Assign ليوزر تاني
+// - صفحة My Notes: نوتس Note (من غير معاد) و Reminder (بمعاد) + Assign / Share + 📌 Pin شخصي
 // - 🔔 جرس في الهيدر: ريمايندرز جه معادها + نوت جديدة جاتلك + حد خلّص نوت انت بعتهاله + تحديثات
 // - ⏰ منبّه بصوت لما معاد الريمايندر ييجي - مش بيقف غير لما اليوزر يدوس Done / Snooze / Dismiss
 // الداتا في شيت "Notes" من خلال Apps Script (Notes.gs) - والإيميلات بتتبعت من هناك
@@ -11,7 +11,7 @@ const NOTES_ALARM_LOOKBACK_HOURS = 24;   // ريمايندر عدّى معاده
 
 let notesState = {
   notes: [], users: [], me: null, loaded: false, busy: false,
-  tab: "mine", editingId: null, type: "Pinned", owner: "",  // owner = اليوزر اللي الداتا دي بتاعته
+  tab: "mine", editingId: null, type: "Note", pin: false, owner: "",  // owner = اليوزر اللي الداتا دي بتاعته
   share: [],          // usernames اللي في الـ Share في الـ Composer
   pendingFiles: [],   // ملفات مستنية تترفع مع الحفظ
   maxFileBytes: 10 * 1024 * 1024
@@ -192,7 +192,7 @@ function notesOnServerSignal(value) {
 // بيتنادى من handleLogout (خروج يدوي) - بيمسح كل حاجة ويوقف أي منبّه
 function notesClearAll() {
   notesStopAllRinging();
-  notesState = { notes: [], users: [], me: null, loaded: false, busy: false, tab: "mine", editingId: null, type: "Pinned", owner: "",
+  notesState = { notes: [], users: [], me: null, loaded: false, busy: false, tab: "mine", editingId: null, type: "Note", pin: false, owner: "",
     share: [], pendingFiles: [], maxFileBytes: 10 * 1024 * 1024 };
   notesLastSignal = null;
   notesRevealed.clear();
@@ -273,8 +273,14 @@ function notesShowMsg(text, kind) {
 // ------------------------------------------------------------
 // ✍️ Composer
 // ------------------------------------------------------------
+function notesSetPinChoice(on) {
+  notesState.pin = !!on;
+  const cb = document.getElementById("notePinCheck");
+  if (cb) cb.checked = notesState.pin;
+}
+
 function notesSetType(type) {
-  notesState.type = type === "Reminder" ? "Reminder" : "Pinned";
+  notesState.type = type === "Reminder" ? "Reminder" : "Note";
   document.querySelectorAll(".notes-type-btn").forEach(b => b.classList.toggle("active", b.getAttribute("data-note-type") === notesState.type));
   const row = document.getElementById("noteDueRow");
   if (row) row.style.display = notesState.type === "Reminder" ? "flex" : "none";
@@ -520,7 +526,8 @@ function notesResetComposer() {
   notesState.pendingFiles = [];
   notesRenderShareChips();
   notesRenderComposerFiles();
-  notesSetType("Pinned");
+  notesSetType("Note");
+  notesSetPinChoice(false);
   const title = document.getElementById("notesComposerTitle");
   if (title) title.textContent = "New Note";
   const updRow = document.getElementById("noteUpdateRow");
@@ -540,6 +547,7 @@ function notesStartEdit(id) {
   set("noteDetailsInput", n.details);
   set("noteUpdateInput", "");
   notesSetType(n.type);
+  notesSetPinChoice(!!n.pinned);
   if (n.type === "Reminder" && n.due) {
     set("noteDueDate", n.due.slice(0, 10));
     set("noteDueTime", n.due.slice(11, 16));
@@ -604,7 +612,7 @@ async function notesSave() {
     if (dueChanged && due <= notesNowMinute(0)) { notesShowMsg("This time has already passed - please choose a time in the future.", "error"); return; }
   }
 
-  const payload = { action: "saveNote", title, details, type, due, assignee, updateText, sharedWith: notesState.share.slice() };
+  const payload = { action: "saveNote", title, details, type, due, assignee, updateText, sharedWith: notesState.share.slice(), pinned: notesState.pin };
   if (notesState.editingId) payload.id = notesState.editingId;
 
   const btn = document.getElementById("noteSaveBtn");
@@ -709,11 +717,13 @@ function notesRenderList() {
   } else {
     const overdue = mine.filter(notesIsOverdue).sort(notesSortOpen);
     const upcoming = mine.filter(n => n.type === "Reminder" && !notesIsOverdue(n)).sort(notesSortOpen);
-    const pinned = mine.filter(n => n.type === "Pinned").sort(notesSortOpen);
+    const pinned = mine.filter(n => n.type !== "Reminder" && n.pinned).sort(notesSortOpen);
+    const plain = mine.filter(n => n.type !== "Reminder" && !n.pinned).sort(notesSortOpen);
     box.innerHTML =
       (overdue.length ? section("Overdue", "fa-triangle-exclamation", overdue, "") : "") +
       section("Reminders", "fa-alarm-clock", upcoming, "No upcoming reminders.") +
-      section("Pinned", "fa-thumbtack", pinned, "No pinned notes. Pin anything you need to see every day.");
+      (pinned.length ? section("Pinned", "fa-thumbtack", pinned, "") : "") +
+      section("Notes", "fa-note-sticky", plain, "No notes yet.");
   }
 }
 
@@ -727,9 +737,8 @@ function notesCardHtml(n, seen) {
     tags.push(overdue
       ? `<span class="note-tag note-tag-overdue"><i class="fa-solid fa-clock"></i> Overdue &middot; ${notesEsc(notesNiceDue(n.due))}</span>`
       : `<span class="note-tag note-tag-due"><i class="fa-solid fa-clock"></i> ${notesEsc(notesNiceDue(n.due))}</span>`);
-  } else {
-    tags.push(`<span class="note-tag"><i class="fa-solid fa-thumbtack"></i> Pinned</span>`);
   }
+  if (n.pinned) tags.push(`<span class="note-tag note-tag-pin"><i class="fa-solid fa-thumbtack"></i> Pinned</span>`);
   const shared = (n.sharedWith || []).length > 0;
   if (n.isMember && !n.isOwner) tags.push(`<span class="note-tag note-tag-from"><i class="fa-solid fa-user-tag"></i> From ${notesEsc(n.ownerName)}</span>`);
   if (n.isOwner && !n.isMember) tags.push(`<span class="note-tag note-tag-from"><i class="fa-solid fa-share"></i> To ${notesEsc(n.assigneeName)}</span>`);
@@ -759,7 +768,7 @@ function notesCardHtml(n, seen) {
 
   const b = (action, cls, icon, label) => `<button type="button" class="notes-btn notes-btn-sm ${cls}" data-note-action="${action}" data-note-id="${id}"><i class="fa-solid ${icon}"></i> ${label}</button>`;
   const actions = [];
-  if (n.type === "Pinned" && n.details) actions.push(notesRevealBtnHtml(n.id));
+  if (n.pinned && n.details) actions.push(notesRevealBtnHtml(n.id));
   if (!isDone) {
     if (n.isMember) actions.push(b("done", "notes-btn-ok", "fa-check", shared ? "Done (for me)" : "Done"));
     actions.push(`<button type="button" class="notes-btn notes-btn-sm notes-btn-reply" data-note-reply-toggle="${id}"><i class="fa-solid fa-reply"></i> Reply</button>`);
@@ -767,12 +776,13 @@ function notesCardHtml(n, seen) {
   } else {
     actions.push(b("restore", "notes-btn-ghost", "fa-rotate-left", "Restore"));
   }
+  if (!isDone) actions.push(`<button type="button" class="notes-btn notes-btn-sm notes-btn-ghost" data-note-pin="${id}" title="${n.pinned ? "Remove from your Pinned panel" : "Add to your Pinned panel (details hidden until you press Show)"}"><i class="fa-solid fa-thumbtack"></i> ${n.pinned ? "Unpin" : "Pin"}</button>`);
   if (n.canDelete) actions.push(b("delete", "notes-btn-danger", "fa-trash", isDone ? "Delete forever" : "Delete"));
   if (!isDone && n.calendarUrl) actions.push(`<a class="note-cal-link" href="${notesEsc(n.calendarUrl)}" target="_blank" rel="noopener noreferrer"><i class="fa-regular fa-calendar-plus"></i> Add to my Calendar</a>`);
 
   return `<div class="note-card${overdue ? " note-overdue" : ""}${isDone ? " note-done" : ""}" id="note-card-${id}">
-    <div class="note-card-top"><div class="note-title">${n.type === "Reminder" ? "⏰" : "📌"} ${notesEsc(n.title)}</div></div>
-    ${n.details ? (n.type === "Pinned" ? notesSecretHtml(n) : `<div class="note-details">${notesEsc(n.details)}</div>`) : ""}
+    <div class="note-card-top"><div class="note-title">${n.type === "Reminder" ? "⏰" : (n.pinned ? "📌" : "📝")} ${notesEsc(n.title)}</div></div>
+    ${n.details ? (n.pinned ? notesSecretHtml(n) : `<div class="note-details">${notesEsc(n.details)}</div>`) : ""}
     ${notesAttachmentsHtml(n)}
     <div class="note-meta">${tags.join("")}</div>
     ${updatesHtml}
@@ -935,7 +945,7 @@ function notesRevealBtnHtml(id) {
 
 function notesMyPinned() {
   return notesState.notes
-    .filter(n => notesIsMineOpen(n) && n.type === "Pinned")
+    .filter(n => notesIsMineOpen(n) && n.pinned)
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
@@ -1014,7 +1024,7 @@ function notesRenderPinnedDrawer() {
   list.innerHTML = pinned.length
     ? pinned.map(n => `<div class="notes-pinned-item">
         <div class="notes-pinned-item-top">
-          <div class="note-title">📌 ${notesEsc(n.title)}</div>
+          <div class="note-title">${n.type === "Reminder" ? "⏰" : "📌"} ${notesEsc(n.title)}</div>
           <div class="notes-pinned-item-btns">
             ${n.details ? notesRevealBtnHtml(n.id) : ""}
             <button type="button" class="notes-icon-btn" data-note-edit-from-drawer="${notesEsc(n.id)}" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i></button>
@@ -1023,18 +1033,39 @@ function notesRenderPinnedDrawer() {
         ${n.details ? notesSecretHtml(n) : ""}
         ${notesAttachmentsHtml(n)}
       </div>`).join("")
-    : `<div class="notes-empty">No pinned notes yet.<br>Add one from My Notes and choose <b>Pinned</b>.</div>`;
+    : `<div class="notes-empty">No pinned notes yet.<br>Press <b>📌 Pin</b> on any note in My Notes, or tick <b>Pin it</b> when you write one.</div>`;
   notesUpdateShowAllBtn();
 }
 
 function notesNewPinnedFromDrawer() {
   notesOpenPage();
   notesResetComposer();
+  notesSetPinChoice(true);
   const t = document.getElementById("noteTitleInput");
   if (t) setTimeout(() => t.focus(), 100);
 }
 
+async function notesTogglePin(id, btn) {
+  const n = notesState.notes.find(x => x.id === id);
+  if (!n) return;
+  const want = !n.pinned;
+  if (btn) btn.disabled = true;
+  n.pinned = want; // تحديث فوري محلي
+  notesAfterDataChange();
+  try {
+    const res = await notesPost({ action: "setNotePin", id, pinned: want });
+    if (!res || res.status !== "success") throw new Error((res && res.message) || "Could not update the pin");
+  } catch (err) {
+    n.pinned = !want;
+    notesAfterDataChange();
+    alert(err.message || String(err));
+  }
+  notesFetch().catch(() => {});
+}
+
 document.addEventListener("click", function (ev) {
+  const pinBtn = ev.target.closest && ev.target.closest("[data-note-pin]");
+  if (pinBtn && !pinBtn.disabled) { notesTogglePin(pinBtn.getAttribute("data-note-pin"), pinBtn); return; }
   const reveal = ev.target.closest && ev.target.closest("[data-note-reveal]");
   if (reveal) { notesToggleReveal(reveal.getAttribute("data-note-reveal")); return; }
   const edit = ev.target.closest && ev.target.closest("[data-note-edit-from-drawer]");
