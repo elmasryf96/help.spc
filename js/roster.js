@@ -177,6 +177,40 @@ function updateDashboardLiveWidget() {
 // ============================================================
 // 📅 ROSTER PAGE FUNCTIONS
 // ============================================================
+// 🗓️ قوايم الشهور (Personal Agent Lookup + Full Monthly Table) بتتبني من الشهور الموجودة في شيت الروستر نفسه -
+// كانت مكتوبة بإيد (سبتمبر وأغسطس 2026 بس)، فأي شهر جديد (أكتوبر مثلاً) مكانش هيظهر
+function rosterFillMonthSelects() {
+  const names = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const keys = [];
+  (Array.isArray(rosterData) ? rosterData : []).forEach(a => {
+    const m = parseInt(a.month, 10), y = parseInt(a.year, 10);
+    if (!m || !y) return;
+    const k = `${m}-${y}`;
+    if (keys.indexOf(k) === -1) keys.push(k);
+  });
+  if (!keys.length) return;
+  keys.sort((a, b) => {
+    const [ma, ya] = a.split("-").map(Number), [mb, yb] = b.split("-").map(Number);
+    return (yb - ya) || (mb - ma); // الأحدث الأول
+  });
+  const uae = getUAECurrentDate();
+  const currentKey = `${parseInt(uae.month, 10)}-${parseInt(uae.year, 10)}`;
+  ["agentMonthSelect", "fullRosterMonthSelect"].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const keep = sel.dataset.userPicked === "1" ? sel.value : "";
+    sel.innerHTML = keys.map(k => {
+      const [m, y] = k.split("-").map(Number);
+      return `<option value="${k}">${names[m - 1]} ${y} (Month ${m})</option>`;
+    }).join("");
+    sel.value = (keep && keys.indexOf(keep) !== -1) ? keep : (keys.indexOf(currentKey) !== -1 ? currentKey : keys[0]);
+    if (!sel.dataset.pickListener) {
+      sel.dataset.pickListener = "1";
+      sel.addEventListener("change", () => { sel.dataset.userPicked = "1"; });
+    }
+  });
+}
+
 function initRosterPage() {
   const dateInput = document.getElementById("rosterDateInput");
   const uaeNow = getUAECurrentDate();
@@ -186,6 +220,7 @@ function initRosterPage() {
   
   switchRosterTab('live-view');
   
+  rosterFillMonthSelects();
   populateAgentDropdown();
   renderRosterView();
   renderFullMonthlyTable();
@@ -339,6 +374,7 @@ function updateActiveSummary() {
 // 👤 AGENT INDIVIDUAL LOOKUP
 // ============================================================
 function populateAgentDropdown() {
+  rosterFillMonthSelects(); // بيتنادى بعد ما الروستر يتسحب من الشيت (core.js) - نحدّث قوايم الشهور كمان
   const dropdown = document.getElementById("agentDropdown");
   if (!dropdown) return;
   dropdown.innerHTML = `<option value="">-- Select Agent Name --</option>`;

@@ -842,7 +842,9 @@ function ccpLeaderboardAgentExtras_(loginAgent, trackingStartDate) {
   if (!loginAgent) return { adherencePct: null, tardyCount: 0, tardyMinutes: 0, followUpSeconds: 0 };
 
   let adherencePct = null;
-  if (loginAgent.date) {
+  if (loginAgent.date && trackingStartDate && loginAgent.date < trackingStartDate) {
+    adherencePct = null; // قبل بداية التسجيل - مفيش داتا (بياخد متوسط التيم زي أي حد مالوش Adherence)
+  } else if (loginAgent.date) {
     const shiftWindow = getShiftWindowForAgentDate(loginAgent.name, loginAgent.date);
     adherencePct = calculateShiftAdherence(loginAgent.sessions || [], shiftWindow, getEffectiveShiftEndMin(loginAgent.date));
   } else {
@@ -1000,10 +1002,14 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
       attendanceBadgeHtml = `<div class="ccp-attendance-badge" style="background:#ede9fe;color:#5b21b6;">🎧 Queue Support</div>`;
       timelineHtml = renderCcPulseTimelineHtml(a.sessions || [], statusColors, null, null, null, { queueSupportDate: a.date });
     } else if (a.date) {
-      const shiftWindow = getShiftWindowForAgentDate(a.name, a.date);
-      const attendanceStatus = getAttendanceStatus(shiftWindow, a.totalLoginSeconds, a.date, a.firstLogin, a.endShift);
+      // 📭 يوم قبل بداية تسجيل اللوجن (trackingStartDate): مفيش داتا نحكم بيها - لا No Show ولا Adherence
+      const beforeTracking = !!(data.trackingStartDate && a.date < data.trackingStartDate);
+      const shiftWindow = beforeTracking ? null : getShiftWindowForAgentDate(a.name, a.date);
+      const attendanceStatus = beforeTracking ? "no-data" : getAttendanceStatus(shiftWindow, a.totalLoginSeconds, a.date, a.firstLogin, a.endShift);
       const leaveKind = ccpLeaveKindFor_(a.name, a.date);
-      if (attendanceStatus === "off" && leaveKind) {
+      if (attendanceStatus === "no-data") {
+        attendanceBadgeHtml = `<div class="ccp-attendance-badge ccp-attendance-off">📭 No login data (before tracking started)</div>`;
+      } else if (attendanceStatus === "off" && leaveKind) {
         attendanceBadgeHtml = `<div class="ccp-attendance-badge ccp-attendance-off" style="${ccpLeaveBadgeStyle_(leaveKind)};">${ccpLeaveLabel_(a.name, a.date, leaveKind)}</div>`;
       } else if (attendanceStatus === "off") {
         attendanceBadgeHtml = `<div class="ccp-attendance-badge ccp-attendance-off">🏖️ Day Off</div>`;
@@ -2519,11 +2525,15 @@ function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, 
       <div class="ccp-metric-value">${formatCcPulseDuration(tardyResult.minutes * 60)}</div>
     </div>`;
 
-  const shiftWindow = getShiftWindowForAgentDate(agentName, day.date);
-  const attendanceStatus = getAttendanceStatus(shiftWindow, day.totalLoginSeconds, day.date, day.firstLogin, day.endShift);
+  // 📭 يوم قبل بداية تسجيل اللوجن: مفيش داتا نحكم بيها - لا No Show ولا Adherence
+  const beforeTracking = !!(trackingStartDate && day.date < trackingStartDate);
+  const shiftWindow = beforeTracking ? null : getShiftWindowForAgentDate(agentName, day.date);
+  const attendanceStatus = beforeTracking ? "no-data" : getAttendanceStatus(shiftWindow, day.totalLoginSeconds, day.date, day.firstLogin, day.endShift);
 
   let dayStatusBannerHtml = "";
-  if (isQs) {
+  if (attendanceStatus === "no-data") {
+    dayStatusBannerHtml = `<div class="ccp-daystatus-banner ccp-dayoff">📭 <strong>No login data</strong> — login tracking started on ${trackingStartDate}, so this day isn't judged</div>`;
+  } else if (isQs) {
     dayStatusBannerHtml = `<div class="ccp-daystatus-banner" style="background:#ede9fe;color:#5b21b6;">🎧 <strong>Queue Support</strong> — this date's night: any login that started after 9 AM on this date or before 9 AM the next morning</div>`;
   } else if (attendanceStatus === "no-show") {
     dayStatusBannerHtml = `<div class="ccp-daystatus-banner ccp-noshow">🚫 <strong>No Show</strong> — scheduled for ${shiftWindow.label} but worked less than half the shift (${formatCcPulseDuration(day.totalLoginSeconds)})</div>`;
