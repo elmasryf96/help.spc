@@ -1199,6 +1199,27 @@ function ccpLeaveKindFor_(agentName, dateStr) {
   return null;
 }
 
+// 🏷️ تاج جنب التاريخ في قايمة أيام الإيجنت (رينج/شهر): 🌴 Leave / 🤒 Sick Leave / 🏖️ Off / 🚫 No Show
+// الـ Leave والـ Off من الروستر بس - فبيظهروا حتى لو الإيجنت اشتغل في اليوم ده (أوف واشتغل / إجازة واشتغل)
+// الـ No Show: يوم عليه شيفت ومجاش أو اشتغل أقل من نصه (نفس قاعدة getAttendanceStatus) - مش بيتحط على
+// أيام قبل بداية التتبع (trackingStartDate) لأن مفيش داتا لوجن أصلاً وقتها
+function ccpDayRosterTagHtml_(agentName, day, trackingStartDate) {
+  if (ccpIsQueueSupport_(agentName) || !day || !day.date) return "";
+  const dateStr = day.date;
+  const lk = ccpLeaveKindFor_(agentName, dateStr);
+  if (lk) return ` <b style="color:${lk === "Sick Leave" ? "#991b1b" : "#166534"};">${lk === "Sick Leave" ? "🤒" : "🌴"} ${lk}</b>`;
+  const p = dateStr.split("-").map(Number);
+  const entry = Array.isArray(rosterData) ? rosterData.find(a => a.name === agentName && a.month === p[1] && a.year === p[0]) : null;
+  if (!entry) return ""; // مالوش روستر الشهر ده - مانعرفش
+  const shiftWindow = getShiftWindowForAgentDate(agentName, dateStr);
+  if (!shiftWindow) return ` <b style="color:#475569;">🏖️ Off</b>`;
+  if (trackingStartDate && dateStr < trackingStartDate) return "";
+  if (getAttendanceStatus(shiftWindow, day.totalLoginSeconds, dateStr, day.firstLogin, day.endShift) === "no-show") {
+    return ` <b style="color:#b91c1c;">🚫 No Show</b>`;
+  }
+  return ""; // يوم شغل عادي
+}
+
 // كروت عدّاد الإجازات لفترة (Leave / Sick Leave) - عدد الأيام والتواريخ نفسها
 function ccpLeaveCardsHtml_(agentName, days) {
   const leave = [], sick = [];
@@ -3065,7 +3086,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
       <div class="ccp-days-table">
         ${data.days.map(day => `
           <div class="ccp-day-row">
-            <span class="ccp-day-date">${day.date}${(() => { const lk = ccpLeaveKindFor_(data.agent, day.date); return lk ? ` <b style="color:${lk === "Sick Leave" ? "#991b1b" : "#166534"};">${lk === "Sick Leave" ? "🤒" : "🌴"} ${lk}</b>` : ""; })()}</span>
+            <span class="ccp-day-date">${day.date}${ccpDayRosterTagHtml_(data.agent, day, data.trackingStartDate)}</span>
             <span>${ccPulseTimeOnly(day.firstLogin)} → ${ccPulseTimeOnly(day.endShift)}</span>
             <span class="ccp-day-total">${formatCcPulseDuration(day.totalLoginSeconds)}</span>
           </div>`).join("")}
