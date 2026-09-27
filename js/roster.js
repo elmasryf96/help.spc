@@ -196,8 +196,7 @@ function switchRosterTab(tabKey) {
     'live-view': { content: 'tab-live-view', btn: 'tabLiveBtn' },
     'agent-view': { content: 'tab-agent-view', btn: 'tabAgentBtn' },
     'full-sheet-view': { content: 'tab-full-sheet-view', btn: 'tabFullBtn' },
-    'swap-view': { content: 'tab-swap-view', btn: 'tabSwapBtn' },
-    'leave-view': { content: 'tab-leave-view', btn: 'tabLeaveBtn' }
+    'swap-view': { content: 'tab-swap-view', btn: 'tabSwapBtn' }
   };
 
   Object.keys(tabs).forEach(key => {
@@ -222,7 +221,6 @@ function switchRosterTab(tabKey) {
   }
 
   if (tabKey === 'swap-view' && typeof initSwapTab === "function") initSwapTab();
-  if (tabKey === 'leave-view' && typeof initLeaveTab === "function") initLeaveTab();
   if (tabKey !== 'full-sheet-view') { const hint = document.getElementById("rosterEditHint"); if (hint) hint.style.display = "none"; }
   if (typeof swapUpdateBadges === "function") swapUpdateBadges();
   if (typeof leaveUpdateBadges === "function") leaveUpdateBadges();

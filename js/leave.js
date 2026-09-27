@@ -1,7 +1,7 @@
 // ============================================================
 // 🌴 LEAVE & SICK LEAVE + تعديل الروستر من الأدمن (Leave.gs في Google Apps Script)
 // ============================================================
-// - تاب "Leave" في صفحة الروستر: الإيجنت يقدّم على Leave أو Sick Leave (من تاريخ لتاريخ، من غير مهلة،
+// - صفحة "HR & Payroll" (partials/hr-page.html) - كانت تاب Leave في الروستر: الإيجنت يقدّم على Leave أو Sick Leave (من تاريخ لتاريخ، من غير مهلة،
 //   والسيك لازم معاه مرفق). الأدمن بيوافق أو يرفض من نفس التاب، ولما يوافق الروستر بيتحدث لوحده.
 // - عدّاد أيام الإجازة (Leave / Sick Leave) بالتواريخ - بيتحسب من خانات الروستر نفسها، فأي إجازة
 //   مكتوبة في الشيت بأي طريقة بتتعد.
@@ -263,10 +263,10 @@ function leaveAfterRosterRefresh() {
   if (leaveTabVisible()) leaveRenderTab();
 }
 
+// صفحة HR & Payroll مفتوحة؟ (الطلبات والموافقات والعدادات كلها فيها)
 function leaveTabVisible() {
-  const tab = document.getElementById("tab-leave-view");
-  const page = document.getElementById("roster-page");
-  return !!(tab && tab.style.display === "block" && page && !page.classList.contains("hidden-page"));
+  const page = document.getElementById("hr-page");
+  return !!(page && !page.classList.contains("hidden-page"));
 }
 
 // ------------------------------------------------------------
@@ -303,8 +303,92 @@ function leaveUpdateBadges() {
 }
 
 function openLeaveFromNotification() {
-  if (typeof navigateTo === "function") navigateTo("roster-page");
-  switchRosterTab("leave-view");
+  hrPendingTab = (leaveIsAdminUser() && leavePendingForMe() > 0) ? "approvals" : "requests";
+  if (typeof navigateTo === "function") navigateTo("hr-page");
+}
+
+// ------------------------------------------------------------
+// 🧑‍💼 صفحة HR & Payroll: My Requests (للكل) / Approvals و Team Balance (أدمن بس)
+// ------------------------------------------------------------
+let hrCurrentTab = "requests";
+let hrPendingTab = null;
+
+// بيتنادى من navigateTo("hr-page") في navigation.js
+function initHrPage() {
+  const admin = leaveIsAdminUser();
+  ["hrTabApprovalsBtn", "hrTabBalanceBtn"].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.style.display = admin ? "" : "none";
+  });
+  let tab = hrPendingTab || hrCurrentTab || "requests";
+  hrPendingTab = null;
+  if (!admin) tab = "requests";
+  hrSwitchTab(tab);
+}
+
+function hrSwitchTab(key) {
+  const tabs = {
+    requests: { content: "hr-tab-requests", btn: "hrTabRequestsBtn" },
+    approvals: { content: "hr-tab-approvals", btn: "hrTabApprovalsBtn" },
+    balance: { content: "hr-tab-balance", btn: "hrTabBalanceBtn" }
+  };
+  if (!tabs[key]) key = "requests";
+  hrCurrentTab = key;
+  Object.keys(tabs).forEach(k => {
+    const c = document.getElementById(tabs[k].content);
+    const b = document.getElementById(tabs[k].btn);
+    if (c) { c.style.display = k === key ? "block" : "none"; c.classList.toggle("hidden-tab", k !== key); }
+    if (b) b.classList.toggle("active", k === key);
+  });
+  initLeaveTab();
+}
+
+// 📊 Team Balance: كل الإيجنتس وعدادات السنة جنب بعض (أدمن)
+function hrRenderBalance() {
+  const table = document.getElementById("hrBalanceTable");
+  const yearSel = document.getElementById("hrBalanceYear");
+  if (!table || !yearSel) return;
+
+  const years = [];
+  (Array.isArray(rosterData) ? rosterData : []).forEach(a => { if (a.year && years.indexOf(a.year) === -1) years.push(a.year); });
+  years.sort((x, y) => y - x);
+  const u = getUAECurrentDate();
+  if (!years.length) years.push(parseInt(u.year, 10));
+  const keep = yearSel.value;
+  yearSel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join("");
+  yearSel.value = years.indexOf(parseInt(keep, 10)) !== -1 ? keep : String(years.indexOf(parseInt(u.year, 10)) !== -1 ? u.year : years[0]);
+  const year = parseInt(yearSel.value, 10);
+
+  // إيجنتس السنة دي (آخر تيم ليهم) - من غير Queue Support (مالهمش شيفتات في الروستر)
+  const agents = {};
+  (Array.isArray(rosterData) ? rosterData : []).forEach(a => {
+    if (a.year !== year || a.dept === "Queue Support") return;
+    if (!agents[a.name] || a.month > agents[a.name].month) agents[a.name] = { name: a.name, dept: a.dept, month: a.month };
+  });
+  const list = Object.values(agents).sort((x, y) => (x.dept || "").localeCompare(y.dept || "") || x.name.localeCompare(y.name));
+
+  const pending = {};
+  leaveState.requests.filter(r => r.status === "Pending").forEach(r => { const k = String(r.agent).toLowerCase(); pending[k] = (pending[k] || 0) + 1; });
+
+  const num = (n, cls) => `<td class="${n === 0 ? "hr-zero" : ""}${cls ? " " + cls : ""}">${n}</td>`;
+  let body = "";
+  list.forEach((a, i) => {
+    const c = leaveCountFor(a.name, `${year}-01-01`, `${year}-12-31`);
+    const left = c.lieuEarned.length - c.lieuUsed.length;
+    body += `<tr>
+      <td class="hr-agent" data-hr-row="${i}">${leaveEsc(a.name)}</td>
+      <td>${leaveEsc(a.dept || "")}</td>
+      ${num(c.leave.length)}${num(c.sick.length)}${num(c.holiday.length)}${num(c.compensated.length)}
+      ${num(c.lieuEarned.length)}${num(c.lieuUsed.length)}${num(left, left < 0 ? "hr-neg" : "")}
+      ${num(pending[a.name.toLowerCase()] || 0)}
+    </tr>
+    <tr class="hr-details" data-hr-details="${i}" style="display:none;"><td colspan="10">${leaveCounterHtml(a.name, `${year}-01-01`, `${year}-12-31`, `${a.name} · ${year}`)}</td></tr>`;
+  });
+
+  table.innerHTML = `<thead><tr>
+      <th>Agent</th><th>Team</th><th>🌴 Leave</th><th>🤒 Sick</th><th>🎉 Public Holiday</th><th>🔁 Compensated</th>
+      <th>⭐ Lieu earned</th><th>🔁 Lieu taken</th><th>Lieu left</th><th>⏳ Pending</th>
+    </tr></thead><tbody>${body || `<tr><td colspan="10">No agents in the roster for ${year}.</td></tr>`}</tbody>`;
 }
 
 // ------------------------------------------------------------
@@ -465,6 +549,7 @@ function leaveRenderTab() {
   leaveRenderCounter();
   leaveRenderLists();
   leaveUpdateBadges();
+  if (hrCurrentTab === "balance" && leaveIsAdminUser()) hrRenderBalance();
 }
 
 function leaveShowMsg(text, kind) {
@@ -850,23 +935,23 @@ function leaveCardHtml(r) {
 
 function leaveRenderLists() {
   const box = document.getElementById("leaveListsContainer");
-  if (!box) return;
-  if (!leaveState.loaded) { box.innerHTML = `<div class="swap-empty">Loading...</div>`; return; }
-
+  const approvals = document.getElementById("leaveApprovalsContainer");
   const section = (title, icon, items, emptyText) =>
     `<div class="swap-section"><h4><i class="fa-solid ${icon}"></i> ${title} <span class="swap-count">${items.length}</span></h4>` +
     (items.length ? items.map(leaveCardHtml).join("") : `<div class="swap-empty">${emptyText}</div>`) + `</div>`;
 
-  const mine = leaveState.requests.filter(r => r.mine);
-  if (leaveIsAdminUser()) {
-    const waiting = leaveState.requests.filter(r => r.canDecide && !r.mine);
-    const others = leaveState.requests.filter(r => !r.mine && !r.canDecide);
-    box.innerHTML =
-      section("Waiting for approval", "fa-inbox", waiting, "No leave requests waiting.") +
-      section("My requests", "fa-paper-plane", mine, "You have no leave requests.") +
-      section("All requests (last 60 days)", "fa-clock-rotate-left", others.slice(0, 60), "Nothing here yet.");
-  } else {
-    box.innerHTML = section("My requests", "fa-paper-plane", mine, "You have no leave requests yet.");
+  if (box) {
+    box.innerHTML = !leaveState.loaded
+      ? `<div class="swap-empty">Loading...</div>`
+      : section("My requests", "fa-paper-plane", leaveState.requests.filter(r => r.mine), "You have no requests yet.");
+  }
+  if (approvals) {
+    if (!leaveState.loaded) { approvals.innerHTML = `<div class="swap-empty">Loading...</div>`; return; }
+    const waiting = leaveState.requests.filter(r => r.canDecide);
+    const others = leaveState.requests.filter(r => !r.canDecide && !r.mine);
+    approvals.innerHTML =
+      section("Waiting for approval", "fa-inbox", waiting, "No requests waiting.") +
+      section("All requests (last 60 days)", "fa-clock-rotate-left", others.slice(0, 80), "Nothing here yet.");
   }
 }
 
@@ -1013,6 +1098,13 @@ document.addEventListener("click", function (ev) {
     }
     if (typeof notesHideBellPanel === "function") notesHideBellPanel();
     openLeaveFromNotification();
+    return;
+  }
+
+  const hrRow = target.closest("[data-hr-row]");
+  if (hrRow) {
+    const det = document.querySelector(`[data-hr-details="${hrRow.getAttribute("data-hr-row")}"]`);
+    if (det) det.style.display = det.style.display === "none" ? "" : "none";
     return;
   }
 

@@ -1,0 +1,129 @@
+<!-- Partial: hr-page.html - HR & Payroll (added 2026-09-27) -->
+<!-- Leave / Sick Leave / Compensation + عدادات الإجازات - منطقها كله في js/leave.js و Leave.gs (Apps Script) -->
+<!-- اتنقلت من تاب Leave في الروستر عشان تبقى صفحة لوحدها هتتربط بالمرتبات بعدين -->
+    <div id="hr-page" class="page hidden-page">
+        <div class="container">
+            <div data-include="partials/sub-page-header.html"></div>
+
+            <div class="system-title">🧑‍💼 HR & Payroll</div>
+
+            <div class="roster-tabs-bar">
+                <button class="tab-btn active" id="hrTabRequestsBtn" onclick="hrSwitchTab('requests')">
+                    <i class="fa-solid fa-paper-plane"></i> My Requests
+                </button>
+                <button class="tab-btn" id="hrTabApprovalsBtn" onclick="hrSwitchTab('approvals')" style="display: none;">
+                    <i class="fa-solid fa-inbox"></i> Approvals <span id="leaveTabBadge" class="swap-badge" style="display: none;">0</span>
+                </button>
+                <button class="tab-btn" id="hrTabBalanceBtn" onclick="hrSwitchTab('balance')" style="display: none;">
+                    <i class="fa-solid fa-table-list"></i> Team Balance
+                </button>
+            </div>
+
+            <!-- Tab 1: الطلبات (للكل) -->
+            <div id="hr-tab-requests" class="roster-tab-content">
+                <div class="agent-lookup-card">
+                    <div class="lookup-header-box">
+                        <i class="fa-solid fa-umbrella-beach"></i>
+                        <h3>New Request: Leave / Sick Leave / Compensation</h3>
+                    </div>
+                    <div class="lookup-controls-row">
+                        <div class="form-group flex-1">
+                            <label for="leaveTypeSelect"><i class="fa-solid fa-tag"></i> Type:</label>
+                            <select id="leaveTypeSelect" class="combo-input" onchange="leaveUpdateForm()">
+                                <option value="Leave">Leave</option>
+                                <option value="Sick Leave">Sick Leave</option>
+                                <option value="Compensation">Compensation (worked a day off instead of an absent day)</option>
+                            </select>
+                        </div>
+                        <div class="form-group flex-1" id="leaveFromGroup">
+                            <label for="leaveFromInput"><i class="fa-solid fa-calendar-day"></i> From:</label>
+                            <input type="date" id="leaveFromInput" class="date-input" onchange="leaveUpdateForm()">
+                        </div>
+                        <div class="form-group flex-1" id="leaveToGroup">
+                            <label for="leaveToInput"><i class="fa-solid fa-calendar-day"></i> To:</label>
+                            <input type="date" id="leaveToInput" class="date-input" onchange="leaveUpdateForm()">
+                        </div>
+                    </div>
+                    <div class="lookup-controls-row" id="leaveCompRow" style="display: none;">
+                        <div class="form-group flex-1" id="leaveCompAgentGroup" style="display: none;">
+                            <label for="leaveCompAgent"><i class="fa-solid fa-user"></i> Agent (admin):</label>
+                            <select id="leaveCompAgent" class="combo-input" onchange="leaveLoadCompOptions(true)"></select>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="leaveCompAbsent"><i class="fa-solid fa-ban"></i> Absent day (No Show):</label>
+                            <select id="leaveCompAbsent" class="combo-input" onchange="leaveUpdateForm()"></select>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="leaveCompWorked"><i class="fa-solid fa-star"></i> Day off worked instead:</label>
+                            <select id="leaveCompWorked" class="combo-input" onchange="leaveUpdateForm()"></select>
+                        </div>
+                    </div>
+                    <div class="lookup-controls-row">
+                        <div class="form-group flex-1">
+                            <label for="leaveReasonInput"><i class="fa-regular fa-comment"></i> Reason (optional):</label>
+                            <input type="text" id="leaveReasonInput" class="combo-input" maxlength="500" placeholder="e.g. family trip, flu...">
+                        </div>
+                        <div class="form-group flex-1" id="leaveFileRow" style="display: none;">
+                            <label for="leaveFileInput"><i class="fa-solid fa-paperclip"></i> Sick leave certificate (required, max 10 MB):</label>
+                            <input type="file" id="leaveFileInput" class="combo-input" accept="image/*,application/pdf">
+                        </div>
+                        <button id="leaveSendBtn" class="swap-btn swap-btn-primary align-self-end" onclick="leaveSendRequest()" disabled>
+                            <i class="fa-solid fa-paper-plane"></i> Send Request
+                        </button>
+                    </div>
+                    <div id="leaveFormInfo" class="swap-info"></div>
+                    <div id="leaveFormMsg" class="swap-msg" style="display: none;"></div>
+                </div>
+
+
+                <div class="cards-wrapper">
+                    <div id="leaveMyCounter" class="leave-counter-row"></div>
+                    <div id="leaveListsContainer" class="swap-lists">
+                        <div class="swap-empty">Loading...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: الموافقات (أدمن بس) -->
+            <div id="hr-tab-approvals" class="roster-tab-content hidden-tab" style="display: none;">
+                <div class="cards-wrapper">
+                    <div id="leaveApprovalsContainer" class="swap-lists">
+                        <div class="swap-empty">Loading...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: عدادات كل الإيجنتس في السنة (أدمن بس) - الأساس اللي هيتربط بالمرتبات -->
+            <div id="hr-tab-balance" class="roster-tab-content hidden-tab" style="display: none;">
+                <div class="full-table-card">
+                    <div class="full-table-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-table-list"></i>
+                            <h3>Team Balance</h3>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <label for="hrBalanceYear" style="font-weight: 800; font-size: 13px;">Year:</label>
+                            <select id="hrBalanceYear" class="combo-input" onchange="hrRenderBalance()" style="width: auto; padding: 4px 10px; font-weight: 800;"></select>
+                        </div>
+                    </div>
+                    <div class="table-scroll-wrapper">
+                        <table id="hrBalanceTable" class="roster-full-table hr-balance-table"></table>
+                    </div>
+                    <div class="swap-info" style="margin-top: 10px;">
+                        Counted from the roster cells (months that are in the Roster sheet) + ⭐ Day in Lieu credits. Click an agent to see the dates.
+                    </div>
+                </div>
+            </div>
+
+            <style>
+                .hr-balance-table th, .hr-balance-table td { text-align: center; white-space: nowrap; }
+                .hr-balance-table td.hr-agent { text-align: left; font-weight: 800; cursor: pointer; }
+                .hr-balance-table td.hr-agent:hover { text-decoration: underline; }
+                .hr-balance-table td.hr-zero { opacity: 0.35; }
+                .hr-balance-table td.hr-neg { color: #b91c1c; font-weight: 800; }
+                .hr-balance-table tr.hr-details td { text-align: left; white-space: normal; background: rgba(255, 255, 255, 0.6); }
+            </style>
+
+            <div id="hr-banner-container"></div>
+        </div>
+    </div>

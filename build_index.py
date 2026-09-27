@@ -17,6 +17,7 @@ PAGE_ORDER = [
     "tech-page.html",
     "roster-page.html",
     "notes-page.html",
+    "hr-page.html",
     "admin-page.html",
     "change-password-modal.html",
     "break-queue-modal.html",

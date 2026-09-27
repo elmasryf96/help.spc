@@ -13,9 +13,9 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <link rel="stylesheet" href="./style.css?v=20260927.223701">
+    <link rel="stylesheet" href="./style.css?v=20260927.224702">
     <!-- 🧊 Liquid Glass theme (override layer). لو عايز ترجع الشكل القديم: شيل السطرين اللي تحت (link + script) -->
-    <link rel="stylesheet" href="./glass.css?v=20260927.223701">
+    <link rel="stylesheet" href="./glass.css?v=20260927.224702">
     <script>
         // بيقرر قبل أول رسم لو نقفل البلور (Lite): الاختيار اليدوي "glassMode" أقوى، ولو مفيش بنقرر بالجهاز (ذاكرة <= 4GB أو أنوية <= 2)
         (function () {
@@ -189,6 +189,12 @@
                     <div class="menu-icon"><i class="fa-solid fa-users-gear"></i></div>
                     <h3>Monthly Duty Roster</h3>
                     <div class="btn-primary">Open Roster <i class="fa-solid fa-clock"></i></div>
+                </div>
+
+                <div class="menu-card" onclick="navigateTo('hr-page')">
+                    <div class="menu-icon"><i class="fa-solid fa-id-card-clip"></i></div>
+                    <h3>HR & Payroll</h3>
+                    <div class="btn-primary">Open HR <i class="fa-solid fa-umbrella-beach"></i></div>
                 </div>
 
                 <div class="menu-card" onclick="navigateTo('notes-page')">
@@ -1149,9 +1155,6 @@
                 <button class="tab-btn" id="tabSwapBtn" onclick="switchRosterTab('swap-view')">
                     <i class="fa-solid fa-right-left"></i> Shift Swap <span id="swapTabBadge" class="swap-badge" style="display: none;">0</span>
                 </button>
-                <button class="tab-btn" id="tabLeaveBtn" onclick="switchRosterTab('leave-view')">
-                    <i class="fa-solid fa-umbrella-beach"></i> Leave <span id="leaveTabBadge" class="swap-badge" style="display: none;">0</span>
-                </button>
                 <button id="adminRosterManageBtn" class="tab-btn admin-manage-btn" onclick="openAgentManagementModal()" style="display: none;">
                     <i class="fa-solid fa-user-gear"></i> Manage Agents & Roster
                 </button>
@@ -1282,70 +1285,6 @@
 
                 <div class="cards-wrapper">
                     <div id="swapListsContainer" class="swap-lists">
-                        <div class="swap-empty">Loading...</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tab 5: Leave & Sick Leave (js/leave.js + Leave.gs) -->
-            <div id="tab-leave-view" class="roster-tab-content hidden-tab" style="display: none;">
-                <div class="agent-lookup-card">
-                    <div class="lookup-header-box">
-                        <i class="fa-solid fa-umbrella-beach"></i>
-                        <h3>Request Leave / Sick Leave / Compensation</h3>
-                    </div>
-                    <div class="lookup-controls-row">
-                        <div class="form-group flex-1">
-                            <label for="leaveTypeSelect"><i class="fa-solid fa-tag"></i> Type:</label>
-                            <select id="leaveTypeSelect" class="combo-input" onchange="leaveUpdateForm()">
-                                <option value="Leave">Leave</option>
-                                <option value="Sick Leave">Sick Leave</option>
-                                <option value="Compensation">Compensation (worked a day off instead of an absent day)</option>
-                            </select>
-                        </div>
-                        <div class="form-group flex-1" id="leaveFromGroup">
-                            <label for="leaveFromInput"><i class="fa-solid fa-calendar-day"></i> From:</label>
-                            <input type="date" id="leaveFromInput" class="date-input" onchange="leaveUpdateForm()">
-                        </div>
-                        <div class="form-group flex-1" id="leaveToGroup">
-                            <label for="leaveToInput"><i class="fa-solid fa-calendar-day"></i> To:</label>
-                            <input type="date" id="leaveToInput" class="date-input" onchange="leaveUpdateForm()">
-                        </div>
-                    </div>
-                    <div class="lookup-controls-row" id="leaveCompRow" style="display: none;">
-                        <div class="form-group flex-1" id="leaveCompAgentGroup" style="display: none;">
-                            <label for="leaveCompAgent"><i class="fa-solid fa-user"></i> Agent (admin):</label>
-                            <select id="leaveCompAgent" class="combo-input" onchange="leaveLoadCompOptions(true)"></select>
-                        </div>
-                        <div class="form-group flex-1">
-                            <label for="leaveCompAbsent"><i class="fa-solid fa-ban"></i> Absent day (No Show):</label>
-                            <select id="leaveCompAbsent" class="combo-input" onchange="leaveUpdateForm()"></select>
-                        </div>
-                        <div class="form-group flex-1">
-                            <label for="leaveCompWorked"><i class="fa-solid fa-star"></i> Day off worked instead:</label>
-                            <select id="leaveCompWorked" class="combo-input" onchange="leaveUpdateForm()"></select>
-                        </div>
-                    </div>
-                    <div class="lookup-controls-row">
-                        <div class="form-group flex-1">
-                            <label for="leaveReasonInput"><i class="fa-regular fa-comment"></i> Reason (optional):</label>
-                            <input type="text" id="leaveReasonInput" class="combo-input" maxlength="500" placeholder="e.g. family trip, flu...">
-                        </div>
-                        <div class="form-group flex-1" id="leaveFileRow" style="display: none;">
-                            <label for="leaveFileInput"><i class="fa-solid fa-paperclip"></i> Sick leave certificate (required, max 10 MB):</label>
-                            <input type="file" id="leaveFileInput" class="combo-input" accept="image/*,application/pdf">
-                        </div>
-                        <button id="leaveSendBtn" class="swap-btn swap-btn-primary align-self-end" onclick="leaveSendRequest()" disabled>
-                            <i class="fa-solid fa-paper-plane"></i> Send Request
-                        </button>
-                    </div>
-                    <div id="leaveFormInfo" class="swap-info"></div>
-                    <div id="leaveFormMsg" class="swap-msg" style="display: none;"></div>
-                </div>
-
-                <div class="cards-wrapper">
-                    <div id="leaveMyCounter" class="leave-counter-row"></div>
-                    <div id="leaveListsContainer" class="swap-lists">
                         <div class="swap-empty">Loading...</div>
                     </div>
                 </div>
@@ -1815,6 +1754,193 @@
         .notes-toast b { display: block; margin-bottom: 2px; word-break: break-word; }
         .notes-toast-x { margin-left: auto; background: none; border: none; color: #94a3b8; font-size: 16px; cursor: pointer; line-height: 1; }
     </style>
+<!-- Leave / Sick Leave / Compensation + عدادات الإجازات - منطقها كله في js/leave.js و Leave.gs (Apps Script) -->
+<!-- اتنقلت من تاب Leave في الروستر عشان تبقى صفحة لوحدها هتتربط بالمرتبات بعدين -->
+    <div id="hr-page" class="page hidden-page">
+        <div class="container">
+            <!-- بيتحط أعلى أي صفحة فرعية عشان يدي زرار رجوع للداشبورد + منيو البروفايل/تسجيل الخروج -->
+<div class="brand-header relative-header">
+    <div class="logo-container" onclick="navigateTo('home-page')" style="cursor: pointer;">
+        <svg class="logo-svg" width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="35" cy="18" r="5" fill="#E8D567"/>
+            <circle cx="68" cy="18" r="5" fill="#E8D567"/>
+            <circle cx="51.5" cy="7" r="5.5" fill="#E8D567"/>
+            <path d="M51.5 26C42.5 26 35 33.5 35 42.5C35 55 51.5 78 51.5 78C51.5 78 68 55 68 42.5C68 33.5 60.5 26 51.5 26Z" fill="#E8D567"/>
+            <circle cx="51.5" cy="42.5" r="6" fill="#FFFFFF"/>
+            <path d="M47 75L56 75L53.5 115L49.5 115L47 75Z" fill="#E8D567"/>
+        </svg>
+        <div class="logo-text">Smart <span>Collection</span></div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <button type="button" class="admin-mini-btn" onclick="navigateTo('home-page')" style="white-space: nowrap;">
+            <i class="fa-solid fa-house"></i> Dashboard
+        </button>
+
+        <!-- 📌 PINNED NOTES - لوحة جانبية فيها النوتس المثبتة (js/notes.js) -->
+        <button type="button" class="admin-mini-btn notes-pin-btn" onclick="notesTogglePinnedDrawer(event)" title="Pinned notes" aria-label="Pinned notes">
+            <i class="fa-solid fa-thumbtack"></i>
+        </button>
+
+        <!-- 🔔 NOTES BELL - ريمايندرز جه معادها + نوتس جديدة (js/notes.js) -->
+        <button type="button" class="admin-mini-btn notes-bell-btn" onclick="notesToggleBellPanel(event)" title="Notifications" aria-label="Notifications">
+            <i class="fa-solid fa-bell"></i><span class="notes-bell-badge" style="display: none;">0</span>
+        </button>
+
+        <!-- ☕ MY BREAK - بيفتح بوب أب عالمي، شغال في الخلفية دايمًا -->
+        <button type="button" class="admin-mini-btn" onclick="openBreakQueueModal()" style="white-space: nowrap;">
+            <i class="fa-solid fa-mug-hot"></i> <span class="myBreakNavBtnLabel">My Break</span>
+        </button>
+
+        <!-- 👤 USER PROFILE DROPDOWN WRAPPER -->
+        <div class="user-menu-wrapper">
+            <div class="user-badge-card" onclick="toggleProfileDropdown(event)">
+                <div class="user-avatar-circle user-avatar-text">ST</div>
+                <span class="display-user-fullname" style="font-weight: 800; font-size: 13px; color: var(--dark-navy);">SPC Team</span>
+                <i class="fa-solid fa-chevron-down" style="font-size: 11px; color: #64748b;"></i>
+            </div>
+
+            <!-- 🔽 Dropdown List -->
+            <div class="profile-dropdown-menu" onclick="event.stopPropagation()">
+                <div class="dropdown-user-info">
+                    <div class="dropdown-user-fullname" style="font-weight: 800; font-size: 13.5px; color: var(--dark-navy);">-</div>
+                    <div class="dropdown-user-email" style="font-size: 11px; font-weight: 700; color: #d97706;">-</div>
+                </div>
+                <button class="dropdown-item" onclick="openChangePasswordModal(); hideProfileDropdown();">
+                    <i class="fa-solid fa-key" style="color: #d97706;"></i> Change Password
+                </button>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item danger-item" onclick="handleLogout()">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+            <div class="system-title">🧑‍💼 HR & Payroll</div>
+
+            <div class="roster-tabs-bar">
+                <button class="tab-btn active" id="hrTabRequestsBtn" onclick="hrSwitchTab('requests')">
+                    <i class="fa-solid fa-paper-plane"></i> My Requests
+                </button>
+                <button class="tab-btn" id="hrTabApprovalsBtn" onclick="hrSwitchTab('approvals')" style="display: none;">
+                    <i class="fa-solid fa-inbox"></i> Approvals <span id="leaveTabBadge" class="swap-badge" style="display: none;">0</span>
+                </button>
+                <button class="tab-btn" id="hrTabBalanceBtn" onclick="hrSwitchTab('balance')" style="display: none;">
+                    <i class="fa-solid fa-table-list"></i> Team Balance
+                </button>
+            </div>
+
+            <!-- Tab 1: الطلبات (للكل) -->
+            <div id="hr-tab-requests" class="roster-tab-content">
+                <div class="agent-lookup-card">
+                    <div class="lookup-header-box">
+                        <i class="fa-solid fa-umbrella-beach"></i>
+                        <h3>New Request: Leave / Sick Leave / Compensation</h3>
+                    </div>
+                    <div class="lookup-controls-row">
+                        <div class="form-group flex-1">
+                            <label for="leaveTypeSelect"><i class="fa-solid fa-tag"></i> Type:</label>
+                            <select id="leaveTypeSelect" class="combo-input" onchange="leaveUpdateForm()">
+                                <option value="Leave">Leave</option>
+                                <option value="Sick Leave">Sick Leave</option>
+                                <option value="Compensation">Compensation (worked a day off instead of an absent day)</option>
+                            </select>
+                        </div>
+                        <div class="form-group flex-1" id="leaveFromGroup">
+                            <label for="leaveFromInput"><i class="fa-solid fa-calendar-day"></i> From:</label>
+                            <input type="date" id="leaveFromInput" class="date-input" onchange="leaveUpdateForm()">
+                        </div>
+                        <div class="form-group flex-1" id="leaveToGroup">
+                            <label for="leaveToInput"><i class="fa-solid fa-calendar-day"></i> To:</label>
+                            <input type="date" id="leaveToInput" class="date-input" onchange="leaveUpdateForm()">
+                        </div>
+                    </div>
+                    <div class="lookup-controls-row" id="leaveCompRow" style="display: none;">
+                        <div class="form-group flex-1" id="leaveCompAgentGroup" style="display: none;">
+                            <label for="leaveCompAgent"><i class="fa-solid fa-user"></i> Agent (admin):</label>
+                            <select id="leaveCompAgent" class="combo-input" onchange="leaveLoadCompOptions(true)"></select>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="leaveCompAbsent"><i class="fa-solid fa-ban"></i> Absent day (No Show):</label>
+                            <select id="leaveCompAbsent" class="combo-input" onchange="leaveUpdateForm()"></select>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="leaveCompWorked"><i class="fa-solid fa-star"></i> Day off worked instead:</label>
+                            <select id="leaveCompWorked" class="combo-input" onchange="leaveUpdateForm()"></select>
+                        </div>
+                    </div>
+                    <div class="lookup-controls-row">
+                        <div class="form-group flex-1">
+                            <label for="leaveReasonInput"><i class="fa-regular fa-comment"></i> Reason (optional):</label>
+                            <input type="text" id="leaveReasonInput" class="combo-input" maxlength="500" placeholder="e.g. family trip, flu...">
+                        </div>
+                        <div class="form-group flex-1" id="leaveFileRow" style="display: none;">
+                            <label for="leaveFileInput"><i class="fa-solid fa-paperclip"></i> Sick leave certificate (required, max 10 MB):</label>
+                            <input type="file" id="leaveFileInput" class="combo-input" accept="image/*,application/pdf">
+                        </div>
+                        <button id="leaveSendBtn" class="swap-btn swap-btn-primary align-self-end" onclick="leaveSendRequest()" disabled>
+                            <i class="fa-solid fa-paper-plane"></i> Send Request
+                        </button>
+                    </div>
+                    <div id="leaveFormInfo" class="swap-info"></div>
+                    <div id="leaveFormMsg" class="swap-msg" style="display: none;"></div>
+                </div>
+
+
+                <div class="cards-wrapper">
+                    <div id="leaveMyCounter" class="leave-counter-row"></div>
+                    <div id="leaveListsContainer" class="swap-lists">
+                        <div class="swap-empty">Loading...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: الموافقات (أدمن بس) -->
+            <div id="hr-tab-approvals" class="roster-tab-content hidden-tab" style="display: none;">
+                <div class="cards-wrapper">
+                    <div id="leaveApprovalsContainer" class="swap-lists">
+                        <div class="swap-empty">Loading...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: عدادات كل الإيجنتس في السنة (أدمن بس) - الأساس اللي هيتربط بالمرتبات -->
+            <div id="hr-tab-balance" class="roster-tab-content hidden-tab" style="display: none;">
+                <div class="full-table-card">
+                    <div class="full-table-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-table-list"></i>
+                            <h3>Team Balance</h3>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <label for="hrBalanceYear" style="font-weight: 800; font-size: 13px;">Year:</label>
+                            <select id="hrBalanceYear" class="combo-input" onchange="hrRenderBalance()" style="width: auto; padding: 4px 10px; font-weight: 800;"></select>
+                        </div>
+                    </div>
+                    <div class="table-scroll-wrapper">
+                        <table id="hrBalanceTable" class="roster-full-table hr-balance-table"></table>
+                    </div>
+                    <div class="swap-info" style="margin-top: 10px;">
+                        Counted from the roster cells (months that are in the Roster sheet) + ⭐ Day in Lieu credits. Click an agent to see the dates.
+                    </div>
+                </div>
+            </div>
+
+            <style>
+                .hr-balance-table th, .hr-balance-table td { text-align: center; white-space: nowrap; }
+                .hr-balance-table td.hr-agent { text-align: left; font-weight: 800; cursor: pointer; }
+                .hr-balance-table td.hr-agent:hover { text-decoration: underline; }
+                .hr-balance-table td.hr-zero { opacity: 0.35; }
+                .hr-balance-table td.hr-neg { color: #b91c1c; font-weight: 800; }
+                .hr-balance-table tr.hr-details td { text-align: left; white-space: normal; background: rgba(255, 255, 255, 0.6); }
+            </style>
+
+            <div id="hr-banner-container"></div>
+        </div>
+    </div>
     <div id="admin-page" class="page hidden-page">
         <div class="container">
             <!-- بيتحط أعلى أي صفحة فرعية عشان يدي زرار رجوع للداشبورد + منيو البروفايل/تسجيل الخروج -->
@@ -2099,21 +2225,21 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.14.0/html2pdf.bundle.min.js"></script>
 
     <!-- 📜 Main Application Script -->
-    <script src="js/core.js?v=20260927.223701"></script>
-    <script src="js/auth.js?v=20260927.223701"></script>
-    <script src="js/noc.js?v=20260927.223701"></script>
-    <script src="js/break-queue.js?v=20260927.223701"></script>
-    <script src="js/navigation.js?v=20260927.223701"></script>
-    <script src="js/unit-mapping.js?v=20260927.223701"></script>
-    <script src="js/calculator.js?v=20260927.223701"></script>
-    <script src="js/towers.js?v=20260927.223701"></script>
-    <script src="js/tech-schedule.js?v=20260927.223701"></script>
-    <script src="js/leave.js?v=20260927.223701"></script>
-    <script src="js/roster.js?v=20260927.223701"></script>
-    <script src="js/admin.js?v=20260927.223701"></script>
-    <script src="js/notes.js?v=20260927.223701"></script>
-    <script src="js/cc-pulse.js?v=20260927.223701"></script>
-    <script src="js/glass.js?v=20260927.223701"></script>
-    <script src="js/init.js?v=20260927.223701"></script>
+    <script src="js/core.js?v=20260927.224702"></script>
+    <script src="js/auth.js?v=20260927.224702"></script>
+    <script src="js/noc.js?v=20260927.224702"></script>
+    <script src="js/break-queue.js?v=20260927.224702"></script>
+    <script src="js/navigation.js?v=20260927.224702"></script>
+    <script src="js/unit-mapping.js?v=20260927.224702"></script>
+    <script src="js/calculator.js?v=20260927.224702"></script>
+    <script src="js/towers.js?v=20260927.224702"></script>
+    <script src="js/tech-schedule.js?v=20260927.224702"></script>
+    <script src="js/leave.js?v=20260927.224702"></script>
+    <script src="js/roster.js?v=20260927.224702"></script>
+    <script src="js/admin.js?v=20260927.224702"></script>
+    <script src="js/notes.js?v=20260927.224702"></script>
+    <script src="js/cc-pulse.js?v=20260927.224702"></script>
+    <script src="js/glass.js?v=20260927.224702"></script>
+    <script src="js/init.js?v=20260927.224702"></script>
 </body>
 </html>

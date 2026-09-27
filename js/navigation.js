@@ -40,6 +40,7 @@ function navigateTo(pageId) {
       'tech-page': { id: 'tech-banner-container', feedback: false },
       'roster-page': { id: 'roster-banner-container', feedback: false },
       'notes-page': { id: 'notes-banner-container', feedback: false },
+      'hr-page': { id: 'hr-banner-container', feedback: false },
       'admin-page': { id: 'admin-banner-container', feedback: false }
     };
 
@@ -74,6 +75,9 @@ function navigateTo(pageId) {
       initCcPulsePage();
     } else if (pageId === 'notes-page') {
       initNotesPage();
+    } else if (pageId === 'hr-page') {
+      // 🧑‍💼 HR & Payroll: Leave / Sick Leave / Compensation + العدادات (js/leave.js)
+      initHrPage();
     }
 
     // 🔔 الجرس موجود في هيدر كل صفحة - بنحدّث العداد بعد أي تنقل
