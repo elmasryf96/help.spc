@@ -214,6 +214,7 @@ function leaveFetchList() {
       leaveState.loaded = true;
       leaveUpdateBadges();
       leaveShowNotifications();
+      if (typeof notesUpdateBell === "function") notesUpdateBell();
       return res;
     });
 }
@@ -342,9 +343,78 @@ function leaveNotificationText(n) {
     (n.note ? `<div class="leave-toast-note">“${leaveEsc(n.note)}”</div>` : "");
 }
 
+// نص التنبيه من غير HTML (للجرس 🔔 وإشعار سطح المكتب)
+function leaveNotificationPlain(n) {
+  const by = n.by ? ` by ${n.by}` : "";
+  if (n.kind === "change") {
+    return { title: "📅 Your roster changed", text: `${leaveFmtDate(n.date)}: ${n.from || "-"} → ${n.to}${by}` };
+  }
+  const verb = n.status === "Approved" ? "approved ✅" : (n.status === "Rejected" ? "rejected ❌" : "cancelled");
+  if (n.type === COMPENSATION_TYPE) {
+    return { title: `🔁 Compensation ${verb}`, text: `Absent ${leaveFmtDate(n.from)} ↔ worked ${leaveFmtDate(n.to)}${by}${n.note ? ` — “${n.note}”` : ""}` };
+  }
+  return { title: `${n.type === SICK_LEAVE_CODE ? "🤒" : "🌴"} ${n.type} ${verb}`, text: `${leaveFmtRange(n.from, n.to)}${by}${n.note ? ` — “${n.note}”` : ""}` };
+}
+
+function leavePendingPlain(r) {
+  const icon = r.type === COMPENSATION_TYPE ? "🔁" : (r.type === SICK_LEAVE_CODE ? "🤒" : "🌴");
+  const what = r.type === COMPENSATION_TYPE ? `absent ${leaveFmtDate(r.from)} ↔ worked ${leaveFmtDate(r.to)}` : `${leaveFmtRange(r.from, r.to)} · ${(r.days || []).length} day${(r.days || []).length === 1 ? "" : "s"}`;
+  return { title: `${icon} ${r.type} request — waiting for approval`, text: `${r.agent} · ${what}` };
+}
+
+// 🔔 عناصر الجرس (notes.js -> notesBellItems بتناديها):
+//   الأدمن: كل طلب مستني موافقته (بيفضل ظاهر لحد ما يتردّ عليه)
+//   أي يوزر: تنبيهاته اللي لسه ماشافهاش (رد على طلبه / الأدمن غيّر شيفته)
+function leaveBellSeenKey() {
+  return "leaveBellSeen:" + String(localStorage.getItem("loggedInUser") || "").toLowerCase();
+}
+
+function leaveBellGetSeen() {
+  try { const a = JSON.parse(localStorage.getItem(leaveBellSeenKey()) || "[]"); return Array.isArray(a) ? a : []; } catch (e) { return []; }
+}
+
+function leaveBellSetSeen(list) {
+  try { localStorage.setItem(leaveBellSeenKey(), JSON.stringify(list.slice(-300))); } catch (e) { /* مش مهم */ }
+}
+
+function leaveBellItems() {
+  if (!localStorage.getItem("loggedInUser")) return [];
+  const items = [];
+  leaveState.requests.filter(r => r.canDecide).forEach(r => {
+    const t = leavePendingPlain(r);
+    items.push({ id: "pend:" + r.id, overdue: false, title: t.title, text: t.text, sort: "0" + r.createdAt });
+  });
+  const seen = leaveBellGetSeen();
+  leaveState.notifications.filter(n => seen.indexOf(n.id) === -1).forEach(n => {
+    const t = leaveNotificationPlain(n);
+    items.push({ id: "n:" + n.id, overdue: false, title: t.title, text: t.text, sort: "1" + n.at });
+  });
+  return items;
+}
+
+// بيتنادى لما اليوزر يفتح تاب Leave - كل تنبيهاته تتعلّم إنها اتشافت
+function leaveMarkAllBellSeen() {
+  const seen = leaveBellGetSeen();
+  leaveState.notifications.forEach(n => { if (seen.indexOf(n.id) === -1) seen.push(n.id); });
+  leaveBellSetSeen(seen);
+  if (typeof notesUpdateBell === "function") notesUpdateBell();
+}
+
 function leaveShowNotifications() {
+  const fresh = [];
+
+  // تنبيهات اليوزر (رد على طلبه / تغيير في شيفته) - كل واحد بيطلع Toast مرة واحدة بس
   const seen = leaveGetSeen();
-  const fresh = leaveState.notifications.filter(n => seen.indexOf(n.id) === -1);
+  leaveState.notifications.filter(n => seen.indexOf(n.id) === -1).forEach(n => {
+    fresh.push({ key: n.id, html: leaveNotificationText(n), plain: leaveNotificationPlain(n) });
+  });
+
+  // 👑 الأدمن: طلب جديد مستني موافقته
+  leaveState.requests.filter(r => r.canDecide && seen.indexOf("pend:" + r.id) === -1).forEach(r => {
+    const t = leavePendingPlain(r);
+    fresh.push({ key: "pend:" + r.id, html: `<b>${leaveEsc(t.title)}</b><br>${leaveEsc(t.text)}`, plain: t });
+  });
+
   if (!fresh.length) return;
 
   let box = document.getElementById("leaveToastBox");
@@ -354,21 +424,27 @@ function leaveShowNotifications() {
     box.className = "leave-toast-box";
     document.body.appendChild(box);
   }
-  fresh.slice(-5).forEach(n => {
+  fresh.slice(-5).forEach(f => {
     const t = document.createElement("div");
     t.className = "leave-toast";
-    t.innerHTML = `<div class="leave-toast-text">${leaveNotificationText(n)}</div><button type="button" class="leave-toast-close" title="Dismiss">&times;</button>`;
-    t.querySelector(".leave-toast-close").onclick = () => t.remove();
+    t.innerHTML = `<div class="leave-toast-text">${f.html}</div><button type="button" class="leave-toast-close" title="Dismiss">&times;</button>`;
+    t.querySelector(".leave-toast-close").onclick = (e) => { e.stopPropagation(); t.remove(); };
+    t.onclick = () => { t.remove(); openLeaveFromNotification(); };
+    t.style.cursor = "pointer";
     box.appendChild(t);
+    setTimeout(() => t.remove(), 20000);
+    // 🖥️ إشعار سطح المكتب (نفس إذن الريمايندرز في notes.js)
+    if (typeof notesDesktopNotify === "function") notesDesktopNotify("leave-" + f.key, f.plain.title, f.plain.text, false, null);
   });
-  // بيتعلّم إنه اتشاف أول ما يظهر - عشان مايرجعش تاني بعد Refresh (التوست نفسه بيفضل لحد ما تقفله)
-  leaveSetSeen(seen.concat(fresh.map(n => n.id)));
+  // بيتعلّم إنه طلع Toast - عشان مايطلعش تاني بعد Refresh (بس بيفضل في الجرس 🔔 لحد ما يتشاف)
+  leaveSetSeen(seen.concat(fresh.map(f => f.key)));
 }
 
 // ------------------------------------------------------------
 // 📝 تاب Leave
 // ------------------------------------------------------------
 function initLeaveTab() {
+  leaveMarkAllBellSeen();
   const today = leaveToday();
   const fromEl = document.getElementById("leaveFromInput");
   const toEl = document.getElementById("leaveToInput");
@@ -377,7 +453,7 @@ function initLeaveTab() {
   leaveShowMsg("", "");
   leaveRenderTab();
   leaveFetchList()
-    .then(() => leaveRenderTab())
+    .then(() => { leaveMarkAllBellSeen(); leaveRenderTab(); })
     .catch(err => {
       const box = document.getElementById("leaveListsContainer");
       if (box && !leaveState.loaded) box.innerHTML = `<div class="swap-empty"><i class="fa-solid fa-triangle-exclamation"></i> ${leaveEsc(err.message)}</div>`;
@@ -925,6 +1001,20 @@ function closeAgentManagementModal() {
 document.addEventListener("click", function (ev) {
   const target = ev.target;
   if (!target || !target.closest) return;
+
+  // 🔔 عنصر إجازة في الجرس -> يتعلّم إنه اتشاف ويفتح تاب Leave
+  const bellItem = target.closest("[data-leave-bell]");
+  if (bellItem) {
+    const bid = bellItem.getAttribute("data-leave-bell");
+    if (bid.indexOf("n:") === 0) {
+      const seenList = leaveBellGetSeen();
+      seenList.push(bid.slice(2));
+      leaveBellSetSeen(seenList);
+    }
+    if (typeof notesHideBellPanel === "function") notesHideBellPanel();
+    openLeaveFromNotification();
+    return;
+  }
 
   const actionBtn = target.closest("[data-leave-action]");
   if (actionBtn && !actionBtn.disabled) {

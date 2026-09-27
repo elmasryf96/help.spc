@@ -1102,9 +1102,13 @@ function notesUnseenKeys(n, seen) {
 }
 
 function notesBellItems() {
-  if (!notesState.loaded) return [];
-  const seen = notesLoad("seen");
   const items = [];
+  // 🌴 تنبيهات الإجازات / التعويض / تغييرات الروستر (js/leave.js) - بتظهر في نفس الجرس
+  if (typeof leaveBellItems === "function") {
+    try { leaveBellItems().forEach(it => items.push(Object.assign({ kind: "leave" }, it))); } catch (e) { /* مش مهم */ }
+  }
+  if (!notesState.loaded) return items.sort((a, b) => (a.sort < b.sort ? -1 : 1));
+  const seen = notesLoad("seen");
   notesState.notes.forEach(n => {
     if (n.isMember && notesIsOverdue(n)) {
       items.push({ id: n.id, overdue: true, title: n.title, text: `⏰ Due ${notesNiceDue(n.due)}`, sort: "0" + n.due });
@@ -1142,7 +1146,9 @@ function notesRenderBellPanel() {
   if (!list) return;
   const items = notesBellItems();
   list.innerHTML = items.length
-    ? items.map(it => `<button type="button" class="notes-bell-item${it.overdue ? " overdue" : ""}" data-note-open="${notesEsc(it.id)}"><b>${notesEsc(it.title)}</b>${notesEsc(it.text)}</button>`).join("")
+    ? items.map(it => it.kind === "leave"
+      ? `<button type="button" class="notes-bell-item${it.overdue ? " overdue" : ""}" data-leave-bell="${notesEsc(it.id)}"><b>${notesEsc(it.title)}</b>${notesEsc(it.text)}</button>`
+      : `<button type="button" class="notes-bell-item${it.overdue ? " overdue" : ""}" data-note-open="${notesEsc(it.id)}"><b>${notesEsc(it.title)}</b>${notesEsc(it.text)}</button>`).join("")
     : `<div class="notes-empty">You're all caught up 🎉</div>`;
 }
 
