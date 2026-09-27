@@ -1002,7 +1002,10 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
     } else if (a.date) {
       const shiftWindow = getShiftWindowForAgentDate(a.name, a.date);
       const attendanceStatus = getAttendanceStatus(shiftWindow, a.totalLoginSeconds, a.date, a.firstLogin, a.endShift);
-      if (attendanceStatus === "off") {
+      const leaveKind = ccpLeaveKindFor_(a.name, a.date);
+      if (attendanceStatus === "off" && leaveKind) {
+        attendanceBadgeHtml = `<div class="ccp-attendance-badge ccp-attendance-off" style="background:${leaveKind === "Sick Leave" ? "#fee2e2;color:#991b1b" : "#dcfce7;color:#166534"};">${leaveKind === "Sick Leave" ? "🤒 Sick Leave" : "🌴 Leave"}</div>`;
+      } else if (attendanceStatus === "off") {
         attendanceBadgeHtml = `<div class="ccp-attendance-badge ccp-attendance-off">🏖️ Day Off</div>`;
       } else if (attendanceStatus === "no-show") {
         attendanceBadgeHtml = `<div class="ccp-attendance-badge ccp-attendance-noshow">🚫 No Show</div>`;
@@ -1029,6 +1032,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
             <div class="ccp-metric-value">${ccpFormatAdherencePct(periodAdherencePct)}</div>
           </div>`;
       }
+      if (!isQs) adherenceHtml += ccpLeaveCardsHtml_(a.name, a.days || []);
     }
 
     const tardyResult = calculateTardyFromDays(a.name, a.days || [], data.trackingStartDate);
@@ -1180,6 +1184,37 @@ function getShiftWindowForAgentDate(agentName, dateStr) {
   if (!range) return null; // OFF / فاضي / كود مش معروف
 
   return { startMin: range.startMin, endMin: range.endMin, label: `${shiftCode} (${range.label})` };
+}
+
+// 🌴 لو اليوم عليه Leave أو Sick Leave في الروستر بيرجع اسمها، غير كده null.
+// الأيام دي أصلاً مش بتتحسب في الأدهيرانس/الـ Tardy/الـ No Show (getShiftWindowForAgentDate بيرجع null
+// لأي كود مش شيفت) - الدالة دي بس عشان نكتب "Leave" بدل "Day Off" ونعد الأيام
+function ccpLeaveKindFor_(agentName, dateStr) {
+  if (!agentName || !dateStr || !Array.isArray(rosterData)) return null;
+  const p = dateStr.split("-").map(Number);
+  const entry = rosterData.find(a => a.name === agentName && a.month === p[1] && a.year === p[0]);
+  const code = String((entry && entry.schedule && entry.schedule[p[2]]) || "").trim().toLowerCase();
+  if (code === "leave" || code === "annual leave" || code === "al" || code === "vacation") return "Leave";
+  if (code === "sick leave" || code === "sick" || code === "sl") return "Sick Leave";
+  return null;
+}
+
+// كروت عدّاد الإجازات لفترة (Leave / Sick Leave) - عدد الأيام والتواريخ نفسها
+function ccpLeaveCardsHtml_(agentName, days) {
+  const leave = [], sick = [];
+  (days || []).forEach(d => {
+    const k = ccpLeaveKindFor_(agentName, d.date);
+    if (k === "Leave") leave.push(d.date);
+    else if (k === "Sick Leave") sick.push(d.date);
+  });
+  const fmt = list => list.map(x => { const q = x.split("-"); return `${parseInt(q[2], 10)}/${parseInt(q[1], 10)}`; }).join(", ");
+  const card = (label, list, color) => `
+      <div class="ccp-metric-card" title="${list.length ? fmt(list) : "None"}">
+        <div class="ccp-metric-label">${label}</div>
+        <div class="ccp-metric-value" style="color:${color};">${list.length} day${list.length === 1 ? "" : "s"}</div>
+        ${list.length ? `<div style="font-size:11px;opacity:.75;margin-top:2px;line-height:1.4;">${fmt(list)}</div>` : ""}
+      </div>`;
+  return card("🌴 Leave", leave, "#166534") + card("🤒 Sick Leave", sick, "#991b1b");
 }
 
 // بيحدد هل اليوم دا "يستاهل نحكم عليه" ولا لأ: أيام مستقبلية (بعد النهاردة) أو شيفت النهاردة نفسه لسه ماوصلش معاده لسه بدري نحكم عليهم
@@ -1377,7 +1412,7 @@ function buildCcPulseExportRows(agentsList, trackingStartDate, callLogByDay) {
       if (trackingStartDate && day.date < trackingStartDate) return; // قبل بداية التتبع، متجاهلش
 
       const shiftWindow = getShiftWindowForAgentDate(agent.name, day.date);
-      const shiftLabel = ccpIsQueueSupport_(agent.name) ? "Queue Support" : (shiftWindow ? shiftWindow.label : "Day Off");
+      const shiftLabel = ccpIsQueueSupport_(agent.name) ? "Queue Support" : (shiftWindow ? shiftWindow.label : (ccpLeaveKindFor_(agent.name, day.date) || "Day Off"));
 
       const firstLoginMin = day.firstLogin ? ccPulseTimeToMinutes(day.firstLogin) : null;
       let isTardy = "No";
@@ -2420,6 +2455,9 @@ function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, 
     dayStatusBannerHtml = `<div class="ccp-daystatus-banner" style="background:#ede9fe;color:#5b21b6;">🎧 <strong>Queue Support</strong> — this date's night: any login that started after 9 AM on this date or before 9 AM the next morning</div>`;
   } else if (attendanceStatus === "no-show") {
     dayStatusBannerHtml = `<div class="ccp-daystatus-banner ccp-noshow">🚫 <strong>No Show</strong> — scheduled for ${shiftWindow.label} but worked less than half the shift (${formatCcPulseDuration(day.totalLoginSeconds)})</div>`;
+  } else if (attendanceStatus === "off" && ccpLeaveKindFor_(agentName, day.date)) {
+    const lk = ccpLeaveKindFor_(agentName, day.date);
+    dayStatusBannerHtml = `<div class="ccp-daystatus-banner ccp-dayoff" style="${lk === "Sick Leave" ? "background:#fee2e2;color:#991b1b" : "background:#dcfce7;color:#166534"};">${lk === "Sick Leave" ? "🤒" : "🌴"} <strong>${lk}</strong> — not counted in adherence, tardy or no show</div>`;
   } else if (attendanceStatus === "off") {
     dayStatusBannerHtml = `<div class="ccp-daystatus-banner ccp-dayoff">🏖️ <strong>Day Off</strong> — no shift scheduled for this agent on this date</div>`;
   }
@@ -3027,7 +3065,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
       <div class="ccp-days-table">
         ${data.days.map(day => `
           <div class="ccp-day-row">
-            <span class="ccp-day-date">${day.date}</span>
+            <span class="ccp-day-date">${day.date}${(() => { const lk = ccpLeaveKindFor_(data.agent, day.date); return lk ? ` <b style="color:${lk === "Sick Leave" ? "#991b1b" : "#166534"};">${lk === "Sick Leave" ? "🤒" : "🌴"} ${lk}</b>` : ""; })()}</span>
             <span>${ccPulseTimeOnly(day.firstLogin)} → ${ccPulseTimeOnly(day.endShift)}</span>
             <span class="ccp-day-total">${formatCcPulseDuration(day.totalLoginSeconds)}</span>
           </div>`).join("")}
@@ -3038,7 +3076,7 @@ function renderCcPulseSingleAgentReport(data, callLogData) {
         <div class="ccp-metric-label">Total login time</div>
         <div class="ccp-metric-value" id="ccpTotalLoginValue">${formatCcPulseDuration(data.totalLoginSeconds)}</div>
       </div>
-      <div class="ccp-metrics-grid">${callsHtml}${workHtml}${outboundReportHtml}${totalsHtml}${tardyHtml}${periodAdherenceHtml}</div>
+      <div class="ccp-metrics-grid">${callsHtml}${workHtml}${outboundReportHtml}${totalsHtml}${tardyHtml}${periodAdherenceHtml}${ccpIsQueueSupport_(data.agent) ? "" : ccpLeaveCardsHtml_(data.agent, data.days || [])}</div>
       ${daysHtml}`;
   }
 

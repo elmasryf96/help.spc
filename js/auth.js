@@ -273,6 +273,9 @@ async function checkForceLogoutSignal() {
     // 📝 نفس الفكرة للنوتس والريمايندرز - js/notes.js
     if (typeof notesOnServerSignal === "function") notesOnServerSignal(data.notesChangedAt);
 
+    // 🌴 الإجازات + تعديلات الروستر من الأدمن - js/leave.js
+    if (typeof leaveOnServerSignal === "function") leaveOnServerSignal(data.leaveChangedAt, data.rosterChangedAt);
+
     const serverTimestamp = String(data.forceLogoutAt || "0");
     const seenTimestamp = localStorage.getItem(FORCE_LOGOUT_SEEN_KEY);
 
