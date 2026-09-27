@@ -2906,11 +2906,46 @@ async function ccpShowQueueCallDetailModal() {
       return;
     }
 
-    // 🔁 ملخص المتابعة فوق الجدول
-    const fuCounts = { answered: 0, attempted: 0, none: 0 };
-    data.calls.forEach(c => { const st = c.followUp ? c.followUp.status : "none"; fuCounts[st] = (fuCounts[st] || 0) + 1; });
+    ccpAbandonedCallsCache_ = data.calls;
+    ccpRenderAbandonedModalBody_("all");
+  } catch (err) {
+    body.innerHTML = `<div class="ccp-error">⚠️ ${err}</div>`;
+  }
+}
 
-    const rowsHtml = data.calls.map(c => `
+// 🔘 زراير الفلتر في popup الـ Abandoned: All / Reached / Not Reached / No Calls After
+// الداتا بتتسحب مرة واحدة بس (ccpAbandonedCallsCache_) والفلترة بتحصل هنا من غير أي طلب للسيرفر
+let ccpAbandonedCallsCache_ = [];
+const CCP_ABANDON_FILTERS_ = [
+  { key: "all", label: "All", cls: "" },
+  { key: "answered", label: "Reached", cls: "ccp-adh-good" },
+  { key: "attempted", label: "Not Reached", cls: "ccp-adh-warn" },
+  { key: "none", label: "No Calls After", cls: "ccp-adh-bad" }
+];
+
+function ccpAbandonStatus_(c) {
+  return c.followUp ? (c.followUp.status || "none") : "none";
+}
+
+function ccpRenderAbandonedModalBody_(filterKey) {
+  const body = document.getElementById("ccpCallDetailBody");
+  if (!body) return;
+  const calls = ccpAbandonedCallsCache_ || [];
+  const counts = { all: calls.length, answered: 0, attempted: 0, none: 0 };
+  calls.forEach(c => { const st = ccpAbandonStatus_(c); counts[st] = (counts[st] || 0) + 1; });
+
+  const shown = filterKey === "all" ? calls : calls.filter(c => ccpAbandonStatus_(c) === filterKey);
+
+  const buttonsHtml = CCP_ABANDON_FILTERS_.map(f => {
+    const active = f.key === filterKey;
+    return `<button type="button" class="ccp-metric-card" onclick="ccpRenderAbandonedModalBody_('${f.key}')"
+        style="cursor:pointer; text-align:left; font:inherit; ${active ? "outline:3px solid #1f2937; outline-offset:-3px; box-shadow:0 4px 12px rgba(0,0,0,.18);" : "opacity:.8;"}">
+        <div class="ccp-metric-label">${f.label}</div>
+        <div class="ccp-metric-value ${f.cls}">${counts[f.key] || 0}</div>
+      </button>`;
+  }).join("");
+
+  const rowsHtml = shown.map(c => `
       <tr>
         <td>${c.date}</td>
         <td>${c.time ? c.time.slice(0, 8) : "--"}</td>
@@ -2920,12 +2955,9 @@ async function ccpShowQueueCallDetailModal() {
         <td style="text-align:left; white-space:normal;">${ccpAbandonFollowUpHtml_(c.followUp)}</td>
       </tr>`).join("");
 
-    body.innerHTML = `
-      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
-        <div class="ccp-metric-card"><div class="ccp-metric-label">Reached</div><div class="ccp-metric-value ccp-adh-good">${fuCounts.answered}</div></div>
-        <div class="ccp-metric-card"><div class="ccp-metric-label">Not Reached</div><div class="ccp-metric-value ccp-adh-warn">${fuCounts.attempted}</div></div>
-        <div class="ccp-metric-card"><div class="ccp-metric-label">No Calls After</div><div class="ccp-metric-value ccp-adh-bad">${fuCounts.none}</div></div>
-      </div>
+  body.innerHTML = `
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">${buttonsHtml}</div>
+      ${shown.length ? `
       <div class="ccp-queue-trend-table-wrap">
         <table class="ccp-queue-trend-table">
           <thead>
@@ -2940,10 +2972,8 @@ async function ccpShowQueueCallDetailModal() {
           </thead>
           <tbody>${rowsHtml}</tbody>
         </table>
-      </div>`;
-  } catch (err) {
-    body.innerHTML = `<div class="ccp-error">⚠️ ${err}</div>`;
-  }
+      </div>` : `<div class="ccp-empty">No calls in this group</div>`}`;
+  body.scrollTop = 0;
 }
 
 // 🔁 بيبني خانة "Follow-up" لكل مكالمة Abandoned:
