@@ -77,6 +77,7 @@ function hrComputeDay(agentName, dateStr, day, trackingStartDate, now) {
     firstLogin: day && day.firstLogin ? hrTimeOf(day.firstLogin) : "", lastLogout: day && day.endShift ? hrTimeOf(day.endShift) : "",
     inShiftWork: 0, inShiftBreak: 0, breakTotal: 0, outsideWork: 0, outsideBreak: 0, totalLogin: 0,
     net: 0, missing: 0, late: 0, earlyLeave: 0, extraBreak: 0, overtime: 0, dayOffWork: 0,
+    awayPeriods: [], awayMid: 0,
     category: "", categoryLabel: "", overtimeFlag: false, note: ""
   };
 
@@ -126,6 +127,22 @@ function hrComputeDay(agentName, dateStr, day, trackingStartDate, now) {
   if (firstMin !== null && firstMin - shiftStart > HR_GRACE_MIN) r.late = firstMin - shiftStart;
   if (lastInShiftEnd !== null && shiftEnd - lastInShiftEnd > HR_GRACE_MIN) r.earlyLeave = shiftEnd - lastInShiftEnd;
   r.extraBreak = Math.max(0, r.breakTotal - HR_BREAK_ALLOWED_MIN);
+
+  // 🚶 فترات الـ Away جوه مواعيد الشيفت: من كذا لكذا (قبل أول لوجن = تأخير، في النص = Away، بعد آخر لوجن = خروج بدري)
+  const covered = sessions
+    .map(x => [Math.max(hrMinOf(x.start, dateStr), shiftStart), Math.min(hrMinOf(x.end, dateStr), shiftEnd)])
+    .filter(([a, b]) => b > a)
+    .sort((x, y) => x[0] - y[0]);
+  let cursor = shiftStart;
+  const gaps = [];
+  covered.forEach(([a, b]) => { if (a > cursor) gaps.push([cursor, a]); cursor = Math.max(cursor, b); });
+  if (cursor < shiftEnd) gaps.push([cursor, shiftEnd]);
+  const hm = m => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(Math.floor(m % 60)).padStart(2, "0")}`;
+  gaps.filter(([a, b]) => b - a > HR_GRACE_MIN).forEach(([a, b]) => {
+    const type = !covered.length ? "absent" : (a === shiftStart ? "late" : (b === shiftEnd ? "left early" : "away"));
+    r.awayPeriods.push({ from: hm(a), to: hm(b), minutes: b - a, type });
+    if (type === "away") r.awayMid += b - a;
+  });
   r.missing = Math.max(0, HR_NET_REQUIRED_MIN - r.net);
   if (r.missing <= HR_GRACE_MIN) r.missing = 0;
   r.overtime = r.outsideWork > HR_GRACE_MIN ? r.outsideWork : 0;
@@ -154,7 +171,7 @@ function hrComputeAgentMonth(agentName, month, reportDays, trackingStartDate) {
   const s = {
     agent: agentName, month, rows, workDays: 0, required: 0, requiredNet: 0,
     inShiftWork: 0, inShiftBreak: 0, breakTotal: 0, extraBreak: 0, outside: 0, overtime: 0, dayOffWork: 0, totalLogin: 0,
-    missing: 0, missingShort: 0, missingNoShow: 0, late: 0, lateCompensated: 0, earlyLeave: 0,
+    missing: 0, missingShort: 0, missingNoShow: 0, late: 0, lateCompensated: 0, earlyLeave: 0, awayMid: 0, awayDays: 0,
     full: 0, latecomp: 0, short: 0, noshow: 0, overtimeDays: 0, dayOffDays: 0, leave: {}, inprogress: 0, nodata: 0
   };
   rows.forEach(r => {
@@ -176,6 +193,7 @@ function hrComputeAgentMonth(agentName, month, reportDays, trackingStartDate) {
     if (r.overtimeFlag) s.overtimeDays++;
     s.late += r.late;
     s.earlyLeave += r.earlyLeave;
+    if (r.category !== "noshow") { s.awayMid += r.awayMid; if (r.awayMid > 0) s.awayDays++; }
     s[r.category] = (s[r.category] || 0) + 1;
     if (r.category === "latecomp") s.lateCompensated += r.late;
     if (r.category === "short") s.missingShort += r.missing;
@@ -300,6 +318,7 @@ function hrSummaryHtml(s) {
       ${hrCard("☕ Break taken", hrFmt(s.breakTotal), s.extraBreak > 0 ? `<b style="color:#b91c1c">extra ${hrFmt(s.extraBreak)}</b> over 30m/day` : "within 30m/day")}
       ${hrCard("⏰ Late (total)", hrFmt(s.late), `compensated ${hrFmt(s.lateCompensated)}`)}
       ${hrCard("🚪 Left early (total)", hrFmt(s.earlyLeave), "before shift end")}
+      ${hrCard("🚶 Away during shift", hrFmt(s.awayMid), s.awayDays ? `on ${s.awayDays} day${s.awayDays === 1 ? "" : "s"} - see the Away column` : "never away mid-shift", s.awayMid > 0 ? "bad" : "good")}
     </div>
     <div class="hr-section-title">📋 Days</div>
     <div class="ccp-metrics-grid">
@@ -332,12 +351,13 @@ function hrDaysTableHtml(s) {
       <td>${dash(r.extraBreak)}</td>
       <td>${r.missing > 0 ? `<b style="color:#b91c1c">${hrFmt(r.missing)}</b>` : "—"}</td>
       <td>${dash(r.overtime)}</td>
+      <td class="hr-away">${r.category === "noshow" ? "—" : (r.awayPeriods.filter(g => g.type === "away").map(g => `<div>${g.from} → ${g.to} <b>(${hrFmt(g.minutes)})</b></div>`).join("") || "—")}</td>
       <td class="hr-status"><b>${leaveEsc(r.categoryLabel)}</b>${r.overtimeFlag ? " <span class='hr-ot'>➕ OT</span>" : ""}${r.note ? ` <span style="opacity:.7">(${leaveEsc(r.note)})</span>` : ""}</td>
     </tr>`;
   }).join("");
   return `<div class="table-scroll-wrapper"><table class="roster-full-table hr-hours-table">
       <thead><tr><th>Day</th><th>Roster</th><th>First login</th><th>Last logout</th><th>In shift (work)</th><th>In shift (break)</th>
-      <th>Outside shift</th><th>Total</th><th>Late</th><th>Left early</th><th>Extra break</th><th>Missing</th><th>Overtime</th><th>Status</th></tr></thead>
+      <th>Outside shift</th><th>Total</th><th>Late</th><th>Left early</th><th>Extra break</th><th>Missing</th><th>Overtime</th><th title="Times inside the shift when the agent was Away (not counting late start / leaving early)">Away during shift</th><th>Status</th></tr></thead>
       <tbody>${rows}</tbody></table></div>`;
 }
 
@@ -368,6 +388,7 @@ function hrTeamTableHtml(list) {
       <td><b>${hrFmt(s.totalLogin)}</b></td>
       ${hrBalanceCell(hrBalance(s))}
       ${tm(s.missing, "hr-neg")}
+      ${tm(s.awayMid, "hr-neg")}
       ${cnt(s.full || 0)}${cnt(s.latecomp || 0)}${cnt(s.short || 0, "hr-neg")}${cnt(s.noshow || 0, "hr-neg")}
       ${tm(s.overtime)}${cnt(s.dayOffDays)}${tm(s.extraBreak, "hr-neg")}`;
   const rows = list.map((s, i) => `<tr>
@@ -376,15 +397,15 @@ function hrTeamTableHtml(list) {
     </tr>`).join("");
 
   // 📊 إجمالي التيم كله
-  const sum = { workDays: 0, required: 0, inShiftWork: 0, inShiftBreak: 0, outside: 0, totalLogin: 0, missing: 0, full: 0, latecomp: 0, short: 0, noshow: 0, overtime: 0, dayOffDays: 0, extraBreak: 0 };
+  const sum = { workDays: 0, required: 0, inShiftWork: 0, inShiftBreak: 0, outside: 0, totalLogin: 0, missing: 0, full: 0, latecomp: 0, short: 0, noshow: 0, overtime: 0, dayOffDays: 0, extraBreak: 0, awayMid: 0 };
   list.forEach(s => Object.keys(sum).forEach(k => { sum[k] += s[k] || 0; }));
   const totalRow = list.length ? `<tr class="hr-total-row"><td class="hr-agent-total">📊 Team total</td><td>${list.length} agents</td>${row(sum)}</tr>` : "";
 
   return `<div class="table-scroll-wrapper"><table class="roster-full-table hr-balance-table">
       <thead><tr><th>Agent</th><th>Team</th><th>Work days</th><th>Required</th><th>In shift</th><th>Outside</th><th>Total</th>
-      <th title="Total worked − Required">Balance</th><th>Missing</th>
+      <th title="Total worked − Required">Balance</th><th>Missing</th><th title="Away in the middle of the shift">🚶 Away</th>
       <th>✅ Full</th><th>🔁 Late-comp</th><th>⚠️ Short</th><th>🚫 No Show</th><th>➕ Overtime</th><th>⭐ Day off</th><th>☕ Extra break</th></tr></thead>
-      <tbody>${rows || `<tr><td colspan="16">No agents in the roster for this month.</td></tr>`}${totalRow}</tbody></table></div>
+      <tbody>${rows || `<tr><td colspan="17">No agents in the roster for this month.</td></tr>`}${totalRow}</tbody></table></div>
     <div class="swap-info" style="margin-top:8px;"><b>Balance</b> = Total worked − Required (green = worked more, red = worked less). <b>Missing</b> only counts time missing inside the shift, even if he worked extra outside it. Click an agent to see every day.</div>`;
 }
 
@@ -444,11 +465,12 @@ async function hrExportHours() {
 
     const wd = wb.addWorksheet("Days", { views: [{ state: "frozen", xSplit: 2, ySplit: 1 }] });
     styleHeader(wd.addRow(["Agent", "Date", "Roster", "Status", "First login", "Last logout", "In shift work (h)", "In shift break (h)",
-      "Outside shift (h)", "Total (h)", "Late (min)", "Left early (min)", "Extra break (min)", "Missing (min)", "Overtime (min)"]));
+      "Outside shift (h)", "Total (h)", "Late (min)", "Left early (min)", "Extra break (min)", "Missing (min)", "Overtime (min)", "Away during shift (min)", "Away periods"]));
     list.forEach(s => s.rows.filter(r => r.category !== "upcoming").forEach(r => {
       wd.addRow([s.agent, r.date, r.code, r.categoryLabel.replace(/^[^\w]+/, "") + (r.overtimeFlag ? " + Overtime" : ""), r.firstLogin, r.lastLogout,
         h(r.inShiftWork), h(r.inShiftBreak), h(r.outsideWork + r.outsideBreak), h(r.totalLogin),
-        Math.round(r.late), Math.round(r.earlyLeave), Math.round(r.extraBreak), Math.round(r.missing), Math.round(r.overtime)]);
+        Math.round(r.late), Math.round(r.earlyLeave), Math.round(r.extraBreak), Math.round(r.missing), Math.round(r.overtime), Math.round(r.awayMid),
+        r.awayPeriods.map(g => `${g.from}-${g.to} ${g.type} (${Math.round(g.minutes)}m)`).join("; ")]);
     }));
     wd.columns.forEach((c, i) => { c.width = i === 0 ? 24 : (i === 3 ? 26 : 13); });
 
