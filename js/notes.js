@@ -1388,7 +1388,7 @@ function notesRenderAlarm() {
         <select class="notes-snooze-select" id="notesSnooze-${eid}">
           <option value="5">5 min</option><option value="15" selected>15 min</option><option value="30">30 min</option><option value="60">1 hour</option>
         </select>
-        <button type="button" class="notes-btn notes-btn-sm notes-btn-primary" onclick="notesAlarmSnooze('${eid}')"><i class="fa-solid fa-bed"></i> Snooze</button>
+        <button type="button" class="notes-btn notes-btn-sm notes-btn-primary" onclick="notesAlarmSnooze('${eid}')"><i class="fa-solid fa-clock"></i> Snooze</button>
         <button type="button" class="notes-btn notes-btn-sm notes-btn-ghost" onclick="notesAlarmDismiss('${eid}')"><i class="fa-solid fa-xmark"></i> Dismiss</button>
       </div>
     </div>`;
