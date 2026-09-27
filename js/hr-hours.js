@@ -295,6 +295,7 @@ function hrSummaryHtml(s) {
       ${hrCard("✅ Worked inside shift", hrFmt(s.inShiftWork + s.inShiftBreak), `work ${hrFmt(s.inShiftWork)} + break ${hrFmt(s.inShiftBreak)}`, "good")}
       ${hrCard("⏱️ Worked outside shift", hrFmt(s.outside), `overtime ${hrFmt(s.overtime)} · days off ${hrFmt(s.dayOffWork)}`)}
       ${hrCard("📊 Total worked", hrFmt(s.totalLogin), "inside + outside")}
+      ${hrCard("📐 Balance vs required", hrFmtSigned(hrBalance(s)), `${hrFmt(s.totalLogin)} worked of ${hrFmt(s.required)} required`, Math.abs(hrBalance(s)) <= HR_GRACE_MIN ? "" : (hrBalance(s) > 0 ? "good" : "bad"))}
       ${hrCard("➖ Missing time", hrFmt(s.missing), `short days ${hrFmt(s.missingShort)} · no show ${hrFmt(s.missingNoShow)}`, s.missing > 0 ? "bad" : "good")}
       ${hrCard("☕ Break taken", hrFmt(s.breakTotal), s.extraBreak > 0 ? `<b style="color:#b91c1c">extra ${hrFmt(s.extraBreak)}</b> over 30m/day` : "within 30m/day")}
       ${hrCard("⏰ Late (total)", hrFmt(s.late), `compensated ${hrFmt(s.lateCompensated)}`)}
@@ -340,29 +341,51 @@ function hrDaysTableHtml(s) {
       <tbody>${rows}</tbody></table></div>`;
 }
 
+// الفرق بين اللي اشتغله فعلاً (الإجمالي كله) واللي المفروض يشتغله: "+1h 20m" زيادة أو "−2h 05m" نقص
+function hrBalance(s) {
+  return s.totalLogin - s.required;
+}
+
+function hrFmtSigned(min) {
+  min = Math.round(min || 0);
+  if (Math.abs(min) <= HR_GRACE_MIN) return "±0";
+  return (min > 0 ? "+" : "−") + hrFmt(Math.abs(min));
+}
+
+function hrBalanceCell(min) {
+  const cls = Math.abs(min) <= HR_GRACE_MIN ? "hr-zero" : (min > 0 ? "hr-pos" : "hr-neg");
+  return `<td class="${cls}"><b>${hrFmtSigned(min)}</b></td>`;
+}
+
 function hrTeamTableHtml(list) {
-  const rows = list.map((s, i) => `<tr>
-      <td class="hr-agent" data-hr-hours-agent="${i}">${leaveEsc(s.agent)}</td>
-      <td>${leaveEsc(s.dept || "")}</td>
+  const cnt = (v, cls) => `<td class="${v ? (cls || "") : "hr-zero"}">${v}</td>`;
+  const tm = (v, cls) => `<td class="${v > 0 ? (cls || "") : "hr-zero"}">${hrFmt(v)}</td>`;
+  const row = (s, i) => `
       <td>${s.workDays}</td>
       <td>${hrFmt(s.required)}</td>
       <td>${hrFmt(s.inShiftWork + s.inShiftBreak)}</td>
       <td>${hrFmt(s.outside)}</td>
       <td><b>${hrFmt(s.totalLogin)}</b></td>
-      <td class="${s.missing > 0 ? "hr-neg" : "hr-zero"}">${hrFmt(s.missing)}</td>
-      <td class="${s.full ? "" : "hr-zero"}">${s.full || 0}</td>
-      <td class="${s.latecomp ? "" : "hr-zero"}">${s.latecomp || 0}</td>
-      <td class="${s.short ? "hr-neg" : "hr-zero"}">${s.short || 0}</td>
-      <td class="${s.noshow ? "hr-neg" : "hr-zero"}">${s.noshow || 0}</td>
-      <td class="${s.overtime ? "" : "hr-zero"}">${hrFmt(s.overtime)}</td>
-      <td class="${s.dayOffDays ? "" : "hr-zero"}">${s.dayOffDays}</td>
-      <td class="${s.extraBreak ? "hr-neg" : "hr-zero"}">${hrFmt(s.extraBreak)}</td>
+      ${hrBalanceCell(hrBalance(s))}
+      ${tm(s.missing, "hr-neg")}
+      ${cnt(s.full || 0)}${cnt(s.latecomp || 0)}${cnt(s.short || 0, "hr-neg")}${cnt(s.noshow || 0, "hr-neg")}
+      ${tm(s.overtime)}${cnt(s.dayOffDays)}${tm(s.extraBreak, "hr-neg")}`;
+  const rows = list.map((s, i) => `<tr>
+      <td class="hr-agent" data-hr-hours-agent="${i}">${leaveEsc(s.agent)}</td>
+      <td>${leaveEsc(s.dept || "")}</td>${row(s, i)}
     </tr>`).join("");
+
+  // 📊 إجمالي التيم كله
+  const sum = { workDays: 0, required: 0, inShiftWork: 0, inShiftBreak: 0, outside: 0, totalLogin: 0, missing: 0, full: 0, latecomp: 0, short: 0, noshow: 0, overtime: 0, dayOffDays: 0, extraBreak: 0 };
+  list.forEach(s => Object.keys(sum).forEach(k => { sum[k] += s[k] || 0; }));
+  const totalRow = list.length ? `<tr class="hr-total-row"><td class="hr-agent-total">📊 Team total</td><td>${list.length} agents</td>${row(sum)}</tr>` : "";
+
   return `<div class="table-scroll-wrapper"><table class="roster-full-table hr-balance-table">
-      <thead><tr><th>Agent</th><th>Team</th><th>Work days</th><th>Required</th><th>In shift</th><th>Outside</th><th>Total</th><th>Missing</th>
+      <thead><tr><th>Agent</th><th>Team</th><th>Work days</th><th>Required</th><th>In shift</th><th>Outside</th><th>Total</th>
+      <th title="Total worked − Required">Balance</th><th>Missing</th>
       <th>✅ Full</th><th>🔁 Late-comp</th><th>⚠️ Short</th><th>🚫 No Show</th><th>➕ Overtime</th><th>⭐ Day off</th><th>☕ Extra break</th></tr></thead>
-      <tbody>${rows || `<tr><td colspan="15">No agents in the roster for this month.</td></tr>`}</tbody></table></div>
-    <div class="swap-info" style="margin-top:8px;">Click an agent to see every day.</div>`;
+      <tbody>${rows || `<tr><td colspan="16">No agents in the roster for this month.</td></tr>`}${totalRow}</tbody></table></div>
+    <div class="swap-info" style="margin-top:8px;"><b>Balance</b> = Total worked − Required (green = worked more, red = worked less). <b>Missing</b> only counts time missing inside the shift, even if he worked extra outside it. Click an agent to see every day.</div>`;
 }
 
 function hrRenderHours() {
@@ -409,12 +432,12 @@ async function hrExportHours() {
     const ws = wb.addWorksheet("Summary", { views: [{ state: "frozen", xSplit: 1, ySplit: 2 }] });
     ws.addRow([`HR & Payroll - Hours - ${hrHoursState.month}  (hours in decimals, e.g. 7.5 = 7h 30m)`]).font = { bold: true, size: 13 };
     const head = ["Agent", "Team", "Work days", "Required (h)", "Required net work (h)", "In shift work (h)", "In shift break (h)", "Outside shift (h)",
-      "Overtime (h)", "Day-off work (h)", "Total worked (h)", "Missing (h)", "Missing - short days (h)", "Missing - no show (h)",
+      "Overtime (h)", "Day-off work (h)", "Total worked (h)", "Balance vs required (h)", "Missing (h)", "Missing - short days (h)", "Missing - no show (h)",
       "Late total (h)", "Late compensated (h)", "Left early (h)", "Break total (h)", "Extra break (h)",
       "Full days", "Late-compensated days", "Short days", "No Show days", "Overtime days", "Worked day off days", "Leave days"];
     styleHeader(ws.addRow(head));
     list.forEach(s => ws.addRow([s.agent, s.dept || "", s.workDays, h(s.required), h(s.requiredNet), h(s.inShiftWork), h(s.inShiftBreak), h(s.outside),
-      h(s.overtime), h(s.dayOffWork), h(s.totalLogin), h(s.missing), h(s.missingShort), h(s.missingNoShow),
+      h(s.overtime), h(s.dayOffWork), h(s.totalLogin), h(hrBalance(s)), h(s.missing), h(s.missingShort), h(s.missingNoShow),
       h(s.late), h(s.lateCompensated), h(s.earlyLeave), h(s.breakTotal), h(s.extraBreak),
       s.full || 0, s.latecomp || 0, s.short || 0, s.noshow || 0, s.overtimeDays, s.dayOffDays, Object.values(s.leave).reduce((a, b) => a + b, 0)]));
     ws.columns.forEach((c, i) => { c.width = i === 0 ? 24 : 14; });
