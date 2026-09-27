@@ -13,9 +13,9 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <link rel="stylesheet" href="./style.css?v=20260927.224702">
+    <link rel="stylesheet" href="./style.css?v=20260927.231506">
     <!-- 🧊 Liquid Glass theme (override layer). لو عايز ترجع الشكل القديم: شيل السطرين اللي تحت (link + script) -->
-    <link rel="stylesheet" href="./glass.css?v=20260927.224702">
+    <link rel="stylesheet" href="./glass.css?v=20260927.231506">
     <script>
         // بيقرر قبل أول رسم لو نقفل البلور (Lite): الاختيار اليدوي "glassMode" أقوى، ولو مفيش بنقرر بالجهاز (ذاكرة <= 4GB أو أنوية <= 2)
         (function () {
@@ -1825,6 +1825,9 @@
                 <button class="tab-btn active" id="hrTabRequestsBtn" onclick="hrSwitchTab('requests')">
                     <i class="fa-solid fa-paper-plane"></i> My Requests
                 </button>
+                <button class="tab-btn" id="hrTabHoursBtn" onclick="hrSwitchTab('hours')">
+                    <i class="fa-solid fa-clock"></i> Hours
+                </button>
                 <button class="tab-btn" id="hrTabApprovalsBtn" onclick="hrSwitchTab('approvals')" style="display: none;">
                     <i class="fa-solid fa-inbox"></i> Approvals <span id="leaveTabBadge" class="swap-badge" style="display: none;">0</span>
                 </button>
@@ -1898,6 +1901,34 @@
                 </div>
             </div>
 
+            <!-- Tab: ساعات الشغل الشهرية (js/hr-hours.js) - الإيجنت يشوف ساعاته، والأدمن يشوف الكل -->
+            <div id="hr-tab-hours" class="roster-tab-content hidden-tab" style="display: none;">
+                <div class="agent-lookup-card">
+                    <div class="lookup-controls-row">
+                        <div class="form-group flex-1">
+                            <label for="hrHoursMonth"><i class="fa-solid fa-calendar-days"></i> Month:</label>
+                            <select id="hrHoursMonth" class="combo-input" onchange="hrInitHours()"></select>
+                        </div>
+                        <div class="form-group flex-1" id="hrHoursAgentGroup" style="display: none;">
+                            <label for="hrHoursAgent"><i class="fa-solid fa-user"></i> Agent:</label>
+                            <select id="hrHoursAgent" class="combo-input" onchange="hrLoadHours(false)"></select>
+                        </div>
+                        <button type="button" class="swap-btn swap-btn-primary align-self-end" onclick="hrLoadHours(true)">
+                            <i class="fa-solid fa-rotate"></i> Refresh
+                        </button>
+                        <button type="button" id="hrHoursExportBtn" class="swap-btn swap-btn-primary align-self-end" onclick="hrExportHours()" style="display: none;">
+                            <i class="fa-solid fa-file-excel"></i> Export to Excel
+                        </button>
+                    </div>
+                    <div class="swap-info">
+                        Each shift day = <b>8h</b>: <b>7:30 work + 30m break</b>. Missing = 7:30 − work inside the shift (break excluded), so a shorter break covers being late. 1 minute grace.
+                    </div>
+                </div>
+                <div class="cards-wrapper">
+                    <div id="hrHoursResult"></div>
+                </div>
+            </div>
+
             <!-- Tab 2: الموافقات (أدمن بس) -->
             <div id="hr-tab-approvals" class="roster-tab-content hidden-tab" style="display: none;">
                 <div class="cards-wrapper">
@@ -1935,6 +1966,20 @@
                 .hr-balance-table td.hr-agent:hover { text-decoration: underline; }
                 .hr-balance-table td.hr-zero { opacity: 0.35; }
                 .hr-balance-table td.hr-neg { color: #b91c1c; font-weight: 800; }
+                .hr-section-title { font-weight: 800; font-size: 15px; margin: 14px 0 8px; }
+                .hr-card-sub { font-size: 11px; opacity: 0.75; margin-top: 3px; line-height: 1.4; }
+                .hr-card.hr-good .ccp-metric-value { color: #166534; }
+                .hr-card.hr-warn .ccp-metric-value { color: #92400e; }
+                .hr-card.hr-bad .ccp-metric-value { color: #b91c1c; }
+                .hr-hours-table th, .hr-hours-table td { text-align: center; white-space: nowrap; font-size: 12px; }
+                .hr-hours-table td.hr-status { text-align: left; }
+                .hr-hours-table tr.hr-row-good td.hr-status { color: #166534; }
+                .hr-hours-table tr.hr-row-warn td.hr-status { color: #92400e; }
+                .hr-hours-table tr.hr-row-bad td.hr-status { color: #b91c1c; }
+                .hr-hours-table tr.hr-row-info td.hr-status { color: #075985; }
+                .hr-hours-table tr.hr-row-leave td { opacity: 0.7; }
+                .hr-ot { background: #e0f2fe; color: #075985; border-radius: 8px; padding: 1px 6px; font-size: 11px; font-weight: 800; }
+                .hr-detail { margin-top: 18px; padding-top: 10px; border-top: 2px dashed rgba(148, 163, 184, 0.5); }
                 .hr-balance-table tr.hr-details td { text-align: left; white-space: normal; background: rgba(255, 255, 255, 0.6); }
             </style>
 
@@ -2225,21 +2270,22 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.14.0/html2pdf.bundle.min.js"></script>
 
     <!-- 📜 Main Application Script -->
-    <script src="js/core.js?v=20260927.224702"></script>
-    <script src="js/auth.js?v=20260927.224702"></script>
-    <script src="js/noc.js?v=20260927.224702"></script>
-    <script src="js/break-queue.js?v=20260927.224702"></script>
-    <script src="js/navigation.js?v=20260927.224702"></script>
-    <script src="js/unit-mapping.js?v=20260927.224702"></script>
-    <script src="js/calculator.js?v=20260927.224702"></script>
-    <script src="js/towers.js?v=20260927.224702"></script>
-    <script src="js/tech-schedule.js?v=20260927.224702"></script>
-    <script src="js/leave.js?v=20260927.224702"></script>
-    <script src="js/roster.js?v=20260927.224702"></script>
-    <script src="js/admin.js?v=20260927.224702"></script>
-    <script src="js/notes.js?v=20260927.224702"></script>
-    <script src="js/cc-pulse.js?v=20260927.224702"></script>
-    <script src="js/glass.js?v=20260927.224702"></script>
-    <script src="js/init.js?v=20260927.224702"></script>
+    <script src="js/core.js?v=20260927.231506"></script>
+    <script src="js/auth.js?v=20260927.231506"></script>
+    <script src="js/noc.js?v=20260927.231506"></script>
+    <script src="js/break-queue.js?v=20260927.231506"></script>
+    <script src="js/navigation.js?v=20260927.231506"></script>
+    <script src="js/unit-mapping.js?v=20260927.231506"></script>
+    <script src="js/calculator.js?v=20260927.231506"></script>
+    <script src="js/towers.js?v=20260927.231506"></script>
+    <script src="js/tech-schedule.js?v=20260927.231506"></script>
+    <script src="js/leave.js?v=20260927.231506"></script>
+    <script src="js/hr-hours.js?v=20260927.231506"></script>
+    <script src="js/roster.js?v=20260927.231506"></script>
+    <script src="js/admin.js?v=20260927.231506"></script>
+    <script src="js/notes.js?v=20260927.231506"></script>
+    <script src="js/cc-pulse.js?v=20260927.231506"></script>
+    <script src="js/glass.js?v=20260927.231506"></script>
+    <script src="js/init.js?v=20260927.231506"></script>
 </body>
 </html>

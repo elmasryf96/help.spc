@@ -322,13 +322,14 @@ function initHrPage() {
   });
   let tab = hrPendingTab || hrCurrentTab || "requests";
   hrPendingTab = null;
-  if (!admin) tab = "requests";
+  if (!admin && tab !== "hours") tab = "requests";
   hrSwitchTab(tab);
 }
 
 function hrSwitchTab(key) {
   const tabs = {
     requests: { content: "hr-tab-requests", btn: "hrTabRequestsBtn" },
+    hours: { content: "hr-tab-hours", btn: "hrTabHoursBtn" },
     approvals: { content: "hr-tab-approvals", btn: "hrTabApprovalsBtn" },
     balance: { content: "hr-tab-balance", btn: "hrTabBalanceBtn" }
   };
@@ -341,6 +342,7 @@ function hrSwitchTab(key) {
     if (b) b.classList.toggle("active", k === key);
   });
   initLeaveTab();
+  if (key === "hours" && typeof hrInitHours === "function") hrInitHours();
 }
 
 // 📊 Team Balance: كل الإيجنتس وعدادات السنة جنب بعض (أدمن)
