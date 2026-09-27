@@ -13,9 +13,9 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <link rel="stylesheet" href="./style.css?v=20260927.212554">
+    <link rel="stylesheet" href="./style.css?v=20260927.221543">
     <!-- 🧊 Liquid Glass theme (override layer). لو عايز ترجع الشكل القديم: شيل السطرين اللي تحت (link + script) -->
-    <link rel="stylesheet" href="./glass.css?v=20260927.212554">
+    <link rel="stylesheet" href="./glass.css?v=20260927.221543">
     <script>
         // بيقرر قبل أول رسم لو نقفل البلور (Lite): الاختيار اليدوي "glassMode" أقوى، ولو مفيش بنقرر بالجهاز (ذاكرة <= 4GB أو أنوية <= 2)
         (function () {
@@ -1131,6 +1131,8 @@
                     <span class="shift-tag s3"><i class="fa-solid fa-moon"></i> Shift 3: 01:00 PM - 09:00 PM</span>
                     <span class="shift-tag leave-tag"><i class="fa-solid fa-umbrella-beach"></i> Leave</span>
                     <span class="shift-tag sick-tag"><i class="fa-solid fa-kit-medical"></i> Sick Leave</span>
+                    <span class="shift-tag holiday-tag"><i class="fa-solid fa-flag"></i> Public Holiday</span>
+                    <span class="shift-tag lieu-tag"><i class="fa-solid fa-arrows-rotate"></i> Day in Lieu / Compensated</span>
                 </div>
             </div>
 
@@ -1290,7 +1292,7 @@
                 <div class="agent-lookup-card">
                     <div class="lookup-header-box">
                         <i class="fa-solid fa-umbrella-beach"></i>
-                        <h3>Request Leave / Sick Leave</h3>
+                        <h3>Request Leave / Sick Leave / Compensation</h3>
                     </div>
                     <div class="lookup-controls-row">
                         <div class="form-group flex-1">
@@ -1298,15 +1300,30 @@
                             <select id="leaveTypeSelect" class="combo-input" onchange="leaveUpdateForm()">
                                 <option value="Leave">Leave</option>
                                 <option value="Sick Leave">Sick Leave</option>
+                                <option value="Compensation">Compensation (worked a day off instead of an absent day)</option>
                             </select>
                         </div>
-                        <div class="form-group flex-1">
+                        <div class="form-group flex-1" id="leaveFromGroup">
                             <label for="leaveFromInput"><i class="fa-solid fa-calendar-day"></i> From:</label>
                             <input type="date" id="leaveFromInput" class="date-input" onchange="leaveUpdateForm()">
                         </div>
-                        <div class="form-group flex-1">
+                        <div class="form-group flex-1" id="leaveToGroup">
                             <label for="leaveToInput"><i class="fa-solid fa-calendar-day"></i> To:</label>
                             <input type="date" id="leaveToInput" class="date-input" onchange="leaveUpdateForm()">
+                        </div>
+                    </div>
+                    <div class="lookup-controls-row" id="leaveCompRow" style="display: none;">
+                        <div class="form-group flex-1" id="leaveCompAgentGroup" style="display: none;">
+                            <label for="leaveCompAgent"><i class="fa-solid fa-user"></i> Agent (admin):</label>
+                            <select id="leaveCompAgent" class="combo-input" onchange="leaveLoadCompOptions(true)"></select>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="leaveCompAbsent"><i class="fa-solid fa-ban"></i> Absent day (No Show):</label>
+                            <select id="leaveCompAbsent" class="combo-input" onchange="leaveUpdateForm()"></select>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="leaveCompWorked"><i class="fa-solid fa-star"></i> Day off worked instead:</label>
+                            <select id="leaveCompWorked" class="combo-input" onchange="leaveUpdateForm()"></select>
                         </div>
                     </div>
                     <div class="lookup-controls-row">
@@ -1393,6 +1410,21 @@
                 .sick-card-day { background: #fef2f2 !important; border-color: #fca5a5 !important; color: #991b1b; }
                 .roster-full-table td.cell-leave { background: #bbf7d0; color: #14532d; font-weight: 800; }
                 .roster-full-table td.cell-sick { background: #fecaca; color: #7f1d1d; font-weight: 800; }
+                .shift-tag.holiday-tag { background: #ede9fe; color: #5b21b6; }
+                .shift-tag.lieu-tag { background: #e0f2fe; color: #075985; }
+                .holiday-badge { background: #ede9fe !important; color: #5b21b6 !important; }
+                .lieu-badge { background: #e0f2fe !important; color: #075985 !important; }
+                .holiday-card-day { background: #f5f3ff !important; border-color: #c4b5fd !important; color: #5b21b6; }
+                .lieu-card-day { background: #f0f9ff !important; border-color: #7dd3fc !important; color: #075985; }
+                .roster-full-table td.cell-holiday { background: #ddd6fe; color: #4c1d95; font-weight: 800; }
+                .roster-full-table td.cell-lieu { background: #bae6fd; color: #0c4a6e; font-weight: 800; }
+                .roster-cell-menu .rcm-sep { font-size: 11px; font-weight: 800; opacity: 0.7; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #cbd5e1; }
+                .roster-cell-menu .rcm-star { background: #fffbeb; border-color: #fde68a; }
+                .roster-cell-menu .rcm-note { font-size: 12px; font-weight: 700; color: #075985; margin-top: 4px; }
+                .leave-counter-item.is-holiday { background: #f5f3ff; color: #5b21b6; }
+                .leave-counter-item.is-comp, .leave-counter-item.is-lieu { background: #f0f9ff; color: #075985; }
+                .leave-counter-item.is-lieu { grid-column: 1 / -1; }
+                .leave-card.is-comp { border-left: 4px solid #0284c7; }
                 .roster-full-table td.rc-editable { cursor: pointer; }
                 .roster-full-table td.rc-editable:hover { outline: 2px solid var(--primary-yellow, #fbbf24); outline-offset: -2px; }
                 .roster-full-table td.rc-saved { outline: 3px solid #16a34a; outline-offset: -3px; }
@@ -2067,21 +2099,21 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.14.0/html2pdf.bundle.min.js"></script>
 
     <!-- 📜 Main Application Script -->
-    <script src="js/core.js?v=20260927.212554"></script>
-    <script src="js/auth.js?v=20260927.212554"></script>
-    <script src="js/noc.js?v=20260927.212554"></script>
-    <script src="js/break-queue.js?v=20260927.212554"></script>
-    <script src="js/navigation.js?v=20260927.212554"></script>
-    <script src="js/unit-mapping.js?v=20260927.212554"></script>
-    <script src="js/calculator.js?v=20260927.212554"></script>
-    <script src="js/towers.js?v=20260927.212554"></script>
-    <script src="js/tech-schedule.js?v=20260927.212554"></script>
-    <script src="js/leave.js?v=20260927.212554"></script>
-    <script src="js/roster.js?v=20260927.212554"></script>
-    <script src="js/admin.js?v=20260927.212554"></script>
-    <script src="js/notes.js?v=20260927.212554"></script>
-    <script src="js/cc-pulse.js?v=20260927.212554"></script>
-    <script src="js/glass.js?v=20260927.212554"></script>
-    <script src="js/init.js?v=20260927.212554"></script>
+    <script src="js/core.js?v=20260927.221543"></script>
+    <script src="js/auth.js?v=20260927.221543"></script>
+    <script src="js/noc.js?v=20260927.221543"></script>
+    <script src="js/break-queue.js?v=20260927.221543"></script>
+    <script src="js/navigation.js?v=20260927.221543"></script>
+    <script src="js/unit-mapping.js?v=20260927.221543"></script>
+    <script src="js/calculator.js?v=20260927.221543"></script>
+    <script src="js/towers.js?v=20260927.221543"></script>
+    <script src="js/tech-schedule.js?v=20260927.221543"></script>
+    <script src="js/leave.js?v=20260927.221543"></script>
+    <script src="js/roster.js?v=20260927.221543"></script>
+    <script src="js/admin.js?v=20260927.221543"></script>
+    <script src="js/notes.js?v=20260927.221543"></script>
+    <script src="js/cc-pulse.js?v=20260927.221543"></script>
+    <script src="js/glass.js?v=20260927.221543"></script>
+    <script src="js/init.js?v=20260927.221543"></script>
 </body>
 </html>

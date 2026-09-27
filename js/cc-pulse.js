@@ -1004,7 +1004,7 @@ function renderCcPulseAllAgentsReport(data, callLogData) {
       const attendanceStatus = getAttendanceStatus(shiftWindow, a.totalLoginSeconds, a.date, a.firstLogin, a.endShift);
       const leaveKind = ccpLeaveKindFor_(a.name, a.date);
       if (attendanceStatus === "off" && leaveKind) {
-        attendanceBadgeHtml = `<div class="ccp-attendance-badge ccp-attendance-off" style="background:${leaveKind === "Sick Leave" ? "#fee2e2;color:#991b1b" : "#dcfce7;color:#166534"};">${leaveKind === "Sick Leave" ? "🤒 Sick Leave" : "🌴 Leave"}</div>`;
+        attendanceBadgeHtml = `<div class="ccp-attendance-badge ccp-attendance-off" style="${ccpLeaveBadgeStyle_(leaveKind)};">${ccpLeaveLabel_(a.name, a.date, leaveKind)}</div>`;
       } else if (attendanceStatus === "off") {
         attendanceBadgeHtml = `<div class="ccp-attendance-badge ccp-attendance-off">🏖️ Day Off</div>`;
       } else if (attendanceStatus === "no-show") {
@@ -1186,9 +1186,9 @@ function getShiftWindowForAgentDate(agentName, dateStr) {
   return { startMin: range.startMin, endMin: range.endMin, label: `${shiftCode} (${range.label})` };
 }
 
-// 🌴 لو اليوم عليه Leave أو Sick Leave في الروستر بيرجع اسمها، غير كده null.
-// الأيام دي أصلاً مش بتتحسب في الأدهيرانس/الـ Tardy/الـ No Show (getShiftWindowForAgentDate بيرجع null
-// لأي كود مش شيفت) - الدالة دي بس عشان نكتب "Leave" بدل "Day Off" ونعد الأيام
+// 🌴 لو اليوم عليه كود إجازة في الروستر بيرجع اسمه: Leave / Sick Leave / Public Holiday / Day in Lieu / Compensated،
+// غير كده null. الأيام دي أصلاً مش بتتحسب في الأدهيرانس/الـ Tardy/الـ No Show (getShiftWindowForAgentDate بيرجع
+// null لأي كود مش شيفت) - الدالة دي بس عشان نكتب اسمها بدل "Day Off" ونعد الأيام
 function ccpLeaveKindFor_(agentName, dateStr) {
   if (!agentName || !dateStr || !Array.isArray(rosterData)) return null;
   const p = dateStr.split("-").map(Number);
@@ -1196,37 +1196,83 @@ function ccpLeaveKindFor_(agentName, dateStr) {
   const code = String((entry && entry.schedule && entry.schedule[p[2]]) || "").trim().toLowerCase();
   if (code === "leave" || code === "annual leave" || code === "al" || code === "vacation") return "Leave";
   if (code === "sick leave" || code === "sick" || code === "sl") return "Sick Leave";
+  if (code === "public holiday" || code === "holiday" || code === "ph") return "Public Holiday";
+  if (code === "day in lieu" || code === "lieu" || code === "dil") return "Day in Lieu";
+  if (code === "compensated") return "Compensated";
   return null;
 }
 
-// 🏷️ تاج جنب التاريخ في قايمة أيام الإيجنت (رينج/شهر): 🌴 Leave / 🤒 Sick Leave / 🏖️ Off / 🚫 No Show
-// الـ Leave والـ Off من الروستر بس - فبيظهروا حتى لو الإيجنت اشتغل في اليوم ده (أوف واشتغل / إجازة واشتغل)
+// شكل كل نوع: الإيموجي + الألوان
+const CCP_LEAVE_STYLE_ = {
+  "Leave": { emoji: "🌴", color: "#166534", bg: "#dcfce7" },
+  "Sick Leave": { emoji: "🤒", color: "#991b1b", bg: "#fee2e2" },
+  "Public Holiday": { emoji: "🎉", color: "#5b21b6", bg: "#ede9fe" },
+  "Day in Lieu": { emoji: "🔁", color: "#075985", bg: "#e0f2fe" },
+  "Compensated": { emoji: "🔁", color: "#075985", bg: "#e0f2fe" }
+};
+
+function ccpFmtShortDate_(d) {
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const q = String(d || "").split("-");
+  return q.length === 3 ? `${parseInt(q[2], 10)} ${months[parseInt(q[1], 10) - 1]}` : String(d || "");
+}
+
+// النص الكامل للنوع ده في اليوم ده (مع ربط التعويض لو فيه): "🔁 Compensated — worked 25 Sep"
+function ccpLeaveLabel_(agentName, dateStr, kind) {
+  const st = CCP_LEAVE_STYLE_[kind] || { emoji: "" };
+  let text = `${st.emoji} ${kind}`;
+  if (kind === "Compensated" && typeof leaveCompensationFor === "function") {
+    const c = leaveCompensationFor(agentName, dateStr);
+    if (c && c.absentDate === dateStr) text += ` — worked ${ccpFmtShortDate_(c.workedDate)}`;
+  }
+  return text;
+}
+
+// 🏷️ تاج جنب التاريخ في قايمة أيام الإيجنت (رينج/شهر):
+//   🌴 Leave / 🤒 Sick Leave / 🎉 Public Holiday / 🔁 Day in Lieu / 🔁 Compensated / 🏖️ Off / 🚫 No Show
+//   + ⭐ لو الإيجنت اشتغل اليوم ده كـ Public Holiday أو يوم أوف (رصيد Day in Lieu) أو كتعويض عن غياب
+// الأكواد والـ Off من الروستر بس - فبيظهروا حتى لو الإيجنت اشتغل في اليوم ده (أوف واشتغل / إجازة واشتغل)
 // الـ No Show: يوم عليه شيفت ومجاش أو اشتغل أقل من نصه (نفس قاعدة getAttendanceStatus) - مش بيتحط على
 // أيام قبل بداية التتبع (trackingStartDate) لأن مفيش داتا لوجن أصلاً وقتها
 function ccpDayRosterTagHtml_(agentName, day, trackingStartDate) {
   if (ccpIsQueueSupport_(agentName) || !day || !day.date) return "";
   const dateStr = day.date;
+
+  // ⭐ اشتغل اليوم ده كتعويض / Public Holiday / يوم أوف
+  let star = "";
+  const comp = (typeof leaveCompensationFor === "function") ? leaveCompensationFor(agentName, dateStr) : null;
+  const credit = (typeof leaveLieuCreditFor === "function") ? leaveLieuCreditFor(agentName, dateStr) : null;
+  if (comp && comp.workedDate === dateStr) star = ` <b style="color:#075985;">⭐ Worked day off — compensated ${ccpFmtShortDate_(comp.absentDate)}</b>`;
+  else if (credit) star = ` <b style="color:#92400e;">⭐ ${credit.reason} (+1 Day in Lieu)</b>`;
+
   const lk = ccpLeaveKindFor_(agentName, dateStr);
-  if (lk) return ` <b style="color:${lk === "Sick Leave" ? "#991b1b" : "#166534"};">${lk === "Sick Leave" ? "🤒" : "🌴"} ${lk}</b>`;
+  if (lk) return ` <b style="color:${CCP_LEAVE_STYLE_[lk].color};">${ccpLeaveLabel_(agentName, dateStr, lk)}</b>` + star;
   const p = dateStr.split("-").map(Number);
   const entry = Array.isArray(rosterData) ? rosterData.find(a => a.name === agentName && a.month === p[1] && a.year === p[0]) : null;
-  if (!entry) return ""; // مالوش روستر الشهر ده - مانعرفش
+  if (!entry) return star; // مالوش روستر الشهر ده - مانعرفش
   const shiftWindow = getShiftWindowForAgentDate(agentName, dateStr);
-  if (!shiftWindow) return ` <b style="color:#475569;">🏖️ Off</b>`;
-  if (trackingStartDate && dateStr < trackingStartDate) return "";
+  if (!shiftWindow) return (star ? "" : ` <b style="color:#475569;">🏖️ Off</b>`) + star;
+  if (trackingStartDate && dateStr < trackingStartDate) return star;
   if (getAttendanceStatus(shiftWindow, day.totalLoginSeconds, dateStr, day.firstLogin, day.endShift) === "no-show") {
-    return ` <b style="color:#b91c1c;">🚫 No Show</b>`;
+    return ` <b style="color:#b91c1c;">🚫 No Show</b>` + star;
   }
-  return ""; // يوم شغل عادي
+  return star; // يوم شغل عادي
 }
 
-// كروت عدّاد الإجازات لفترة (Leave / Sick Leave) - عدد الأيام والتواريخ نفسها
+// بادج / بانر اليوم الواحد لأي نوع إجازة
+function ccpLeaveBadgeStyle_(kind) {
+  const st = CCP_LEAVE_STYLE_[kind] || CCP_LEAVE_STYLE_["Leave"];
+  return `background:${st.bg};color:${st.color}`;
+}
+
+// كروت عدّاد الإجازات لفترة - Leave و Sick Leave دايمًا، والباقي لو فيه أيام بس
 function ccpLeaveCardsHtml_(agentName, days) {
-  const leave = [], sick = [];
+  const lists = { "Leave": [], "Sick Leave": [], "Public Holiday": [], "Compensated": [], "Day in Lieu": [] };
+  const earned = [];
   (days || []).forEach(d => {
     const k = ccpLeaveKindFor_(agentName, d.date);
-    if (k === "Leave") leave.push(d.date);
-    else if (k === "Sick Leave") sick.push(d.date);
+    if (k && lists[k]) lists[k].push(d.date);
+    if (typeof leaveLieuCreditFor === "function" && leaveLieuCreditFor(agentName, d.date)) earned.push(d.date);
   });
   const fmt = list => list.map(x => { const q = x.split("-"); return `${parseInt(q[2], 10)}/${parseInt(q[1], 10)}`; }).join(", ");
   const card = (label, list, color) => `
@@ -1235,7 +1281,12 @@ function ccpLeaveCardsHtml_(agentName, days) {
         <div class="ccp-metric-value" style="color:${color};">${list.length} day${list.length === 1 ? "" : "s"}</div>
         ${list.length ? `<div style="font-size:11px;opacity:.75;margin-top:2px;line-height:1.4;">${fmt(list)}</div>` : ""}
       </div>`;
-  return card("🌴 Leave", leave, "#166534") + card("🤒 Sick Leave", sick, "#991b1b");
+  let html = card("🌴 Leave", lists["Leave"], "#166534") + card("🤒 Sick Leave", lists["Sick Leave"], "#991b1b");
+  if (lists["Public Holiday"].length) html += card("🎉 Public Holiday", lists["Public Holiday"], "#5b21b6");
+  if (lists["Compensated"].length) html += card("🔁 Compensated", lists["Compensated"], "#075985");
+  if (lists["Day in Lieu"].length) html += card("🔁 Day in Lieu taken", lists["Day in Lieu"], "#075985");
+  if (earned.length) html += card("⭐ Day in Lieu earned", earned, "#92400e");
+  return html;
 }
 
 // بيحدد هل اليوم دا "يستاهل نحكم عليه" ولا لأ: أيام مستقبلية (بعد النهاردة) أو شيفت النهاردة نفسه لسه ماوصلش معاده لسه بدري نحكم عليهم
@@ -2478,7 +2529,7 @@ function buildCcPulseAgentDayHtml(agentName, day, callStats, trackingStartDate, 
     dayStatusBannerHtml = `<div class="ccp-daystatus-banner ccp-noshow">🚫 <strong>No Show</strong> — scheduled for ${shiftWindow.label} but worked less than half the shift (${formatCcPulseDuration(day.totalLoginSeconds)})</div>`;
   } else if (attendanceStatus === "off" && ccpLeaveKindFor_(agentName, day.date)) {
     const lk = ccpLeaveKindFor_(agentName, day.date);
-    dayStatusBannerHtml = `<div class="ccp-daystatus-banner ccp-dayoff" style="${lk === "Sick Leave" ? "background:#fee2e2;color:#991b1b" : "background:#dcfce7;color:#166534"};">${lk === "Sick Leave" ? "🤒" : "🌴"} <strong>${lk}</strong> — not counted in adherence, tardy or no show</div>`;
+    dayStatusBannerHtml = `<div class="ccp-daystatus-banner ccp-dayoff" style="${ccpLeaveBadgeStyle_(lk)};"><strong>${ccpLeaveLabel_(agentName, day.date, lk)}</strong> — not counted in adherence, tardy or no show</div>`;
   } else if (attendanceStatus === "off") {
     dayStatusBannerHtml = `<div class="ccp-daystatus-banner ccp-dayoff">🏖️ <strong>Day Off</strong> — no shift scheduled for this agent on this date</div>`;
   }

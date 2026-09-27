@@ -286,6 +286,8 @@ function renderRosterView() {
         else if (shift === "Shift 3") { shiftBadgeClass = "shift3-badge"; shiftIcon = `<i class="fa-solid fa-moon"></i>`; }
         else if (rosterLeaveKind(shift) === LEAVE_CODE) { shiftBadgeClass = "leave-badge"; shiftIcon = `<i class="fa-solid fa-umbrella-beach"></i>`; }
         else if (rosterLeaveKind(shift) === SICK_LEAVE_CODE) { shiftBadgeClass = "sick-badge"; shiftIcon = `<i class="fa-solid fa-kit-medical"></i>`; }
+        else if (rosterLeaveKind(shift) === PUBLIC_HOLIDAY_CODE) { shiftBadgeClass = "holiday-badge"; shiftIcon = `<i class="fa-solid fa-flag"></i>`; }
+        else if (rosterLeaveKind(shift)) { shiftBadgeClass = "lieu-badge"; shiftIcon = `<i class="fa-solid fa-arrows-rotate"></i>`; }
         
         let livePulseHTML = isActive ? `<span class="live-active-tag"><i class="fa-solid fa-circle"></i> ON DUTY</span>` : ``;
         rowsHTML += `<div class="roster-agent-row ${isActive ? 'highlight-active-agent' : ''}"><div class="agent-profile"><span class="lang-pill ${(agent.lang || 'Ara').toLowerCase()}">${agent.lang || 'Ara'}</span><span class="agent-name">${agent.name}</span></div><div class="agent-status-wrapper">${livePulseHTML}<span class="shift-badge ${shiftBadgeClass}">${shiftIcon} ${shift}</span></div></div>`;
@@ -424,6 +426,8 @@ function renderAgentLookup() {
     else if (shift === "Shift 3") { cardClass = "shift3-card"; icon = `<i class="fa-solid fa-moon"></i>`; }
     else if (rosterLeaveKind(shift) === LEAVE_CODE) { cardClass = "leave-card-day"; icon = `<i class="fa-solid fa-umbrella-beach"></i>`; }
     else if (rosterLeaveKind(shift) === SICK_LEAVE_CODE) { cardClass = "sick-card-day"; icon = `<i class="fa-solid fa-kit-medical"></i>`; }
+    else if (rosterLeaveKind(shift) === PUBLIC_HOLIDAY_CODE) { cardClass = "holiday-card-day"; icon = `<i class="fa-solid fa-flag"></i>`; }
+    else if (rosterLeaveKind(shift)) { cardClass = "lieu-card-day"; icon = `<i class="fa-solid fa-arrows-rotate"></i>`; }
     
     cardsHTML += `<div class="agent-day-card ${cardClass}"><div class="adc-day-number">Day ${day} (${dayName})</div><div class="adc-shift-type">${icon} ${shift}</div></div>`;
   }
@@ -435,11 +439,9 @@ function renderAgentLookup() {
     </div>`;
   }
 
-  // 🌴 عدّاد الإجازات: الشهر المختار + السنة كلها (من خانات الروستر)
-  const mm = String(targetMonth).padStart(2, "0");
-  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  // 🌴 عدّاد الإجازات على السنة كلها (من خانات الروستر + رصيد Day in Lieu)
   const counterHTML = (typeof leaveCounterHtml === "function")
-    ? `<div class="leave-counter-row">${leaveCounterHtml(agent.name, `${targetYear}-${mm}-01`, `${targetYear}-${mm}-${String(daysInMonth).padStart(2, "0")}`, `${monthNames[targetMonth - 1]} ${targetYear}`)}${leaveCounterHtml(agent.name, `${targetYear}-01-01`, `${targetYear}-12-31`, `${targetYear} (months in the roster)`)}</div>`
+    ? `<div class="leave-counter-row">${leaveCounterHtml(agent.name, `${targetYear}-01-01`, `${targetYear}-12-31`, `Leave counter · ${targetYear}`)}</div>`
     : "";
 
   container.innerHTML = `<div class="agent-info-banner"><div class="aip-left"><span class="lang-pill ${(agent.lang || 'Ara').toLowerCase()}">${agent.lang || 'Ara'}</span><h2>${agent.name}</h2><span class="team-tag"><i class="fa-solid fa-users"></i> ${agent.dept} Team</span></div><div class="aip-right"><span class="month-label">Monthly Schedule (${targetMonth}/${targetYear})</span></div></div>${counterHTML}<div class="agent-days-grid">${cardsHTML}</div>`;
@@ -509,6 +511,14 @@ function renderFullMonthlyTable() {
         else if (shift === "Shift 3") cellClass = "cell-shift3";
         else if (rosterLeaveKind(shift) === LEAVE_CODE) cellClass = "cell-leave";
         else if (rosterLeaveKind(shift) === SICK_LEAVE_CODE) cellClass = "cell-sick";
+        else if (rosterLeaveKind(shift) === PUBLIC_HOLIDAY_CODE) cellClass = "cell-holiday";
+        else if (rosterLeaveKind(shift)) cellClass = "cell-lieu";
+
+        // ⭐ اشتغل Public Holiday / يوم أوف (رصيد Day in Lieu) - 🔁 يوم أوف اتشغل كتعويض عن غياب
+        const cellDate = `${yearNum}-${String(monthNum).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+        if (typeof leaveLieuCreditFor === "function" && leaveLieuCreditFor(agent.name, cellDate)) displayVal += " ⭐";
+        const compLink = (typeof leaveCompensationFor === "function") ? leaveCompensationFor(agent.name, cellDate) : null;
+        if (compLink && compLink.workedDate === cellDate) displayVal += " 🔁";
 
         const editAttrs = canEditCells
           ? ` data-rc-agent="${escAttr(agent.name)}" data-rc-date="${yearNum}-${String(monthNum).padStart(2, "0")}-${String(d).padStart(2, "0")}" title="Click to change"`

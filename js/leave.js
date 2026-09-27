@@ -14,11 +14,17 @@
 const LEAVE_CODE = "Leave";
 const SICK_LEAVE_CODE = "Sick Leave";
 const ROSTER_WORK_SHIFTS = ["Shift 1", "Shift 2", "Shift 3"];
-const ROSTER_EDIT_CODES = ["Shift 1", "Shift 2", "Shift 3", "OFF", LEAVE_CODE, SICK_LEAVE_CODE];
+const PUBLIC_HOLIDAY_CODE = "Public Holiday";
+const DAY_IN_LIEU_CODE = "Day in Lieu";
+const COMPENSATED_CODE = "Compensated";
+const COMPENSATION_TYPE = "Compensation";
+const ROSTER_EDIT_CODES = ["Shift 1", "Shift 2", "Shift 3", "OFF", LEAVE_CODE, SICK_LEAVE_CODE, PUBLIC_HOLIDAY_CODE, DAY_IN_LIEU_CODE];
+const LIEU_REASONS = ["Worked Public Holiday", "Worked Day Off"];
 const LEAVE_MAX_FILE_BYTES = 10 * 1024 * 1024;
 const LEAVE_MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-let leaveState = { requests: [], notifications: [], me: "", isAdmin: false, busy: false, loaded: false };
+let leaveState = { requests: [], notifications: [], compensations: [], lieuCredits: [], me: "", isAdmin: false, busy: false, loaded: false };
+let leaveCompOptions = { agent: "", absent: [], worked: [], loading: false, error: "" };
 let leaveLastSignal = null;
 let leaveLastRosterSignal = null;
 
@@ -55,7 +61,28 @@ function rosterLeaveKind(code) {
   const c = String(code || "").trim().toLowerCase();
   if (c === "leave" || c === "annual leave" || c === "al" || c === "vacation") return LEAVE_CODE;
   if (c === "sick leave" || c === "sick" || c === "sl") return SICK_LEAVE_CODE;
+  if (c === "public holiday" || c === "holiday" || c === "ph") return PUBLIC_HOLIDAY_CODE;
+  if (c === "day in lieu" || c === "lieu" || c === "dil") return DAY_IN_LIEU_CODE;
+  if (c === "compensated") return COMPENSATED_CODE;
   return null;
+}
+
+// ⭐ رصيد Day in Lieu مسجل لإيجنت في يوم (من LieuCredits) - أو null
+function leaveLieuCreditFor(name, dateStr) {
+  const wanted = String(name || "").trim().toLowerCase();
+  return (leaveState.lieuCredits || []).find(c => c.date === dateStr && String(c.agent).trim().toLowerCase() === wanted) || null;
+}
+
+// 🔁 تعويض متوافق عليه: بيرجع { absentDate, workedDate } لو اليوم ده طرف فيه - أو null
+function leaveCompensationFor(name, dateStr) {
+  const wanted = String(name || "").trim().toLowerCase();
+  return (leaveState.compensations || []).find(c => String(c.agent).trim().toLowerCase() === wanted && (c.absentDate === dateStr || c.workedDate === dateStr)) || null;
+}
+
+function leaveFmtDuration(sec) {
+  sec = Math.round(sec || 0);
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+  return h ? `${h}h ${m}m` : `${m}m`;
 }
 
 function rosterIsWorkShift(code) {
@@ -63,7 +90,10 @@ function rosterIsWorkShift(code) {
 }
 
 function leaveIcon(kind) {
-  return kind === SICK_LEAVE_CODE ? "fa-kit-medical" : "fa-umbrella-beach";
+  if (kind === SICK_LEAVE_CODE) return "fa-kit-medical";
+  if (kind === PUBLIC_HOLIDAY_CODE) return "fa-flag";
+  if (kind === DAY_IN_LIEU_CODE || kind === COMPENSATED_CODE || kind === COMPENSATION_TYPE) return "fa-arrows-rotate";
+  return "fa-umbrella-beach";
 }
 
 function leaveToken() {
@@ -102,39 +132,57 @@ function leaveRosterCode(name, dateStr) {
 }
 
 // ------------------------------------------------------------
-// 🔢 العدّاد: أيام الـ Leave والـ Sick Leave لإيجنت في فترة (من خانات الروستر نفسها)
+// 🔢 العدّاد: Leave / Sick Leave / Public Holiday / Compensated / Day in Lieu لإيجنت في فترة
+// (من خانات الروستر نفسها + رصيد LieuCredits للـ Day in Lieu المستحق)
 // ------------------------------------------------------------
 function leaveCountFor(name, fromDate, toDate) {
-  const out = { leave: [], sick: [] };
-  if (!Array.isArray(rosterData) || !name) return out;
+  const out = { leave: [], sick: [], holiday: [], compensated: [], lieuUsed: [], lieuEarned: [] };
+  if (!name) return out;
   const wanted = String(name).trim().toLowerCase();
-  rosterData.forEach(entry => {
+  const key = { [LEAVE_CODE]: "leave", [SICK_LEAVE_CODE]: "sick", [PUBLIC_HOLIDAY_CODE]: "holiday", [COMPENSATED_CODE]: "compensated", [DAY_IN_LIEU_CODE]: "lieuUsed" };
+  (Array.isArray(rosterData) ? rosterData : []).forEach(entry => {
     if (String(entry.name).trim().toLowerCase() !== wanted || !entry.schedule) return;
     const daysInMonth = new Date(entry.year, entry.month, 0).getDate();
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${entry.year}-${leavePad(entry.month)}-${leavePad(d)}`;
       if ((fromDate && dateStr < fromDate) || (toDate && dateStr > toDate)) continue;
-      const kind = rosterLeaveKind(entry.schedule[d]);
-      if (kind === LEAVE_CODE && out.leave.indexOf(dateStr) === -1) out.leave.push(dateStr);
-      if (kind === SICK_LEAVE_CODE && out.sick.indexOf(dateStr) === -1) out.sick.push(dateStr);
+      const k = key[rosterLeaveKind(entry.schedule[d])];
+      if (k && out[k].indexOf(dateStr) === -1) out[k].push(dateStr);
     }
   });
-  out.leave.sort();
-  out.sick.sort();
+  (leaveState.lieuCredits || []).forEach(c => {
+    if (String(c.agent).trim().toLowerCase() !== wanted) return;
+    if ((fromDate && c.date < fromDate) || (toDate && c.date > toDate)) return;
+    if (out.lieuEarned.indexOf(c.date) === -1) out.lieuEarned.push(c.date);
+  });
+  Object.keys(out).forEach(k => out[k].sort());
   return out;
 }
 
 // بلوك العداد: عدد الأيام + التواريخ نفسها
 function leaveCounterHtml(name, fromDate, toDate, title) {
   const c = leaveCountFor(name, fromDate, toDate);
-  const chip = (kind, list) => `
-    <div class="leave-counter-item ${kind === SICK_LEAVE_CODE ? "is-sick" : "is-leave"}">
-      <div class="leave-counter-top"><i class="fa-solid ${leaveIcon(kind)}"></i> ${kind}: <b>${list.length}</b> day${list.length === 1 ? "" : "s"}</div>
-      <div class="leave-counter-dates">${list.length ? list.map(leaveFmtDate).join(", ") : "—"}</div>
+  const dates = list => list.length ? list.map(leaveFmtDate).join(", ") : "—";
+  const item = (cls, icon, label, list) => `
+    <div class="leave-counter-item ${cls}">
+      <div class="leave-counter-top"><i class="fa-solid ${icon}"></i> ${label}: <b>${list.length}</b> day${list.length === 1 ? "" : "s"}</div>
+      <div class="leave-counter-dates">${dates(list)}</div>
+    </div>`;
+  const left = c.lieuEarned.length - c.lieuUsed.length;
+  const lieu = `
+    <div class="leave-counter-item is-lieu">
+      <div class="leave-counter-top"><i class="fa-solid fa-arrows-rotate"></i> Day in Lieu: earned <b>${c.lieuEarned.length}</b> · taken <b>${c.lieuUsed.length}</b> · left <b style="${left < 0 ? "color:#b91c1c" : ""}">${left}</b></div>
+      <div class="leave-counter-dates">⭐ Earned: ${dates(c.lieuEarned)}<br>🔁 Taken: ${dates(c.lieuUsed)}</div>
     </div>`;
   return `<div class="leave-counter">
       <div class="leave-counter-title"><i class="fa-solid fa-calendar-check"></i> ${leaveEsc(title || "Leave counter")}</div>
-      <div class="leave-counter-grid">${chip(LEAVE_CODE, c.leave)}${chip(SICK_LEAVE_CODE, c.sick)}</div>
+      <div class="leave-counter-grid">
+        ${item("is-leave", "fa-umbrella-beach", "Leave", c.leave)}
+        ${item("is-sick", "fa-kit-medical", "Sick Leave", c.sick)}
+        ${item("is-holiday", "fa-flag", "Public Holiday", c.holiday)}
+        ${item("is-comp", "fa-arrows-rotate", "Compensated", c.compensated)}
+        ${lieu}
+      </div>
     </div>`;
 }
 
@@ -159,6 +207,8 @@ function leaveFetchList() {
       if (!res || res.status !== "success") throw new Error((res && res.message) || "Failed to load leave requests");
       leaveState.requests = Array.isArray(res.requests) ? res.requests : [];
       leaveState.notifications = Array.isArray(res.notifications) ? res.notifications : [];
+      leaveState.compensations = Array.isArray(res.compensations) ? res.compensations : [];
+      leaveState.lieuCredits = Array.isArray(res.lieuCredits) ? res.lieuCredits : [];
       leaveState.me = res.me || leaveState.me;
       leaveState.isAdmin = !!res.isAdmin;
       leaveState.loaded = true;
@@ -174,7 +224,7 @@ function leaveOnServerSignal(leaveValue, rosterValue) {
     leaveLastSignal = null;
     leaveLastRosterSignal = null;
     if (leaveState.requests.length || leaveState.notifications.length) {
-      leaveState = { requests: [], notifications: [], me: "", isAdmin: false, busy: false, loaded: false };
+      leaveState = { requests: [], notifications: [], compensations: [], lieuCredits: [], me: "", isAdmin: false, busy: false, loaded: false };
       leaveUpdateBadges();
     }
     return;
@@ -200,6 +250,8 @@ function leaveOnServerSignal(leaveValue, rosterValue) {
 
   leaveFetchList().then(() => {
     if (leaveTabVisible()) leaveRenderTab();
+    leaveAfterRosterRefresh();
+    if (typeof renderFullMonthlyTable === "function") renderFullMonthlyTable();
   }).catch(() => { /* هدوء - هيتعاد مع الإشارة الجاية */ });
 }
 
@@ -282,6 +334,10 @@ function leaveNotificationText(n) {
       `${leaveEsc(n.from || "-")} → <b>${leaveEsc(n.to)}</b>${by}`;
   }
   const verb = n.status === "Approved" ? "approved ✅" : (n.status === "Rejected" ? "rejected ❌" : "cancelled");
+  if (n.type === COMPENSATION_TYPE) {
+    return `<i class="fa-solid fa-arrows-rotate"></i> Your <b>Compensation</b> (absent ${leaveEsc(leaveFmtDate(n.from))} ↔ worked ${leaveEsc(leaveFmtDate(n.to))}) was <b>${verb}</b>${by}` +
+      (n.note ? `<div class="leave-toast-note">“${leaveEsc(n.note)}”</div>` : "");
+  }
   return `<i class="fa-solid ${leaveIcon(n.type)}"></i> Your <b>${leaveEsc(n.type)}</b> (${leaveEsc(leaveFmtRange(n.from, n.to))}) was <b>${verb}</b>${by}` +
     (n.note ? `<div class="leave-toast-note">“${leaveEsc(n.note)}”</div>` : "");
 }
@@ -356,6 +412,93 @@ function leavePreviewDays(from, to) {
   return out;
 }
 
+function leaveIsCompMode() {
+  const t = document.getElementById("leaveTypeSelect");
+  return !!(t && t.value === COMPENSATION_TYPE);
+}
+
+// الإيجنت اللي التعويض ليه: الأدمن يقدر يختار أي إيجنت، غير كده أنا
+function leaveCompTargetAgent() {
+  const sel = document.getElementById("leaveCompAgent");
+  return (leaveIsAdminUser() && sel && sel.value) ? sel.value : leaveMyName();
+}
+
+function leaveFillCompAgentSelect() {
+  const group = document.getElementById("leaveCompAgentGroup");
+  const sel = document.getElementById("leaveCompAgent");
+  if (!group || !sel) return;
+  if (!leaveIsAdminUser()) { group.style.display = "none"; return; }
+  group.style.display = "";
+  if (sel.options.length > 1) return;
+  const me = leaveMyName();
+  const names = [];
+  (Array.isArray(rosterData) ? rosterData : []).forEach(a => { if (a.dept !== "Queue Support" && names.indexOf(a.name) === -1) names.push(a.name); });
+  names.sort((x, y) => x.localeCompare(y));
+  sel.innerHTML = names.map(n => `<option value="${leaveEsc(n)}"${n.toLowerCase() === me.toLowerCase() ? " selected" : ""}>${leaveEsc(n)}</option>`).join("");
+}
+
+// بيسحب أيام الغياب (No Show) وأيام الأوف اللي اشتغلها الإيجنت من السيرفر (Leave.gs -> compOptions_)
+async function leaveLoadCompOptions(force) {
+  const agent = leaveCompTargetAgent();
+  if (!force && leaveCompOptions.agent === agent && !leaveCompOptions.error && !leaveCompOptions.loading) return;
+  leaveCompOptions = { agent, absent: [], worked: [], loading: true, error: "" };
+  leaveUpdateForm();
+  try {
+    const url = GOOGLE_SHEET_API_URL + "?action=compOptions&t=" + Date.now() + "&agent=" + encodeURIComponent(agent) + "&token=" + encodeURIComponent(leaveToken());
+    const res = await fetch(url, { method: "GET", redirect: "follow" }).then(r => r.json());
+    if (!res || res.status !== "success") throw new Error((res && res.message) || "Could not load the days");
+    if (leaveCompTargetAgent() !== agent) return; // اليوزر غيّر الإيجنت في النص
+    leaveCompOptions = { agent, absent: res.absent || [], worked: res.worked || [], loading: false, error: "" };
+  } catch (err) {
+    leaveCompOptions = { agent, absent: [], worked: [], loading: false, error: err.message || String(err) };
+  }
+  leaveUpdateForm();
+}
+
+function leaveUpdateCompForm(info, btn) {
+  const absentSel = document.getElementById("leaveCompAbsent");
+  const workedSel = document.getElementById("leaveCompWorked");
+  if (!absentSel || !workedSel) return;
+  leaveFillCompAgentSelect();
+
+  const agent = leaveCompTargetAgent();
+  if (leaveCompOptions.agent !== agent && !leaveCompOptions.loading) { leaveLoadCompOptions(); return; }
+  if (leaveCompOptions.loading) {
+    info.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Loading ${leaveEsc(agent)}'s days...`;
+    return;
+  }
+  if (leaveCompOptions.error) {
+    info.innerHTML = `<span class="swap-late"><i class="fa-solid fa-triangle-exclamation"></i> ${leaveEsc(leaveCompOptions.error)}</span>`;
+    return;
+  }
+
+  const keepA = absentSel.value, keepW = workedSel.value;
+  absentSel.innerHTML = `<option value="">-- Choose the absent day --</option>` + leaveCompOptions.absent.map(d =>
+    `<option value="${d.date}">${leaveFmtDate(d.date)} · ${leaveEsc(d.shift)} · login ${leaveFmtDuration(d.loginSec)}</option>`).join("");
+  workedSel.innerHTML = `<option value="">-- Choose the day off worked --</option>` + leaveCompOptions.worked.map(d =>
+    `<option value="${d.date}">${leaveFmtDate(d.date)} · ${leaveEsc(d.code || "OFF")} · worked ${leaveFmtDuration(d.loginSec)}</option>`).join("");
+  if (leaveCompOptions.absent.some(d => d.date === keepA)) absentSel.value = keepA;
+  if (leaveCompOptions.worked.some(d => d.date === keepW)) workedSel.value = keepW;
+
+  const who = agent.toLowerCase() === leaveMyName().toLowerCase() ? "You have" : `${leaveEsc(agent)} has`;
+  if (!leaveCompOptions.absent.length || !leaveCompOptions.worked.length) {
+    info.innerHTML = `<i class="fa-solid fa-circle-info"></i> ` +
+      (!leaveCompOptions.absent.length ? `${who} no No Show days to compensate in the last 60 days.` : `${who} no day off with at least 4h of work in the last 60 days.`) +
+      ` <span style="opacity:.75">(A compensation needs a No Show day + a day off worked for at least half a shift.)</span>`;
+    btn.disabled = true;
+    return;
+  }
+
+  if (absentSel.value && workedSel.value) {
+    info.innerHTML = `<i class="fa-solid fa-arrows-rotate"></i> <b>${leaveFmtDate(absentSel.value)}</b> will become <b>Compensated</b> (not a No Show, not counted in adherence) — made up on <b>${leaveFmtDate(workedSel.value)}</b>.` +
+      (leaveIsAdminUser() ? ` <span style="opacity:.75">As an admin, it's saved and approved right away.</span>` : ` <span style="opacity:.75">An admin needs to approve it.</span>`);
+    btn.disabled = !!leaveState.busy;
+  } else {
+    info.innerHTML = `Choose the absent day (No Show) and the day off that was worked instead — in any order.`;
+    btn.disabled = true;
+  }
+}
+
 function leaveUpdateForm() {
   const typeEl = document.getElementById("leaveTypeSelect");
   const fromEl = document.getElementById("leaveFromInput");
@@ -364,6 +507,17 @@ function leaveUpdateForm() {
   const info = document.getElementById("leaveFormInfo");
   const btn = document.getElementById("leaveSendBtn");
   if (!typeEl || !fromEl || !toEl || !info || !btn) return;
+
+  // 🔁 Compensation: فورم مختلف (يوم غياب + يوم أوف اتشغل) بدل من / إلى
+  const comp = leaveIsCompMode();
+  ["leaveFromGroup", "leaveToGroup"].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = comp ? "none" : ""; });
+  const compRow = document.getElementById("leaveCompRow");
+  if (compRow) compRow.style.display = comp ? "" : "none";
+  if (comp) {
+    if (fileRow) fileRow.style.display = "none";
+    leaveUpdateCompForm(info, btn);
+    return;
+  }
 
   const isSick = typeEl.value === SICK_LEAVE_CODE;
   if (fileRow) fileRow.style.display = isSick ? "" : "none";
@@ -417,6 +571,7 @@ async function leaveSendRequest() {
   if (!typeEl || !fromEl || !toEl) return;
 
   const type = typeEl.value;
+  if (type === COMPENSATION_TYPE) { await leaveSendCompensation(); return; }
   const from = fromEl.value, to = toEl.value;
   if (!from || !to) { leaveShowMsg("Please choose the dates.", "error"); return; }
 
@@ -456,6 +611,40 @@ async function leaveSendRequest() {
   }
 }
 
+async function leaveSendCompensation() {
+  const absentEl = document.getElementById("leaveCompAbsent");
+  const workedEl = document.getElementById("leaveCompWorked");
+  const reasonEl = document.getElementById("leaveReasonInput");
+  const btn = document.getElementById("leaveSendBtn");
+  const agent = leaveCompTargetAgent();
+  if (!absentEl || !workedEl || !absentEl.value || !workedEl.value) { leaveShowMsg("Please choose both days.", "error"); return; }
+  const isAdminNow = leaveIsAdminUser();
+  const forWho = agent.toLowerCase() === leaveMyName().toLowerCase() ? "" : ` for ${agent}`;
+  if (!confirm(`${isAdminNow ? "Save" : "Send"} this compensation${forWho}?\n\nAbsent: ${leaveFmtDate(absentEl.value)}\nWorked instead: ${leaveFmtDate(workedEl.value)}${isAdminNow ? "\n\nIt will be approved and the roster updated right away." : "\n\nAn admin needs to approve it."}`)) return;
+
+  leaveState.busy = true;
+  if (btn) btn.disabled = true;
+  leaveShowMsg("Saving...", "info");
+  try {
+    const res = await leavePost({ action: "requestLeave", type: COMPENSATION_TYPE, agent, absentDate: absentEl.value, workedDate: workedEl.value, reason: reasonEl ? reasonEl.value : "" });
+    if (res && res.status === "success") {
+      leaveShowMsg("✅ " + (res.message || "Saved"), "ok");
+      if (reasonEl) reasonEl.value = "";
+      if (res.rosterChanged && typeof fetchAllDataFromGoogleSheet === "function") await fetchAllDataFromGoogleSheet();
+      await leaveFetchList().catch(() => {});
+      leaveState.busy = false;
+      await leaveLoadCompOptions(true);
+    } else {
+      leaveShowMsg("⚠️ " + ((res && res.message) || "Failed to save"), "error");
+    }
+  } catch (err) {
+    leaveShowMsg("⚠️ Network error - please try again.", "error");
+  } finally {
+    leaveState.busy = false;
+    leaveRenderTab();
+  }
+}
+
 async function leaveRespond(id, decision) {
   if (leaveState.busy) return;
   const req = leaveState.requests.find(r => r.id === id);
@@ -463,7 +652,9 @@ async function leaveRespond(id, decision) {
 
   let note = "";
   const who = req.mine ? "your" : `${req.agent}'s`;
-  if (decision === "approve") {
+  if (decision === "approve" && req.type === COMPENSATION_TYPE) {
+    if (!confirm(`Approve ${who} compensation?\n\nAbsent: ${leaveFmtDate(req.from)} -> becomes Compensated\nWorked instead: ${leaveFmtDate(req.to)}`)) return;
+  } else if (decision === "approve") {
     if (!confirm(`Approve ${who} ${req.type} (${leaveFmtRange(req.from, req.to)}, ${req.days.length} day${req.days.length === 1 ? "" : "s"})?\n\nThe roster will be updated right away.`)) return;
   } else if (decision === "reject") {
     const n = prompt(`Reject ${who} ${req.type} (${leaveFmtRange(req.from, req.to)})?\n\nOptional note for the agent:`, "");
@@ -485,6 +676,7 @@ async function leaveRespond(id, decision) {
         await fetchAllDataFromGoogleSheet(); // الروستر اتغير - نسحب النسخة الجديدة فورًا
       }
       await leaveFetchList().catch(() => {});
+      leaveCompOptions.agent = ""; // الأيام المتاحة للتعويض ممكن تكون اتغيرت
       leaveShowMsg("✅ " + (res.message || "Done"), "ok");
     } else {
       leaveShowMsg("⚠️ " + ((res && res.message) || "Something went wrong"), "error");
@@ -533,18 +725,12 @@ async function leaveOpenAttachment(id, btn) {
   }
 }
 
-// عدّادي أنا: الشهر ده + السنة دي
+// عدّادي أنا: السنة كلها
 function leaveRenderCounter() {
   const box = document.getElementById("leaveMyCounter");
   if (!box) return;
-  const me = leaveMyName();
   const u = getUAECurrentDate();
-  const monthStart = `${u.year}-${u.month}-01`;
-  const monthEnd = `${u.year}-${u.month}-${leavePad(new Date(parseInt(u.year, 10), parseInt(u.month, 10), 0).getDate())}`;
-  const monthName = `${LEAVE_MONTHS_SHORT[parseInt(u.month, 10) - 1]} ${u.year}`;
-  box.innerHTML =
-    leaveCounterHtml(me, monthStart, monthEnd, `My leave · ${monthName}`) +
-    leaveCounterHtml(me, `${u.year}-01-01`, `${u.year}-12-31`, `My leave · ${u.year} (months in the roster)`);
+  box.innerHTML = leaveCounterHtml(leaveMyName(), `${u.year}-01-01`, `${u.year}-12-31`, `My leave · ${u.year}`);
 }
 
 function leaveStatusBadge(status) {
@@ -566,12 +752,18 @@ function leaveCardHtml(r) {
     ? `<button class="swap-btn leave-btn-file" data-leave-action="file" data-leave-id="${leaveEsc(r.id)}"><i class="fa-solid fa-paperclip"></i> ${leaveEsc(r.attachment.name)}</button>`
     : "";
 
-  const daysChips = (r.days || []).map(d => `<span class="swap-shift">${leaveEsc(leaveFmtDate(d.date))} · ${leaveEsc(d.shift)}</span>`).join(" ");
+  const isComp = r.type === COMPENSATION_TYPE;
+  const ex = r.extra || {};
+  const daysChips = isComp
+    ? `<span class="swap-shift">🚫 Absent ${leaveEsc(leaveFmtDate(r.from))} · ${leaveEsc((r.days && r.days[0] && r.days[0].shift) || "")} · login ${leaveFmtDuration(ex.absentLoginSec)}</span>` +
+      ` <i class="fa-solid fa-arrow-right-arrow-left"></i> ` +
+      `<span class="swap-shift">⭐ Worked ${leaveEsc(leaveFmtDate(r.to))} · ${leaveEsc(ex.workedCode || "OFF")} · ${leaveFmtDuration(ex.workedLoginSec)}</span>`
+    : (r.days || []).map(d => `<span class="swap-shift">${leaveEsc(leaveFmtDate(d.date))} · ${leaveEsc(d.shift)}</span>`).join(" ");
   const decided = r.decidedAt ? ` · ${leaveEsc(r.status.toLowerCase())} by ${leaveEsc(r.decidedBy || "-")} ${leaveEsc(r.decidedAt)}` : "";
   const emailInfo = (leaveIsAdminUser() && r.email && r.email !== "Sent") ? ` · email: ${leaveEsc(r.email)}` : "";
 
-  return `<div class="swap-card leave-card ${r.type === SICK_LEAVE_CODE ? "is-sick" : "is-leave"}">
-    <div class="swap-card-main"><i class="fa-solid ${leaveIcon(r.type)}"></i> <b>${who}</b>${r.dept && !r.mine ? ` <span style="opacity:.7">(${leaveEsc(r.dept)})</span>` : ""} · <b>${leaveEsc(r.type)}</b> · ${leaveEsc(leaveFmtRange(r.from, r.to))} · <b>${(r.days || []).length}</b> day${(r.days || []).length === 1 ? "" : "s"}</div>
+  return `<div class="swap-card leave-card ${r.type === SICK_LEAVE_CODE ? "is-sick" : (isComp ? "is-comp" : "is-leave")}">
+    <div class="swap-card-main"><i class="fa-solid ${leaveIcon(r.type)}"></i> <b>${who}</b>${r.dept && !r.mine ? ` <span style="opacity:.7">(${leaveEsc(r.dept)})</span>` : ""} · <b>${leaveEsc(r.type)}</b> · ${isComp ? `absent ${leaveEsc(leaveFmtDate(r.from))}, worked ${leaveEsc(leaveFmtDate(r.to))}` : `${leaveEsc(leaveFmtRange(r.from, r.to))} · <b>${(r.days || []).length}</b> day${(r.days || []).length === 1 ? "" : "s"}`}</div>
     <div class="leave-days-chips">${daysChips}</div>
     ${r.reason ? `<div class="swap-card-meta"><i class="fa-regular fa-comment"></i> ${leaveEsc(r.reason)}</div>` : ""}
     ${r.adminNote ? `<div class="swap-card-meta"><i class="fa-solid fa-user-shield"></i> Admin note: ${leaveEsc(r.adminNote)}</div>` : ""}
@@ -616,6 +808,8 @@ function leaveOpenCellMenu(td) {
   const agent = td.getAttribute("data-rc-agent");
   const date = td.getAttribute("data-rc-date");
   const current = leaveRosterCode(agent, date) || "";
+  const credit = leaveLieuCreditFor(agent, date);
+  const comp = leaveCompensationFor(agent, date);
 
   const menu = document.createElement("div");
   menu.id = "rosterCellMenu";
@@ -628,6 +822,14 @@ function leaveOpenCellMenu(td) {
       const isCurrent = code.toLowerCase() === current.toLowerCase();
       return `<button type="button" class="rcm-option${isCurrent ? " is-current" : ""}" data-rc-code="${leaveEsc(code)}"${isCurrent ? " disabled" : ""}><i class="fa-solid ${icon}"></i> ${leaveEsc(code)}</button>`;
     }).join("") +
+    // ⭐ رصيد Day in Lieu: مش بيغيّر الخانة - بيسجل إن الإيجنت اشتغل اليوم ده (Public Holiday / يوم أوف)
+    `<div class="rcm-sep">⭐ Day in Lieu credit</div>` +
+    LIEU_REASONS.map(reason => {
+      const on = credit && credit.reason === reason;
+      return `<button type="button" class="rcm-option rcm-star${on ? " is-current" : ""}" data-rc-credit="${leaveEsc(reason)}"${on ? " disabled" : ""}>⭐ ${leaveEsc(reason)}</button>`;
+    }).join("") +
+    (credit ? `<button type="button" class="rcm-option rcm-star" data-rc-credit-off="1">✖ Remove ⭐ credit</button>` : "") +
+    (comp ? `<div class="rcm-note">🔁 ${comp.absentDate === date ? `Compensated — worked ${leaveEsc(leaveFmtDate(comp.workedDate))}` : `Worked day off — compensates ${leaveEsc(leaveFmtDate(comp.absentDate))}`}</div>` : "") +
     `<div class="rcm-msg" style="display:none;"></div>`;
 
   document.body.appendChild(menu);
@@ -643,6 +845,34 @@ function leaveOpenCellMenu(td) {
   menu.querySelectorAll("[data-rc-code]").forEach(btn => {
     btn.onclick = () => leaveSetCell(agent, date, btn.getAttribute("data-rc-code"), menu);
   });
+  menu.querySelectorAll("[data-rc-credit]").forEach(btn => {
+    btn.onclick = () => leaveSetCredit(agent, date, btn.getAttribute("data-rc-credit"), true, menu);
+  });
+  menu.querySelectorAll("[data-rc-credit-off]").forEach(btn => {
+    btn.onclick = () => leaveSetCredit(agent, date, "", false, menu);
+  });
+}
+
+async function leaveSetCredit(agent, date, reason, on, menu) {
+  const msg = menu.querySelector(".rcm-msg");
+  menu.querySelectorAll("button").forEach(b => { b.disabled = true; });
+  if (msg) { msg.style.display = "block"; msg.textContent = "Saving..."; }
+  try {
+    const res = await leavePost({ action: "setLieuCredit", agent, date, reason, on });
+    if (!res || res.status !== "success") throw new Error((res && res.message) || "Could not save");
+    // نحدّث النسخة المحلية فورًا
+    const wanted = agent.trim().toLowerCase();
+    leaveState.lieuCredits = (leaveState.lieuCredits || []).filter(c => !(c.date === date && String(c.agent).trim().toLowerCase() === wanted));
+    if (on) leaveState.lieuCredits.push({ date, agent, reason });
+    leaveCloseCellMenu();
+    if (typeof renderFullMonthlyTable === "function") renderFullMonthlyTable();
+    const agentTab = document.getElementById("tab-agent-view");
+    if (agentTab && agentTab.style.display === "block" && typeof renderAgentLookup === "function") renderAgentLookup();
+    leaveFlashCell(agent, date);
+  } catch (err) {
+    if (msg) { msg.textContent = "⚠️ " + (err.message || err); msg.style.color = "#b91c1c"; }
+    menu.querySelectorAll("button").forEach(b => { if (!b.classList.contains("is-current")) b.disabled = false; });
+  }
 }
 
 async function leaveSetCell(agent, date, code, menu) {
