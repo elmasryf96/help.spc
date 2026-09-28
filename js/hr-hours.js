@@ -308,7 +308,6 @@ function hrCard(label, value, sub, tone) {
 }
 
 function hrSummaryHtml(s) {
-  const leaveTxt = Object.keys(s.leave).map(k => `${k}: ${s.leave[k]}`).join(" · ");
   return `
     <div class="hr-section-title">🗓️ Hours · ${leaveEsc(s.agent)} · ${leaveEsc(s.month)}</div>
     <div class="ccp-metrics-grid">
@@ -331,7 +330,11 @@ function hrSummaryHtml(s) {
       ${hrCard("🚫 No Show", s.noshow || 0, `missing ${hrFmt(s.missingNoShow)}`, (s.noshow || 0) ? "bad" : "")}
       ${hrCard("➕ Overtime days", s.overtimeDays, `total ${hrFmt(s.overtime)}`)}
       ${hrCard("⭐ Worked day off", s.dayOffDays, `total ${hrFmt(s.dayOffWork)}`)}
-      ${hrCard("🌴 Leave days", Object.values(s.leave).reduce((a, b) => a + b, 0), leaveTxt || "none")}
+      ${hrCard("🌴 Leave", s.leave["Leave"] || 0, "annual leave days")}
+      ${hrCard("🤒 Sick Leave", s.leave["Sick Leave"] || 0, "sick days")}
+      ${s.leave["Public Holiday"] ? hrCard("🎉 Public Holiday", s.leave["Public Holiday"], "not counted in required") : ""}
+      ${s.leave["Day in Lieu"] ? hrCard("🔁 Day in Lieu", s.leave["Day in Lieu"], "days taken in lieu") : ""}
+      ${s.leave["Compensated"] ? hrCard("🔁 Compensated", s.leave["Compensated"], "absence made up on a day off") : ""}
       ${s.inprogress ? hrCard("⏳ In progress", s.inprogress, "today's shift not finished") : ""}
     </div>`;
 }
@@ -458,12 +461,14 @@ async function hrExportHours() {
     const head = ["Agent", "Team", "Work days", "Required (h)", "Required net work (h)", "In shift work (h)", "In shift break (h)", "Outside shift (h)",
       "Overtime (h)", "Day-off work (h)", "Total worked (h)", "Balance vs required (h)", "Missing (h)", "Missing - short days (h)", "Missing - no show (h)",
       "Late total (h)", "Late compensated (h)", "Left early (h)", "Break total (h)", "Extra break (h)",
-      "Full days", "Late-compensated days", "Short days", "No Show days", "Overtime days", "Worked day off days", "Leave days"];
+      "Full days", "Late-compensated days", "Short days", "No Show days", "Overtime days", "Worked day off days",
+      "Leave days", "Sick Leave days", "Public Holiday days", "Day in Lieu days", "Compensated days"];
     styleHeader(ws.addRow(head));
     list.forEach(s => ws.addRow([s.agent, s.dept || "", s.workDays, h(s.required), h(s.requiredNet), h(s.inShiftWork), h(s.inShiftBreak), h(s.outside),
       h(s.overtime), h(s.dayOffWork), h(s.totalLogin), h(hrBalance(s)), h(s.missing), h(s.missingShort), h(s.missingNoShow),
       h(s.late), h(s.lateCompensated), h(s.earlyLeave), h(s.breakTotal), h(s.extraBreak),
-      s.full || 0, s.latecomp || 0, s.short || 0, s.noshow || 0, s.overtimeDays, s.dayOffDays, Object.values(s.leave).reduce((a, b) => a + b, 0)]));
+      s.full || 0, s.latecomp || 0, s.short || 0, s.noshow || 0, s.overtimeDays, s.dayOffDays,
+      s.leave["Leave"] || 0, s.leave["Sick Leave"] || 0, s.leave["Public Holiday"] || 0, s.leave["Day in Lieu"] || 0, s.leave["Compensated"] || 0]));
     ws.columns.forEach((c, i) => { c.width = i === 0 ? 24 : 14; });
 
     const wd = wb.addWorksheet("Days", { views: [{ state: "frozen", xSplit: 2, ySplit: 1 }] });
