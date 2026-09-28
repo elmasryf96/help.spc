@@ -32,9 +32,10 @@ function hrFmt(min) {
   return h ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m`;
 }
 
+// بالثواني (13:04:37) عشان يطابق دقايق التأخير المحسوبة بالثواني - من غيرها "13:04" مع "Late 5m" كانت بتبان غلط
 function hrTimeOf(ts) {
   const t = String(ts || "").split(" ")[1];
-  return t ? t.slice(0, 5) : "--";
+  return t ? t.slice(0, 8) : "--";
 }
 
 // "yyyy-MM-dd HH:mm:ss" -> دقايق من بداية اليوم dateStr (لو في يوم بعده بتبقى > 1440)
@@ -175,11 +176,13 @@ function hrComputeAgentMonth(agentName, month, reportDays, trackingStartDate) {
     full: 0, latecomp: 0, short: 0, noshow: 0, overtimeDays: 0, dayOffDays: 0, leave: {}, inprogress: 0, nodata: 0
   };
   rows.forEach(r => {
+    // ⏳ شيفت النهاردة اللي لسه ماخلصش مش بيدخل في أي إجمالي (لا المطلوب ولا اللي اشتغله) - غير كده
+    // الإجمالي كان بياخد ساعات النهاردة والمطلوب لأ، فالـ Balance كان بيطلع أحسن من الحقيقة
+    if (r.category === "inprogress") { s.inprogress++; return; }
     s.totalLogin += r.totalLogin;
     s.breakTotal += r.breakTotal;
     if (r.category === "leave") { s.leave[r.kind] = (s.leave[r.kind] || 0) + 1; s.dayOffWork += r.dayOffWork; s.outside += r.dayOffWork; return; }
     if (r.category === "dayoff-worked") { s.dayOffDays++; s.dayOffWork += r.dayOffWork; s.outside += r.dayOffWork; return; }
-    if (r.category === "inprogress") { s.inprogress++; return; }
     if (r.category === "nodata") { s.nodata++; return; }
     if (!r.judged) return;
     s.workDays++;
