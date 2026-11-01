@@ -59,6 +59,8 @@ function isShiftActiveNow(shiftCode) {
   const uae = getUAECurrentDate();
   const current24Hour = uae.hour24;
   if (shiftCode === "Shift 1" && current24Hour >= 9 && current24Hour < 17) return true;
+  // "Shift 1 EG" = Shift 1 بتاع فريق مصر بعد تغيير الساعة (10 الصبح لـ 6 المسا بتوقيت الإمارات)
+  if (shiftCode === "Shift 1 EG" && current24Hour >= 10 && current24Hour < 18) return true;
   if (shiftCode === "Shift 2" && current24Hour >= 11 && current24Hour < 19) return true;
   if (shiftCode === "Shift 3" && current24Hour >= 13 && current24Hour < 21) return true;
   return false;
@@ -314,7 +316,7 @@ function renderRosterView() {
         const isActive = isShiftActiveNow(shift);
         let shiftBadgeClass = "shift-off-badge";
         let shiftIcon = `<i class="fa-solid fa-mug-hot"></i>`;
-        if (shift === "Shift 1") { shiftBadgeClass = "shift1-badge"; shiftIcon = `<i class="fa-solid fa-sun"></i>`; }
+        if (shift === "Shift 1" || shift === "Shift 1 EG") { shiftBadgeClass = "shift1-badge"; shiftIcon = `<i class="fa-solid fa-sun"></i>`; }
         else if (shift === "Shift 2") { shiftBadgeClass = "shift2-badge"; shiftIcon = `<i class="fa-solid fa-cloud-sun"></i>`; }
         else if (shift === "Shift 3") { shiftBadgeClass = "shift3-badge"; shiftIcon = `<i class="fa-solid fa-moon"></i>`; }
         else if (rosterLeaveKind(shift) === LEAVE_CODE) { shiftBadgeClass = "leave-badge"; shiftIcon = `<i class="fa-solid fa-umbrella-beach"></i>`; }
@@ -455,7 +457,7 @@ function renderAgentLookup() {
     const dayName = getDayNameShort(day, targetMonth, targetYear);
     let cardClass = "shift-off-card";
     let icon = `<i class="fa-solid fa-bed"></i>`;
-    if (shift === "Shift 1") { cardClass = "shift1-card"; icon = `<i class="fa-solid fa-sun"></i>`; }
+    if (shift === "Shift 1" || shift === "Shift 1 EG") { cardClass = "shift1-card"; icon = `<i class="fa-solid fa-sun"></i>`; }
     else if (shift === "Shift 2") { cardClass = "shift2-card"; icon = `<i class="fa-solid fa-cloud-sun"></i>`; }
     else if (shift === "Shift 3") { cardClass = "shift3-card"; icon = `<i class="fa-solid fa-moon"></i>`; }
     else if (rosterLeaveKind(shift) === LEAVE_CODE) { cardClass = "leave-card-day"; icon = `<i class="fa-solid fa-umbrella-beach"></i>`; }
@@ -540,7 +542,7 @@ function renderFullMonthlyTable() {
         if (!shift || String(shift).trim() === "" || String(shift).trim() === "null") {
           cellClass = "";
           displayVal = "-";
-        } else if (shift === "Shift 1") cellClass = "cell-shift1";
+        } else if (shift === "Shift 1" || shift === "Shift 1 EG") cellClass = "cell-shift1";
         else if (shift === "Shift 2") cellClass = "cell-shift2";
         else if (shift === "Shift 3") cellClass = "cell-shift3";
         else if (rosterLeaveKind(shift) === LEAVE_CODE) cellClass = "cell-leave";
@@ -573,8 +575,8 @@ function renderFullMonthlyTable() {
 // في شيت الروستر تلقائي (من Swap.gs في Google Apps Script) وبيتبعت إيميل للمديرين.
 // الحد الأقصى للطلب/الموافقة: قبل بداية أقرب شيفت من الاتنين بساعتين (السيرفر هو اللي بيفرضه،
 // والفرونت بس بيعرضه للمستخدم عشان يعرف).
-const SWAP_SHIFT_START_HOUR = { "Shift 1": 9, "Shift 2": 11, "Shift 3": 13 };
-const SWAP_SHIFT_LABELS = { "Shift 1": "9 AM – 5 PM", "Shift 2": "11 AM – 7 PM", "Shift 3": "1 PM – 9 PM" };
+const SWAP_SHIFT_START_HOUR = { "Shift 1": 9, "Shift 1 EG": 10, "Shift 2": 11, "Shift 3": 13 };
+const SWAP_SHIFT_LABELS = { "Shift 1": "9 AM – 5 PM", "Shift 1 EG": "10 AM – 6 PM", "Shift 2": "11 AM – 7 PM", "Shift 3": "1 PM – 9 PM" };
 const SWAP_CUTOFF_HOURS = 2;
 
 let swapState = { requests: [], me: "", isAdmin: false, busy: false, loaded: false };

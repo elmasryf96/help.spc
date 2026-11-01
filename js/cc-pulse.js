@@ -1130,6 +1130,8 @@ function ccPulseMinutesToTimeLabel(totalMinutes) {
 // ============================================================
 const CCP_SHIFT_TIME_RANGES = {
   "Shift 1": { startMin: 9 * 60, endMin: 17 * 60, label: "9 AM – 5 PM" },
+  // "Shift 1 EG" = Shift 1 بتاع فريق مصر بعد تغيير الساعة (10 الصبح لـ 6 المسا بتوقيت الإمارات)
+  "Shift 1 EG": { startMin: 10 * 60, endMin: 18 * 60, label: "10 AM – 6 PM" },
   "Shift 2": { startMin: 11 * 60, endMin: 19 * 60, label: "11 AM – 7 PM" },
   "Shift 3": { startMin: 13 * 60, endMin: 21 * 60, label: "1 PM – 9 PM" }
 };

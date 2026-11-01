@@ -13,13 +13,14 @@
 
 const LEAVE_CODE = "Leave";
 const SICK_LEAVE_CODE = "Sick Leave";
-const ROSTER_WORK_SHIFTS = ["Shift 1", "Shift 2", "Shift 3"];
+// "Shift 1 EG" = Shift 1 بتاع فريق مصر بعد تغيير الساعة (10 الصبح لـ 6 المسا بتوقيت الإمارات)
+const ROSTER_WORK_SHIFTS = ["Shift 1", "Shift 1 EG", "Shift 2", "Shift 3"];
 const PUBLIC_HOLIDAY_CODE = "Public Holiday";
 const DAY_IN_LIEU_CODE = "Day in Lieu";
 const COMPENSATED_CODE = "Compensated";
 const COMPENSATION_TYPE = "Compensation";
 // الأوف في شيت الروستر عندهم مكتوب "OFF+" - القايمة بتكتبه بنفس الشكل
-const ROSTER_EDIT_CODES = ["Shift 1", "Shift 2", "Shift 3", "OFF+", LEAVE_CODE, SICK_LEAVE_CODE, PUBLIC_HOLIDAY_CODE, DAY_IN_LIEU_CODE];
+const ROSTER_EDIT_CODES = ["Shift 1", "Shift 1 EG", "Shift 2", "Shift 3", "OFF+", LEAVE_CODE, SICK_LEAVE_CODE, PUBLIC_HOLIDAY_CODE, DAY_IN_LIEU_CODE];
 const LIEU_REASONS = ["Worked Public Holiday", "Worked Day Off"];
 const LEAVE_MAX_FILE_BYTES = 10 * 1024 * 1024;
 const LEAVE_MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -982,7 +983,7 @@ function leaveOpenCellMenu(td) {
     `<div class="rcm-title"><b>${leaveEsc(agent)}</b><br>${leaveEsc(leaveFmtDate(date))} · now: <b>${leaveEsc(current || "-")}</b></div>` +
     ROSTER_EDIT_CODES.map(code => {
       const kind = rosterLeaveKind(code);
-      const icon = kind ? leaveIcon(kind) : (code.indexOf("OFF") === 0 ? "fa-mug-hot" : (code === "Shift 1" ? "fa-sun" : (code === "Shift 2" ? "fa-cloud-sun" : "fa-moon")));
+      const icon = kind ? leaveIcon(kind) : (code.indexOf("OFF") === 0 ? "fa-mug-hot" : ((code === "Shift 1" || code === "Shift 1 EG") ? "fa-sun" : (code === "Shift 2" ? "fa-cloud-sun" : "fa-moon")));
       const isCurrent = code.toLowerCase() === current.toLowerCase();
       return `<button type="button" class="rcm-option${isCurrent ? " is-current" : ""}" data-rc-code="${leaveEsc(code)}"${isCurrent ? " disabled" : ""}><i class="fa-solid ${icon}"></i> ${leaveEsc(code)}</button>`;
     }).join("") +

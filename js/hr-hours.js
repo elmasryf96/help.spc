@@ -14,7 +14,8 @@
 //   - الإيجنت يشوف ساعاته هو، والأدمن يشوف كل الإيجنتس + التفاصيل + Export to Excel.
 // ============================================================
 
-const HR_SHIFT_RANGES = { "Shift 1": [540, 1020], "Shift 2": [660, 1140], "Shift 3": [780, 1260] };
+// "Shift 1 EG" = Shift 1 بتاع فريق مصر بعد تغيير الساعة (10 الصبح لـ 6 المسا بتوقيت الإمارات)
+const HR_SHIFT_RANGES = { "Shift 1": [540, 1020], "Shift 1 EG": [600, 1080], "Shift 2": [660, 1140], "Shift 3": [780, 1260] };
 const HR_REQUIRED_MIN = 480;     // 8 ساعات
 const HR_BREAK_ALLOWED_MIN = 30; // البريك المسموح
 const HR_NET_REQUIRED_MIN = HR_REQUIRED_MIN - HR_BREAK_ALLOWED_MIN; // 7:30 شغل صافي
