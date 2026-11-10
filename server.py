@@ -1684,6 +1684,10 @@ _last_known_status = {}
 # بيتصفر برضو لو السيرفر عمل Restart، وقتها العداد هيبدأ من جديد مع أول تغيير بعد الريستارت
 _session_start = {}
 
+# بيتعلم True بس لو تحميل لوج النهاردة من الشيت نجح عند التشغيل - عشان منسجلش سطور مكررة
+# لإيجنتس عندهم سطور فعلاً لو التحميل نفسه فشل
+_hydrate_ok = {"done": False}
+
 AGENT_STATUS_POLL_SECONDS = 1  # نزلناها من 10 لـ1 عشان الـ Break Queue يتابع حالة 3CX الحقيقية شبه لحظي (طلب فارس 2026-09-19) - التوكن متكاش فبيقين مفيش أي أوث إضافي، بس هنراقب لو 3CX بدأ يرفض/يبطئ الطلبات وقتها نرجعها لرقم أعلى
 
 
@@ -1697,9 +1701,14 @@ async def log_status_change_to_sheet(client: httpx.AsyncClient, name, number, ol
             "oldStatus": old_status or "-",
             "newStatus": new_status,
         }
-        await client.post(sheet_url, json=payload, timeout=30)
+        resp = await client.post(sheet_url, json=payload, timeout=30)
+        # Apps Script بيرد 302 (redirect) لما الـ doPost يتنفذ - أي 4xx/5xx معناها التسجيل مااتمش
+        if resp.status_code >= 400:
+            raise Exception(f"HTTP {resp.status_code}")
+        return True
     except Exception as e:
         print(f"❌ فشل تسجيل تغيير حالة {name}: {e}")
+        return False
 
 
 async def agent_status_watcher():
@@ -1713,9 +1722,22 @@ async def agent_status_watcher():
                     old_status = _last_known_status.get(key)
 
                     if old_status is not None and old_status != new_status:
-                        await log_status_change_to_sheet(
+                        ok = await log_status_change_to_sheet(
                             client, agent["name"], key, old_status, new_status
                         )
+                        if not ok:
+                            # التسجيل فشل - منحدثش الحالة في الذاكرة، عشان اللفة الجاية تعيد المحاولة
+                            # بدل ما التغيير يضيع من الشيت خالص (ده اللي كان بيخلي إيجنت يختفي من اللوج)
+                            continue
+                    elif old_status is None and new_status != "Away" and _hydrate_ok["done"]:
+                        # إيجنت شغال دلوقتي بس ملوش ولا سطر في شيت النهاردة (مثلاً السيرفر عمل
+                        # Restart وهو شغال، أو أول تسجيل ليه فشل) - نسجله فورًا بدل ما يفضل
+                        # مش موجود في الشيت طول اليوم ويطلع Out Of Adherence
+                        ok = await log_status_change_to_sheet(
+                            client, agent["name"], key, "Away", new_status
+                        )
+                        if not ok:
+                            continue
 
                     # تتبع بداية الجلسة الحالية عشان عداد "بدأ الشيفت دلوقتي" في الفرونت إند
                     if new_status == "Away":
@@ -1767,6 +1789,7 @@ async def hydrate_status_from_sheet():
 
             _last_known_status[key] = new_status
 
+        _hydrate_ok["done"] = True
         print(f"✅ استكمال حالة {len(_last_known_status)} إيجنت من شيت اليوم بعد التشغيل")
     except Exception as e:
         print(f"❌ فشل استكمال تاريخ الحالات عند التشغيل: {e}")
