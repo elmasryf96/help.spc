@@ -26,6 +26,8 @@ const LEAVE_MAX_FILE_BYTES = 10 * 1024 * 1024;
 const LEAVE_MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 let leaveState = { requests: [], notifications: [], compensations: [], lieuCredits: [], me: "", isAdmin: false, busy: false, loaded: false };
+// المربع الرمادي (معاينة الأيام) مايظهرش غير لما الموظف يختار التاريخ بإيده - عشان محدش يفتكر إن في حاجة اتحسبت عليه
+let leaveDatesTouched = false;
 let leaveCompOptions = { agent: "", absent: [], worked: [], loading: false, error: "" };
 let leaveLastSignal = null;
 let leaveLastRosterSignal = null;
@@ -538,6 +540,13 @@ function initLeaveTab() {
   const toEl = document.getElementById("leaveToInput");
   if (fromEl && !fromEl.value) fromEl.value = today;
   if (toEl && !toEl.value) toEl.value = fromEl ? fromEl.value : today;
+  [fromEl, toEl].forEach(el => {
+    if (!el || el.dataset.leaveTouchBound) return;
+    el.dataset.leaveTouchBound = "1";
+    const markTouched = () => { leaveDatesTouched = true; leaveUpdateForm(); };
+    el.addEventListener("input", markTouched);
+    el.addEventListener("change", markTouched);
+  });
   leaveShowMsg("", "");
   leaveRenderTab();
   leaveFetchList()
@@ -678,6 +687,7 @@ function leaveUpdateForm() {
   ["leaveFromGroup", "leaveToGroup"].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = comp ? "none" : ""; });
   const compRow = document.getElementById("leaveCompRow");
   if (compRow) compRow.style.display = comp ? "" : "none";
+  info.style.display = "";
   if (comp) {
     if (fileRow) fileRow.style.display = "none";
     leaveUpdateCompForm(info, btn);
@@ -709,11 +719,13 @@ function leaveUpdateForm() {
   }
 
   info.innerHTML =
-    `<b>${pv.work.length}</b> working day${pv.work.length === 1 ? "" : "s"} will be counted as <b>${leaveEsc(typeEl.value)}</b>` +
+    `<div style="font-weight:700;opacity:.7;margin-bottom:4px;"><i class="fa-solid fa-circle-info"></i> Preview — not sent yet</div>` +
+    `If approved, this request will cover <b>${pv.work.length}</b> working day${pv.work.length === 1 ? "" : "s"} as <b>${leaveEsc(typeEl.value)}</b>` +
     (pv.skipped ? ` <span style="opacity:.75">(${pv.skipped} day${pv.skipped === 1 ? "" : "s"} off / already on leave not counted)</span>` : "") +
     `<div class="leave-days-chips">${pv.work.map(d => `<span class="swap-shift">${leaveEsc(leaveFmtDate(d.date))} · ${leaveEsc(d.shift)}</span>`).join(" ")}</div>` +
     (isSick ? `<div style="margin-top:6px;"><i class="fa-solid fa-paperclip"></i> The sick leave certificate is <b>required</b>.</div>` : "");
   btn.disabled = !!leaveState.busy;
+  if (!leaveDatesTouched) info.style.display = "none";
 }
 
 function leaveReadFileB64(file) {
@@ -764,6 +776,7 @@ async function leaveSendRequest() {
       leaveShowMsg(msg, "ok");
       if (reasonEl) reasonEl.value = "";
       if (fileEl) fileEl.value = "";
+      leaveDatesTouched = false;
       await leaveFetchList().catch(() => {});
     } else {
       leaveShowMsg("⚠️ " + ((res && res.message) || "Failed to send request"), "error");
