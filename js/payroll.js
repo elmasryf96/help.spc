@@ -25,7 +25,7 @@ const PAY_AUTO_REFRESH_MS = 60000;
 let payrollState = {
   meLoaded: false, meLoading: null, member: false,
   agents: [], earlyCredits: [], settingsLoaded: false,
-  month: "", report: null, loading: false, error: "", detail: "", busy: false
+  month: "", report: null, loading: false, error: "", detail: "", busy: false, showMadeUp: false
 };
 let payrollTimer = null;
 
@@ -347,116 +347,128 @@ function payRender() {
     return;
   }
   if (!payrollState.report) return;
-  payFillAddSelect();
 
   const { list, problems } = payBuildSummaries();
   const cur = (payrollState.agents[0] && payrollState.agents[0].currency) || "EGP";
-  const t = { salary: 0, should: 0, ded: 0, net: 0, today: 0, month: 0 };
+  const t = { salary: 0, should: 0, ded: 0, net: 0, today: 0, todayAgents: 0 };
   list.forEach(s => {
-    t.salary += s.rates.salary; t.should += s.shouldToDate; t.ded += s.deductions;
-    t.net += s.netToDate; t.today += s.todayPending; t.month += s.monthAfter;
+    t.salary += s.rates.salary; t.should += s.shouldToDate; t.ded += s.deductions; t.net += s.netToDate;
+    if (s.todayRow && s.todayRow.remaining > 0) { t.today += s.todayPending; t.todayAgents++; }
   });
   const isCurrent = payrollState.month === hrNowInfo().month;
-  const upTo = isCurrent ? `1 → today (${list[0] ? list[0].elapsed : 0}/${list[0] ? list[0].daysInMonth : 30} days)` : "whole month";
+  const first = list[0];
+  const period = isCurrent && first ? `1 → ${first.elapsed} ${leaveEsc(leaveFmtDate(hrNowInfo().today).split(" ")[1] || "")} (${first.elapsed} of ${first.daysInMonth} days)` : "whole month";
   const at = payrollState.loadedAt ? payrollState.loadedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
+  const q = v => String(v).replace(/'/g, "\\'");
 
   const problemsHtml = problems.map(x => `<div class="swap-info" style="margin-top:8px;"><span class="swap-late"><i class="fa-solid fa-triangle-exclamation"></i>
-      <b>${leaveEsc(x.p.agent)}</b> ${x.matches.length ? `matches more than one agent in the roster (${x.matches.map(leaveEsc).join(", ")}) - add the right one with the full name below and remove "${leaveEsc(x.p.agent)}".` : "was not found in this month's roster."}</span></div>`).join("");
+      <b>${leaveEsc(x.p.agent)}</b> ${x.matches.length ? `matches more than one agent in the roster (${x.matches.map(leaveEsc).join(", ")}).` : "was not found in this month's roster."}</span></div>`).join("");
 
   const rows = list.map(s => {
     const key = leaveEsc(s.agent);
     const tr = s.todayRow;
-    const todayCell = !tr ? "—" : (tr.remaining > 0
-      ? `<span class="hr-neg">${payMin(tr.remaining)} · ${payMoney(tr.deduction)}</span>`
-      : (tr.status === "today" && tr.owed > 0 ? `<span class="hr-pos">made up</span>` : "0"));
-    return `<tr>
-      <td class="hr-agent" onclick="payToggleDetail('${key.replace(/'/g, "\\'")}')">${key}${s.payName.toLowerCase() !== s.agent.toLowerCase() ? ` <span style="opacity:.5;font-weight:600;">(${leaveEsc(s.payName)})</span>` : ""}</td>
+    const todayBadge = tr && tr.remaining > 0
+      ? ` <span class="pay-today-badge" title="Today: still has time to make up after the shift - not deducted yet">⏳ ${payMin(tr.remaining)} today</span>` : "";
+    const dedSub = s.deductions > 0
+      ? `<div class="hr-card-sub">${s.deductedMin ? payMin(s.deductedMin) + " late/missed" : ""}${s.deductedMin && s.noShows ? " + " : ""}${s.noShows ? s.noShows + " No Show" : ""}</div>` : "";
+    return `<tr class="${payrollState.detail === s.agent ? "pay-row-open" : ""}">
+      <td class="hr-agent" onclick="payToggleDetail('${q(key)}')"><i class="fa-solid fa-chevron-${payrollState.detail === s.agent ? "down" : "right"}" style="font-size:10px;opacity:.5;"></i> ${key}${todayBadge}</td>
       <td><input type="number" min="0" step="100" class="combo-input pay-salary-input" id="paySal-${key}" value="${s.rates.salary}">
-          <button type="button" class="swap-btn swap-btn-primary pay-mini-btn" onclick="paySaveSalary('${key.replace(/'/g, "\\'")}')" title="Save salary"><i class="fa-solid fa-floppy-disk"></i></button></td>
-      <td>${payMoney(s.rates.day)}</td>
-      <td>${payMoney(s.rates.hour)}</td>
-      <td>${payMoney(s.rates.minute)}</td>
-      <td class="hr-pos">${payMoney(s.shouldToDate)}</td>
-      <td class="${s.deductions > 0 ? "hr-neg" : "hr-zero"}">${s.deductions > 0 ? "−" + payMoney(s.deductions) : "0.00"}${s.deductions > 0 ? `<div class="hr-card-sub">${s.deductedMin ? payMin(s.deductedMin) : ""}${s.deductedMin && s.noShows ? " + " : ""}${s.noShows ? s.noShows + " No Show" : ""}</div>` : ""}</td>
-      <td><b>${payMoney(s.netToDate)}</b></td>
-      <td>${todayCell}</td>
-      <td>${payMoney(s.monthAfter)}</td>
-      <td><button type="button" class="swap-btn pay-mini-btn" onclick="payToggleDetail('${key.replace(/'/g, "\\'")}')" title="Details"><i class="fa-solid fa-list"></i></button>
-          <button type="button" class="swap-btn pay-mini-btn" onclick="payRemoveAgent('${leaveEsc(s.payName).replace(/'/g, "\\'")}')" title="Remove from payroll"><i class="fa-solid fa-user-minus"></i></button></td>
-    </tr>${payrollState.detail === s.agent ? `<tr class="hr-details"><td colspan="11">${payDetailHtml(s)}</td></tr>` : ""}`;
+          <button type="button" class="swap-btn swap-btn-primary pay-mini-btn" onclick="paySaveSalary('${q(key)}')" title="Save salary"><i class="fa-solid fa-floppy-disk"></i></button>
+          <div class="hr-card-sub">Day ${payMoney(s.rates.day)} · Hour ${payMoney(s.rates.hour)} · Min ${payMoney(s.rates.minute)}</div></td>
+      <td class="pay-big">${payMoney(s.shouldToDate)}</td>
+      <td class="pay-big ${s.deductions > 0 ? "hr-neg" : "hr-zero"}">${s.deductions > 0 ? "−" + payMoney(s.deductions) : "0.00"}${dedSub}</td>
+      <td class="pay-big"><b>${payMoney(s.netToDate)}</b></td>
+    </tr>${payrollState.detail === s.agent ? `<tr class="hr-details"><td colspan="5">${payDetailHtml(s)}</td></tr>` : ""}`;
   }).join("");
 
   box.innerHTML = `
-    <div class="hr-section-title">💰 Payroll · ${leaveEsc(payrollState.month)} · ${upTo} <span style="opacity:.55;font-size:12px;font-weight:600;">updated ${leaveEsc(at)} · refreshes every minute</span></div>
-    <div class="ccp-metrics-grid">
-      ${payCard("Monthly salaries (team)", payMoney(t.salary) + " " + cur, `${list.length} agent${list.length === 1 ? "" : "s"}`)}
-      ${payCard("✅ Should earn to date", payMoney(t.should) + " " + cur, `if fully committed · ${upTo}`, "good")}
-      ${payCard("➖ Deductions to date", payMoney(t.ded) + " " + cur, "closed days only", t.ded > 0 ? "bad" : "good")}
-      ${payCard("💵 Will earn to date", payMoney(t.net) + " " + cur, "after deductions")}
-      ${isCurrent ? payCard("⏳ Today - still open", payMoney(t.today) + " " + cur, "not made up yet - they can still stay after the shift", t.today > 0 ? "warn" : "") : ""}
-      ${payCard("📅 Month salary after deductions", payMoney(t.month) + " " + cur, "full month minus deductions so far")}
+    <div class="hr-section-title">💰 Payroll · ${leaveEsc(payrollState.month)} · ${period} <span style="opacity:.55;font-size:12px;font-weight:600;">updated ${leaveEsc(at)} · refreshes every minute</span></div>
+    <div class="pay-big-cards">
+      <div class="pay-big-card"><div class="pay-big-label">💵 Should get (if committed)</div><div class="pay-big-value">${payMoney(t.should)} <span>${cur}</span></div></div>
+      <div class="pay-big-card pay-bad"><div class="pay-big-label">➖ Deductions</div><div class="pay-big-value">${t.ded > 0 ? "−" : ""}${payMoney(t.ded)} <span>${cur}</span></div></div>
+      <div class="pay-big-card pay-good"><div class="pay-big-label">✅ Will get</div><div class="pay-big-value">${payMoney(t.net)} <span>${cur}</span></div></div>
     </div>
+    ${isCurrent && t.todayAgents ? `<div class="swap-info" style="margin-top:8px;">⏳ <b>Today is still open:</b> ${t.todayAgents} agent${t.todayAgents === 1 ? " has" : "s have"} time to make up (${payMoney(t.today)} ${cur}). It's only deducted if they don't stay after their shift today.</div>` : ""}
     ${problemsHtml}
     <div class="table-scroll-wrapper" style="margin-top:12px;">
       <table class="roster-full-table hr-balance-table pay-table">
-        <thead><tr><th>Agent</th><th>Monthly salary (${leaveEsc(cur)})</th><th>Day</th><th>Hour</th><th>Minute</th>
-          <th>Should earn to date</th><th>Deductions</th><th>Will earn to date</th><th>Today (open)</th><th>Month after deductions</th><th></th></tr></thead>
-        <tbody>${rows || `<tr><td colspan="11">No agents in the payroll yet - add one below.</td></tr>`}
-          ${list.length ? `<tr class="hr-total-row"><td class="hr-agent-total">Team total</td><td>${payMoney(t.salary)}</td><td></td><td></td><td></td>
-            <td>${payMoney(t.should)}</td><td class="${t.ded > 0 ? "hr-neg" : ""}">${t.ded > 0 ? "−" : ""}${payMoney(t.ded)}</td><td><b>${payMoney(t.net)}</b></td>
-            <td>${payMoney(t.today)}</td><td>${payMoney(t.month)}</td><td></td></tr>` : ""}
+        <thead><tr><th>Agent</th><th>Monthly salary (${leaveEsc(cur)})</th><th>Should get</th><th>Deductions</th><th>Will get</th></tr></thead>
+        <tbody>${rows || `<tr><td colspan="5">No agents in the payroll.</td></tr>`}
+          ${list.length ? `<tr class="hr-total-row"><td class="hr-agent-total">Team total</td><td>${payMoney(t.salary)}</td>
+            <td class="pay-big">${payMoney(t.should)}</td><td class="pay-big ${t.ded > 0 ? "hr-neg" : ""}">${t.ded > 0 ? "−" : ""}${payMoney(t.ded)}</td><td class="pay-big"><b>${payMoney(t.net)}</b></td></tr>` : ""}
         </tbody>
       </table>
     </div>
     <div class="swap-info" style="margin-top:10px;">
-      Day = salary ÷ 30 · Hour = day ÷ 8 · Minute = hour ÷ 60. Days off, Leave, Sick Leave, Public Holiday, Day in Lieu and Compensated are paid.
-      Late / away / left early / break over 30m must be made up the <b>same day after the shift</b> - the rest is deducted per minute.
-      No Show = full day deducted, minutes worked are paid back. No overtime. Click an agent for the day-by-day reasons.
+      Click an agent to see why. Late / away / left early / break over 30m must be made up the <b>same day after the shift</b> - what's left is deducted per minute.
+      No Show = the day is deducted (minutes worked are paid). Days off, Leave, Sick Leave, Public Holiday, Day in Lieu and Compensated are paid.
     </div>`;
 }
 
+// 📝 تفاصيل الإيجنت: جملة لكل يوم بدل جدول
+function payMissedWords(r) {
+  const w = [];
+  if (r.late) w.push(`late ${payMin(r.late)}`);
+  if (r.away) w.push(`away ${payMin(r.away)}`);
+  if (r.notLoggedNow) w.push(`not logged in ${payMin(r.notLoggedNow)}`);
+  if (r.leftEarly) w.push(`left early ${payMin(r.leftEarly)}`);
+  if (r.extraBreak) w.push(`break ${payMin(r.extraBreak)} over 30m`);
+  return w.join(" + ");
+}
+
+function payDayLine(s, r) {
+  const day = `<b>${leaveEsc(leaveFmtDate(r.date))}</b>`;
+  const arrow = ` <span class="pay-arrow">→</span> `;
+  const q = v => String(v).replace(/'/g, "\\'");
+  const early = (r.beforeWork > PAY_GRACE_MIN && r.status !== "noshow")
+    ? `<label class="pay-early" title="Admin only: count the time worked before the shift as making up for this day">
+         <input type="checkbox" ${r.earlyOn ? "checked" : ""} onchange="paySetEarly('${q(leaveEsc(s.agent))}','${r.date}',this.checked)">
+         count ${payMin(r.beforeWork)} worked before the shift</label>` : "";
+  const madeUp = r.comp > 0 ? `stayed ${payMin(r.comp)} after the shift${r.earlyOn && r.beforeWork > 0 ? " (incl. before shift)" : ""}` : "didn't stay after the shift";
+
+  if (r.status === "noshow") {
+    return `<div class="pay-line pay-line-bad">🔴 ${day}: No Show${r.workTotal > PAY_GRACE_MIN ? ` (worked only ${payMin(r.workTotal)})` : ""}${arrow}<b>day deducted = ${payMoney(r.deduction)}</b></div>`;
+  }
+  if (r.status === "today") {
+    const what = payMissedWords(r);
+    if (r.remaining > 0) {
+      return `<div class="pay-line pay-line-open">⏳ ${day} (today): ${what || "missed time"} so far${arrow}${madeUp}${arrow}<b>${payMin(r.remaining)} still to make up</b> <span style="opacity:.7">(not deducted yet)</span>${early}</div>`;
+    }
+    return r.owed > 0
+      ? `<div class="pay-line pay-line-good">🟢 ${day} (today): ${what}${arrow}${madeUp}${arrow}<b>all made up</b>${early}</div>`
+      : `<div class="pay-line pay-line-good">🟢 ${day} (today): nothing missed so far</div>`;
+  }
+  const what = payMissedWords(r);
+  if (r.remaining > 0) {
+    return `<div class="pay-line pay-line-bad">🔴 ${day}: ${what}${arrow}${madeUp}${arrow}<b>deducted ${payMin(r.remaining)} = ${payMoney(r.deduction)}</b>${early}</div>`;
+  }
+  if (r.owed > 0) {
+    return `<div class="pay-line pay-line-good">🟢 ${day}: ${what}${arrow}${madeUp}${arrow}<b>no deduction</b>${early}</div>`;
+  }
+  return `<div class="pay-line">⚪ ${day}: on time${early}</div>`;
+}
+
 function payDetailHtml(s) {
-  const rows = s.rows.filter(r => r.owed > 0 || r.status === "noshow" || r.status === "today" || r.beforeWork > PAY_GRACE_MIN);
-  if (!rows.length) return `<div class="hr-detail"><b>${leaveEsc(s.agent)}</b>: nothing to deduct this month so far ✅</div>`;
-  const body = rows.map(r => {
-    const keyA = leaveEsc(s.agent).replace(/'/g, "\\'");
-    const earlyBtn = r.beforeWork > PAY_GRACE_MIN && r.status !== "noshow"
-      ? `<label style="cursor:pointer;white-space:nowrap;"><input type="checkbox" ${r.earlyOn ? "checked" : ""} onchange="paySetEarly('${keyA}','${r.date}',this.checked)"> ${payMin(r.beforeWork)} counts</label>`
-      : (r.beforeWork > PAY_GRACE_MIN ? payMin(r.beforeWork) : "—");
-    return `<tr>
-      <td>${leaveEsc(leaveFmtDate(r.date))}</td>
-      <td>${leaveEsc(r.code)}</td>
-      <td class="hr-status">${leaveEsc(r.label)}</td>
-      <td>${r.status === "noshow" ? "—" : payMin(r.owed)}</td>
-      <td>${r.status === "noshow" ? "—" : payMin(r.afterWork)}</td>
-      <td>${earlyBtn}</td>
-      <td class="${r.deduction > 0 ? "hr-neg" : ""}">${r.deduction > 0 ? (r.status === "today" ? "(open) " : "−") + payMoney(r.deduction) : "0.00"}</td>
-      <td style="text-align:left;white-space:normal;font-size:11px;">${leaveEsc(r.reason || "")}</td>
-    </tr>`;
-  }).join("");
+  const show = r => r.status === "noshow" || r.status === "today" || r.remaining > 0 || (r.owed > 0 && payrollState.showMadeUp) || (r.beforeWork > PAY_GRACE_MIN && payrollState.showMadeUp && r.final);
+  const madeUpCount = s.rows.filter(r => r.final && r.owed > 0 && r.remaining === 0 && r.status !== "noshow").length;
+  const lines = s.rows.filter(show).map(r => payDayLine(s, r)).join("");
+  const toggle = madeUpCount
+    ? `<button type="button" class="swap-btn pay-mini-btn" style="margin-left:8px;" onclick="payToggleMadeUp()">${payrollState.showMadeUp ? "Hide" : "Show"} made-up days (${madeUpCount})</button>` : "";
   return `<div class="hr-detail">
-    <div style="font-weight:800;margin-bottom:6px;">📋 ${leaveEsc(s.agent)} - days with missed time / deductions</div>
-    <table class="roster-full-table hr-hours-table"><thead><tr><th>Date</th><th>Roster</th><th>Status</th><th>Missed time</th><th>Stayed after shift</th>
-      <th title="Admin only: let the work before the shift count as compensation on this day">Before shift (admin)</th><th>Deduction</th><th>Reason</th></tr></thead>
-      <tbody>${body}</tbody></table>
+    <div style="font-weight:800;margin-bottom:8px;">📋 ${leaveEsc(s.agent)}${toggle}</div>
+    ${lines || `<div class="pay-line pay-line-good">✅ Nothing deducted this month so far.</div>`}
   </div>`;
+}
+
+function payToggleMadeUp() {
+  payrollState.showMadeUp = !payrollState.showMadeUp;
+  payRender();
 }
 
 function payToggleDetail(agent) {
   payrollState.detail = payrollState.detail === agent ? "" : agent;
   payRender();
-}
-
-function payFillAddSelect() {
-  const sel = document.getElementById("payAddAgent");
-  if (!sel) return;
-  const month = payrollState.month || hrNowInfo().month;
-  const taken = {};
-  (payrollState.agents || []).forEach(p => payRosterMatches(p.agent, month).forEach(n => { if (payRosterMatches(p.agent, month).length === 1) taken[n] = true; }));
-  const list = (typeof hrRosterAgents === "function") ? hrRosterAgents(month).filter(a => !taken[a.name]) : [];
-  const keep = sel.value;
-  sel.innerHTML = `<option value="">-- Add an agent to the payroll --</option>` + list.map(a => `<option value="${leaveEsc(a.name)}">${leaveEsc(a.name)}${a.dept ? " · " + leaveEsc(a.dept) : ""}</option>`).join("");
-  if (list.some(a => a.name === keep)) sel.value = keep;
 }
 
 function payMsg(text, kind) {
@@ -492,21 +504,6 @@ function paySaveSalary(agent) {
   const v = el ? Number(el.value) : NaN;
   if (!isFinite(v) || v < 0) { payMsg("⚠️ Please enter a valid salary.", "error"); return; }
   payRun({ op: "setSalary", agent, salary: v });
-}
-
-function payAddAgent() {
-  const sel = document.getElementById("payAddAgent");
-  const sal = document.getElementById("payAddSalary");
-  if (!sel || !sel.value) { payMsg("⚠️ Choose an agent first.", "error"); return; }
-  const v = sal && sal.value !== "" ? Number(sal.value) : 17000;
-  if (!isFinite(v) || v < 0) { payMsg("⚠️ Please enter a valid salary.", "error"); return; }
-  payRun({ op: "setSalary", agent: sel.value, salary: v });
-}
-
-function payRemoveAgent(payName) {
-  if (!confirm(`Remove ${payName} from the payroll?\n\n(Nothing else changes - you can add them back any time.)`)) return;
-  if (payrollState.detail && payNameMatches(payName, payrollState.detail)) payrollState.detail = "";
-  payRun({ op: "removeAgent", agent: payName });
 }
 
 function paySetEarly(agent, date, on) {
