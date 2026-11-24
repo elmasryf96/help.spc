@@ -2423,3 +2423,9 @@ input:checked + .slider:before { transform: translateX(20px); }
 .pay-myday-bad .pay-myday-status { background: rgba(254, 226, 226, 0.95); color: #991b1b; }
 .pay-myday-rules { margin: 0; padding-left: 18px; color: #374151; }
 .pay-myday-rules li { margin: 2px 0; }
+
+/* 📞 Who spoke to (js/who-spoke.js) */
+.who-spoke-call { padding: 9px 12px; border-radius: 10px; margin: 6px 0; font-size: 13px; line-height: 1.5; background: rgba(241, 245, 249, 0.85); }
+.who-spoke-good { background: rgba(220, 252, 231, 0.9); }
+.who-spoke-bad { background: rgba(254, 226, 226, 0.85); }
+.who-spoke-when { font-weight: 800; font-size: 12px; opacity: 0.75; margin-bottom: 2px; }
