@@ -398,7 +398,7 @@ function payRender() {
       <div class="pay-big-card pay-bad"><div class="pay-big-label">➖ Deductions</div><div class="pay-big-value">${t.ded > 0 ? "−" : ""}${payMoney(t.ded)} <span>${cur}</span></div></div>
       <div class="pay-big-card pay-good"><div class="pay-big-label">✅ Will get</div><div class="pay-big-value">${payMoney(t.net)} <span>${cur}</span></div></div>
     </div>
-    ${isCurrent && t.todayAgents ? `<div class="swap-info" style="margin-top:8px;">⏳ <b>Today is still open:</b> ${t.todayAgents} agent${t.todayAgents === 1 ? " has" : "s have"} time to make up (${payMoney(t.today)} ${cur}). It's only deducted if they don't stay after their shift today.</div>` : ""}
+    ${isCurrent && t.todayAgents ? `<div class="swap-info" style="margin-top:8px;">⏳ <b>Today is still open:</b> ${admin ? `${t.todayAgents} agent${t.todayAgents === 1 ? " has" : "s have"} time to make up (${payMoney(t.today)} ${cur}). It's only deducted if they don't stay after their shift today.` : `you have ${payMin(list[0] && list[0].todayRow ? list[0].todayRow.remaining : 0)} to make up today (${payMoney(t.today)} ${cur}). It's only deducted if you don't stay after your shift today.`}</div>` : ""}
     ${admin ? problemsHtml : ""}
     <div class="table-scroll-wrapper" style="margin-top:12px;">
       <table class="roster-full-table hr-balance-table pay-table">
@@ -438,7 +438,7 @@ function payDayLine(s, r) {
          count ${payMin(r.beforeWork)} worked before the shift</label>` : "";
   const madeUp = (r.earlyOn && r.beforeWork > 0)
     ? `stayed ${payMin(r.afterWork)} after the shift + ${payMin(r.beforeWork)} before (counted by admin)`
-    : (r.comp > 0 ? `stayed ${payMin(r.comp)} after the shift` : "didn't stay after the shift");
+    : (r.comp >= 1 ? `stayed ${payMin(r.comp)} after the shift` : "didn't stay after the shift");
 
   if (r.status === "noshow") {
     return `<div class="pay-line pay-line-bad">🔴 ${day}: No Show${r.workTotal > PAY_GRACE_MIN ? ` (worked only ${payMin(r.workTotal)})` : ""}${arrow}<b>day deducted = ${payMoney(r.deduction)}</b></div>`;
