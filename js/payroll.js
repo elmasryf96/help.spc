@@ -9,7 +9,9 @@
 //     = دقايق لازم تتعوض في نفس اليوم بالقعدة بعد آخر الشيفت. اللي مايتعوضش بيتخصم بالدقيقة.
 //   - البريك 30 دقيقة حق الإيجنت: لو أخد أقل، الباقي مابيعوضش أي تأخير.
 //   - الشغل قبل الشيفت مش بيعوض أوتوماتيك - الأدمن بس يقدر يفعّله ليوم معين (PayrollEarlyCredits).
-//   - No Show (ماجاش أو اشتغل أقل من نص الشيفت) = اليوم كله بيتخصم، وبياخد بس تمن الدقايق اللي اشتغلها.
+//   - No Show = ماعملش لوجن خالص في اليوم ده -> اليوم كله بيتخصم.
+//     (اتغيرت 24 نوفمبر: لو اشتغل أي وقت - حتى أقل من نص الشيفت - بيتحسب يوم عادي: البريك 30د مدفوع
+//      والخصم بالدقايق اللي فاتته بس، ومش بتتكتب كلمة No Show)
 //     لو اتعمله Compensation واتوافق عليه، اليوم بيبقى Compensated في الروستر فمفيش خصم.
 //   - مفيش أوفر تايم دلوقتي.
 //   - النهاردة لسه "مفتوح" (الإيجنت لسه يقدر يعوّض لآخر اليوم) فبيظهر لوحده ومش بيدخل في الخصومات.
@@ -166,14 +168,14 @@ function payComputeDay(agentName, dateStr, day, trackingStartDate, now, rates, e
   r.remaining = Math.max(0, r.owed - r.comp);
   if (r.remaining <= PAY_GRACE_MIN) r.remaining = 0;
 
-  // 🚫 No Show (يوم خلص): اليوم كله بيتخصم - بياخد تمن الدقايق اللي اشتغلها بس
-  const noShow = !day || !day.firstLogin || r.loginTotal < HR_REQUIRED_MIN / 2;
+  // 🚫 No Show (يوم خلص): ماعملش لوجن خالص -> اليوم كله بيتخصم. لو اشتغل أي وقت بيتحسب بالدقايق زي أي يوم
+  const noShow = !day || !day.firstLogin || r.loginTotal <= PAY_GRACE_MIN;
   if (!r.isToday && noShow) {
     r.status = "noshow"; r.final = true;
     r.paidWorked = r.workTotal * rates.minute;
     r.deduction = Math.max(0, rates.day - r.paidWorked);
     r.label = "🚫 No Show";
-    r.reason = `No Show - full day deducted (${payMoney(rates.day)})` +
+    r.reason = `No Show - didn't log in, full day deducted (${payMoney(rates.day)})` +
       (r.workTotal > PAY_GRACE_MIN ? `, worked ${payMin(r.workTotal)} paid back ${payMoney(r.paidWorked)}` : ", no work logged");
     return r;
   }
@@ -411,7 +413,7 @@ function payRender() {
     </div>
     <div class="swap-info" style="margin-top:10px;">
       ${admin ? "Click an agent to see why. " : ""}Late / away / left early / break over 30m must be made up the <b>same day after the shift</b> - what's left is deducted per minute.
-      No Show = the day is deducted (minutes worked are paid). Days off, Leave, Sick Leave, Public Holiday, Day in Lieu and Compensated are paid.
+      No Show (didn't log in at all) = the whole day is deducted; if he worked part of the shift, only the missed minutes are deducted. Days off, Leave, Sick Leave, Public Holiday, Day in Lieu and Compensated are paid.
     </div>`;
 }
 
@@ -441,7 +443,7 @@ function payDayLine(s, r) {
     : (r.comp >= 1 ? `stayed ${payMin(r.comp)} after the shift` : "didn't stay after the shift");
 
   if (r.status === "noshow") {
-    return `<div class="pay-line pay-line-bad">🔴 ${day}: No Show${r.workTotal > PAY_GRACE_MIN ? ` (worked only ${payMin(r.workTotal)})` : ""}${arrow}<b>day deducted = ${payMoney(r.deduction)}</b></div>`;
+    return `<div class="pay-line pay-line-bad">🔴 ${day}: No Show - didn't log in${arrow}<b>whole day deducted = ${payMoney(r.deduction)}</b></div>`;
   }
   if (r.status === "today") {
     const what = payMissedWords(r);
@@ -589,7 +591,7 @@ function payrollMyDayHtml(agentName, dateStr, day, trackingStartDate) {
     }
   } else if (r.status === "noshow") {
     tone = "bad";
-    status = `🚫 This day was a No Show - the day is deducted (unless an admin approves a Compensation).`;
+    status = `🚫 No Show - you didn't log in this day, so the whole day is deducted (unless an admin approves a Compensation).`;
   } else if (r.status === "deducted") {
     tone = "bad";
     status = `➖ You missed ${payMin(r.owed)} this day (${leaveEsc(r.parts.join(" · "))}), made up ${payMin(r.comp)} → <b>${payMin(r.remaining)} deducted</b>.`;
@@ -612,7 +614,7 @@ function payrollMyDayHtml(agentName, dateStr, day, trackingStartDate) {
         <li>Your break is <b>30 minutes - it's your right, take it</b>. A shorter break does <b>not</b> make up for being late, and any minute over 30 must be made up.</li>
         <li>Late login, being logged out / away during the shift, leaving early, or a longer break → make it up the <b>same day</b> by staying <b>after your shift ends</b>. Time before your shift or on another day does not count.</li>
         <li>Any minutes not made up by the end of the day are <b>deducted from your salary</b>.</li>
-        <li>No Show (or less than half a shift) = the day is deducted, unless a Compensation (a day off worked) is approved.</li>
+        <li>Not logging in at all (No Show) = the whole day is deducted, unless a Compensation (a day off worked) is approved. If you work part of the shift, only the missed minutes are deducted.</li>
         <li>Leave, Sick Leave, Public Holiday and Day in Lieu are paid - no deduction.</li>
       </ul>
     </div>`;
