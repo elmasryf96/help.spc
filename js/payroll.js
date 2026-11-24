@@ -237,7 +237,9 @@ async function payFetchSettings() {
   const res = await fetch(url, { method: "GET", redirect: "follow" }).then(r => r.json());
   if (!res || res.status !== "success") throw new Error((res && res.message) || "Could not load the payroll settings");
   payrollState.member = !!res.member;
+  payrollState.meName = res.me || "";
   payrollState.meLoaded = true;
+  payrollState.meToken = payToken();
   if (Array.isArray(res.agents)) {
     payrollState.agents = Array.isArray(res.agents) ? res.agents : [];
     payrollState.earlyCredits = Array.isArray(res.earlyCredits) ? res.earlyCredits : [];
@@ -527,20 +529,34 @@ function paySetEarly(agent, date, on) {
 // 👋 كارت My Day: تعليمات + الدقايق اللي على الإيجنت النهاردة (لتيم المرتبات بس - من غير أي فلوس)
 // ------------------------------------------------------------
 function payEnsureMe() {
+  const tok = payToken();
+  if (!tok) return Promise.resolve();
+  // 🔄 يوزر تاني عمل لوجن في نفس الصفحة (من غير Refresh) -> ننسى بيانات اليوزر اللي قبله
+  if (payrollState.meToken !== tok) {
+    payrollState.meToken = tok;
+    payrollState.meLoaded = false; payrollState.member = false;
+    payrollState.agents = []; payrollState.earlyCredits = []; payrollState.report = null; payrollState.detail = "";
+    payrollState.meRetryAt = 0;
+  }
   if (payrollState.meLoaded) return Promise.resolve();
   if (payrollState.meLoading) return payrollState.meLoading;
-  if (!payToken()) return Promise.resolve();
+  if (payrollState.meRetryAt && Date.now() < payrollState.meRetryAt) return Promise.resolve();
   payrollState.meLoading = payFetchSettings()
-    .catch(() => { payrollState.meLoaded = true; payrollState.member = false; })
+    .catch(err => {
+      // فشل (نت / سيرفر) -> نحاول تاني بعد دقيقة بدل ما نعتبره مش من التيم على طول
+      console.warn("Payroll: could not check membership -", err && err.message);
+      payrollState.meRetryAt = Date.now() + 60000;
+    })
     .then(() => {
       payrollState.meLoading = null;
+      if (payrollState.meLoaded) console.log("Payroll: " + (payrollState.meName || "") + " member=" + payrollState.member);
       if (payrollState.member && typeof loadMyDayCard === "function") loadMyDayCard(typeof myDayCardCurrentDate !== "undefined" ? myDayCardCurrentDate : undefined);
     });
   return payrollState.meLoading;
 }
 
 function payrollMyDayHtml(agentName, dateStr, day, trackingStartDate) {
-  if (!payrollState.meLoaded) { payEnsureMe(); return ""; }
+  if (!payrollState.meLoaded || payrollState.meToken !== payToken()) { payEnsureMe(); return ""; }
   if (!payrollState.member) return "";
   const now = hrNowInfo();
   const r = payComputeDay(agentName, dateStr, day, trackingStartDate, now, payRates(0), false);
