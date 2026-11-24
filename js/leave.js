@@ -320,13 +320,18 @@ let hrPendingTab = null;
 // بيتنادى من navigateTo("hr-page") في navigation.js
 function initHrPage() {
   const admin = leaveIsAdminUser();
-  ["hrTabApprovalsBtn", "hrTabBalanceBtn", "hrTabPayrollBtn"].forEach(id => {
+  ["hrTabApprovalsBtn", "hrTabBalanceBtn"].forEach(id => {
     const b = document.getElementById(id);
     if (b) b.style.display = admin ? "" : "none";
   });
+  // 💰 Payroll: الأدمن (كل الإيجنتس) + أي إيجنت من تيم المرتبات (بياناته هو بس)
+  const payBtn = document.getElementById("hrTabPayrollBtn");
+  const showPay = () => { if (payBtn) payBtn.style.display = (admin || (typeof payrollState !== "undefined" && payrollState.member)) ? "" : "none"; };
+  showPay();
+  if (!admin && typeof payEnsureMe === "function") payEnsureMe().then(showPay);
   let tab = hrPendingTab || hrCurrentTab || "requests";
   hrPendingTab = null;
-  if (!admin && tab !== "hours") tab = "requests";
+  if (!admin && tab !== "hours" && tab !== "payroll") tab = "requests";
   hrSwitchTab(tab);
 }
 
@@ -338,7 +343,7 @@ function hrSwitchTab(key) {
     balance: { content: "hr-tab-balance", btn: "hrTabBalanceBtn" },
     payroll: { content: "hr-tab-payroll", btn: "hrTabPayrollBtn" }
   };
-  if (key === "payroll" && !leaveIsAdminUser()) key = "requests";
+  if (key === "payroll" && !leaveIsAdminUser() && !(typeof payrollState !== "undefined" && payrollState.member)) key = "requests";
   if (!tabs[key]) key = "requests";
   hrCurrentTab = key;
   Object.keys(tabs).forEach(k => {

@@ -238,7 +238,7 @@ async function payFetchSettings() {
   if (!res || res.status !== "success") throw new Error((res && res.message) || "Could not load the payroll settings");
   payrollState.member = !!res.member;
   payrollState.meLoaded = true;
-  if (res.isAdmin) {
+  if (Array.isArray(res.agents)) {
     payrollState.agents = Array.isArray(res.agents) ? res.agents : [];
     payrollState.earlyCredits = Array.isArray(res.earlyCredits) ? res.earlyCredits : [];
     payrollState.settingsLoaded = true;
@@ -256,7 +256,7 @@ async function payPost(payload) {
 // 🖥️ تاب Payroll (أدمن بس)
 // ------------------------------------------------------------
 function payInitTab() {
-  if (!payIsAdmin()) return;
+  if (!payIsAdmin() && !payrollState.member) return;
   const monthSel = document.getElementById("payMonth");
   if (!monthSel) return;
   const now = hrNowInfo();
@@ -300,7 +300,8 @@ async function payLoad(force, silent) {
   payrollState.error = "";
   if (!silent) box.innerHTML = `<div class="swap-empty"><i class="fa-solid fa-spinner fa-spin"></i> Loading the payroll for ${leaveEsc(month)}...</div>`;
   try {
-    const [settings, report] = await Promise.all([payFetchSettings(), hrFetchMonth(month, "")]);
+    // الإيجنت بيسحب تقريره هو بس، والأدمن كل الإيجنتس
+    const [settings, report] = await Promise.all([payFetchSettings(), hrFetchMonth(month, payIsAdmin() ? "" : leaveMyName())]);
     if (payrollState.month !== month) return;
     payrollState.report = report;
     payrollState.loadedAt = new Date();
@@ -317,9 +318,12 @@ function payBuildSummaries() {
   const tracking = report.trackingStartDate || null;
   const byName = {};
   (report.agents || []).forEach(a => { byName[a.name] = a; });
+  const admin = payIsAdmin();
+  if (!admin) byName[leaveMyName()] = { days: report.days || [] };
   const list = [], problems = [];
   (payrollState.agents || []).forEach(p => {
-    const matches = payRosterMatches(p.agent, month);
+    // الإيجنت: نفسه بس (بالاسم بتاعه في الروستر)
+    const matches = admin ? payRosterMatches(p.agent, month) : [leaveMyName()];
     if (matches.length !== 1) {
       problems.push({ p, matches });
       return;
@@ -360,6 +364,9 @@ function payRender() {
   const period = isCurrent && first ? `1 → ${first.elapsed} ${leaveEsc(leaveFmtDate(hrNowInfo().today).split(" ")[1] || "")} (${first.elapsed} of ${first.daysInMonth} days)` : "whole month";
   const at = payrollState.loadedAt ? payrollState.loadedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
   const q = v => String(v).replace(/'/g, "\\'");
+  const admin = payIsAdmin();
+  // 👤 الإيجنت: التفاصيل بتاعته مفتوحة على طول
+  if (!admin && list[0]) payrollState.detail = list[0].agent;
 
   const problemsHtml = problems.map(x => `<div class="swap-info" style="margin-top:8px;"><span class="swap-late"><i class="fa-solid fa-triangle-exclamation"></i>
       <b>${leaveEsc(x.p.agent)}</b> ${x.matches.length ? `matches more than one agent in the roster (${x.matches.map(leaveEsc).join(", ")}).` : "was not found in this month's roster."}</span></div>`).join("");
@@ -372,9 +379,9 @@ function payRender() {
     const dedSub = s.deductions > 0
       ? `<div class="hr-card-sub">${s.deductedMin ? payMin(s.deductedMin) + " late/missed" : ""}${s.deductedMin && s.noShows ? " + " : ""}${s.noShows ? s.noShows + " No Show" : ""}</div>` : "";
     return `<tr class="${payrollState.detail === s.agent ? "pay-row-open" : ""}">
-      <td class="hr-agent" onclick="payToggleDetail('${q(key)}')"><i class="fa-solid fa-chevron-${payrollState.detail === s.agent ? "down" : "right"}" style="font-size:10px;opacity:.5;"></i> ${key}${todayBadge}</td>
-      <td><input type="number" min="0" step="100" class="combo-input pay-salary-input" id="paySal-${key}" value="${s.rates.salary}">
-          <button type="button" class="swap-btn swap-btn-primary pay-mini-btn" onclick="paySaveSalary('${q(key)}')" title="Save salary"><i class="fa-solid fa-floppy-disk"></i></button>
+      <td class="hr-agent" onclick="${admin ? `payToggleDetail('${q(key)}')` : ""}"><i class="fa-solid fa-chevron-${payrollState.detail === s.agent ? "down" : "right"}" style="font-size:10px;opacity:.5;"></i> ${key}${todayBadge}</td>
+      <td>${admin ? `<input type="number" min="0" step="100" class="combo-input pay-salary-input" id="paySal-${key}" value="${s.rates.salary}">
+          <button type="button" class="swap-btn swap-btn-primary pay-mini-btn" onclick="paySaveSalary('${q(key)}')" title="Save salary"><i class="fa-solid fa-floppy-disk"></i></button>` : `<b>${payMoney(s.rates.salary)}</b>`}
           <div class="hr-card-sub">Day ${payMoney(s.rates.day)} · Hour ${payMoney(s.rates.hour)} · Min ${payMoney(s.rates.minute)}</div></td>
       <td class="pay-big">${payMoney(s.shouldToDate)}</td>
       <td class="pay-big ${s.deductions > 0 ? "hr-neg" : "hr-zero"}">${s.deductions > 0 ? "−" + payMoney(s.deductions) : "0.00"}${dedSub}</td>
@@ -383,25 +390,25 @@ function payRender() {
   }).join("");
 
   box.innerHTML = `
-    <div class="hr-section-title">💰 Payroll · ${leaveEsc(payrollState.month)} · ${period} <span style="opacity:.55;font-size:12px;font-weight:600;">updated ${leaveEsc(at)} · refreshes every minute</span></div>
+    <div class="hr-section-title">💰 ${admin ? "Payroll" : "My payroll"} · ${leaveEsc(payrollState.month)} · ${period} <span style="opacity:.55;font-size:12px;font-weight:600;">updated ${leaveEsc(at)} · refreshes every minute</span></div>
     <div class="pay-big-cards">
       <div class="pay-big-card"><div class="pay-big-label">💵 Should get (if committed)</div><div class="pay-big-value">${payMoney(t.should)} <span>${cur}</span></div></div>
       <div class="pay-big-card pay-bad"><div class="pay-big-label">➖ Deductions</div><div class="pay-big-value">${t.ded > 0 ? "−" : ""}${payMoney(t.ded)} <span>${cur}</span></div></div>
       <div class="pay-big-card pay-good"><div class="pay-big-label">✅ Will get</div><div class="pay-big-value">${payMoney(t.net)} <span>${cur}</span></div></div>
     </div>
     ${isCurrent && t.todayAgents ? `<div class="swap-info" style="margin-top:8px;">⏳ <b>Today is still open:</b> ${t.todayAgents} agent${t.todayAgents === 1 ? " has" : "s have"} time to make up (${payMoney(t.today)} ${cur}). It's only deducted if they don't stay after their shift today.</div>` : ""}
-    ${problemsHtml}
+    ${admin ? problemsHtml : ""}
     <div class="table-scroll-wrapper" style="margin-top:12px;">
       <table class="roster-full-table hr-balance-table pay-table">
         <thead><tr><th>Agent</th><th>Monthly salary (${leaveEsc(cur)})</th><th>Should get</th><th>Deductions</th><th>Will get</th></tr></thead>
-        <tbody>${rows || `<tr><td colspan="5">No agents in the payroll.</td></tr>`}
-          ${list.length ? `<tr class="hr-total-row"><td class="hr-agent-total">Team total</td><td>${payMoney(t.salary)}</td>
+        <tbody>${rows || `<tr><td colspan="5">${admin ? "No agents in the payroll." : "Your name was not found in this month's roster."}</td></tr>`}
+          ${list.length && admin ? `<tr class="hr-total-row"><td class="hr-agent-total">Team total</td><td>${payMoney(t.salary)}</td>
             <td class="pay-big">${payMoney(t.should)}</td><td class="pay-big ${t.ded > 0 ? "hr-neg" : ""}">${t.ded > 0 ? "−" : ""}${payMoney(t.ded)}</td><td class="pay-big"><b>${payMoney(t.net)}</b></td></tr>` : ""}
         </tbody>
       </table>
     </div>
     <div class="swap-info" style="margin-top:10px;">
-      Click an agent to see why. Late / away / left early / break over 30m must be made up the <b>same day after the shift</b> - what's left is deducted per minute.
+      ${admin ? "Click an agent to see why. " : ""}Late / away / left early / break over 30m must be made up the <b>same day after the shift</b> - what's left is deducted per minute.
       No Show = the day is deducted (minutes worked are paid). Days off, Leave, Sick Leave, Public Holiday, Day in Lieu and Compensated are paid.
     </div>`;
 }
@@ -421,11 +428,15 @@ function payDayLine(s, r) {
   const day = `<b>${leaveEsc(leaveFmtDate(r.date))}</b>`;
   const arrow = ` <span class="pay-arrow">→</span> `;
   const q = v => String(v).replace(/'/g, "\\'");
-  const early = (r.beforeWork > PAY_GRACE_MIN && r.status !== "noshow")
+  const early = (r.beforeWork > PAY_GRACE_MIN && r.status !== "noshow" && !payIsAdmin())
+    ? (r.earlyOn ? ` <span class="pay-early">✓ ${payMin(r.beforeWork)} before the shift counted by admin</span>` : "")
+    : (r.beforeWork > PAY_GRACE_MIN && r.status !== "noshow")
     ? `<label class="pay-early" title="Admin only: count the time worked before the shift as making up for this day">
          <input type="checkbox" ${r.earlyOn ? "checked" : ""} onchange="paySetEarly('${q(leaveEsc(s.agent))}','${r.date}',this.checked)">
          count ${payMin(r.beforeWork)} worked before the shift</label>` : "";
-  const madeUp = r.comp > 0 ? `stayed ${payMin(r.comp)} after the shift${r.earlyOn && r.beforeWork > 0 ? " (incl. before shift)" : ""}` : "didn't stay after the shift";
+  const madeUp = (r.earlyOn && r.beforeWork > 0)
+    ? `stayed ${payMin(r.afterWork)} after the shift + ${payMin(r.beforeWork)} before (counted by admin)`
+    : (r.comp > 0 ? `stayed ${payMin(r.comp)} after the shift` : "didn't stay after the shift");
 
   if (r.status === "noshow") {
     return `<div class="pay-line pay-line-bad">🔴 ${day}: No Show${r.workTotal > PAY_GRACE_MIN ? ` (worked only ${payMin(r.workTotal)})` : ""}${arrow}<b>day deducted = ${payMoney(r.deduction)}</b></div>`;
@@ -450,8 +461,10 @@ function payDayLine(s, r) {
 }
 
 function payDetailHtml(s) {
-  const show = r => r.status === "noshow" || r.status === "today" || r.remaining > 0 || (r.owed > 0 && payrollState.showMadeUp) || (r.beforeWork > PAY_GRACE_MIN && payrollState.showMadeUp && r.final);
-  const madeUpCount = s.rows.filter(r => r.final && r.owed > 0 && r.remaining === 0 && r.status !== "noshow").length;
+  // ✓ الأيام اللي الأدمن حسب فيها الشغل قبل الشيفت بتفضل ظاهرة دايمًا (عشان يقدر يشيل العلامة لو رجع في كلامه)
+  const show = r => r.status === "noshow" || r.status === "today" || r.remaining > 0 || (r.earlyOn && r.beforeWork > 0) ||
+    (r.owed > 0 && payrollState.showMadeUp) || (r.beforeWork > PAY_GRACE_MIN && payrollState.showMadeUp && r.final);
+  const madeUpCount = s.rows.filter(r => r.final && r.owed > 0 && r.remaining === 0 && r.status !== "noshow" && !(r.earlyOn && r.beforeWork > 0)).length;
   const lines = s.rows.filter(show).map(r => payDayLine(s, r)).join("");
   const toggle = madeUpCount
     ? `<button type="button" class="swap-btn pay-mini-btn" style="margin-left:8px;" onclick="payToggleMadeUp()">${payrollState.showMadeUp ? "Hide" : "Show"} made-up days (${madeUpCount})</button>` : "";
