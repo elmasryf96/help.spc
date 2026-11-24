@@ -13,9 +13,9 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <link rel="stylesheet" href="./style.css?v=20261124.140806">
+    <link rel="stylesheet" href="./style.css?v=20261124.145403">
     <!-- 🧊 Liquid Glass theme (override layer). لو عايز ترجع الشكل القديم: شيل السطرين اللي تحت (link + script) -->
-    <link rel="stylesheet" href="./glass.css?v=20261124.140806">
+    <link rel="stylesheet" href="./glass.css?v=20261124.145403">
     <script>
         // بيقرر قبل أول رسم لو نقفل البلور (Lite): الاختيار اليدوي "glassMode" أقوى، ولو مفيش بنقرر بالجهاز (ذاكرة <= 4GB أو أنوية <= 2)
         (function () {
@@ -1834,6 +1834,9 @@
                 <button class="tab-btn" id="hrTabBalanceBtn" onclick="hrSwitchTab('balance')" style="display: none;">
                     <i class="fa-solid fa-table-list"></i> Team Balance
                 </button>
+                <button class="tab-btn" id="hrTabPayrollBtn" onclick="hrSwitchTab('payroll')" style="display: none;">
+                    <i class="fa-solid fa-money-bill-wave"></i> Payroll
+                </button>
             </div>
 
             <!-- Tab 1: الطلبات (للكل) -->
@@ -1922,7 +1925,7 @@
                         </button>
                     </div>
                     <div class="swap-info">
-                        Each shift day = <b>8h</b>: <b>7:30 work + 30m break</b>. Missing = 7:30 − work inside the shift (break excluded), so a shorter break covers being late. 1 minute grace.
+                        Each shift day = <b>8h</b>: <b>7:30 work + 30m break</b>. Missing = late / away / left early / break over 30m, minus time made up <b>after the shift the same day</b>. A shorter break is <b>not</b> compensation (shown only). 1 minute grace.
                     </div>
                 </div>
                 <div class="cards-wrapper">
@@ -1961,7 +1964,41 @@
                 </div>
             </div>
 
+            <!-- Tab 4: المرتبات (أدمن بس) - js/payroll.js + Payroll.gs -->
+            <div id="hr-tab-payroll" class="roster-tab-content hidden-tab" style="display: none;">
+                <div class="agent-lookup-card">
+                    <div class="lookup-controls-row">
+                        <div class="form-group flex-1">
+                            <label for="payMonth"><i class="fa-solid fa-calendar-days"></i> Month:</label>
+                            <select id="payMonth" class="combo-input" onchange="payLoad(false)"></select>
+                        </div>
+                        <button type="button" class="swap-btn swap-btn-primary align-self-end" onclick="payLoad(true)">
+                            <i class="fa-solid fa-rotate"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="lookup-controls-row">
+                        <div class="form-group flex-1">
+                            <label for="payAddAgent"><i class="fa-solid fa-user-plus"></i> Add agent:</label>
+                            <select id="payAddAgent" class="combo-input"></select>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="payAddSalary"><i class="fa-solid fa-money-bill"></i> Monthly salary (EGP):</label>
+                            <input type="number" id="payAddSalary" class="combo-input" min="0" step="100" value="17000">
+                        </div>
+                        <button type="button" class="swap-btn swap-btn-primary align-self-end" onclick="payAddAgent()">
+                            <i class="fa-solid fa-plus"></i> Add
+                        </button>
+                    </div>
+                    <div id="payMsg" class="swap-msg" style="display: none;"></div>
+                </div>
+                <div class="cards-wrapper">
+                    <div id="payResult"></div>
+                </div>
+            </div>
+
             <style>
+                .pay-table .pay-salary-input { width: 100px; display: inline-block; padding: 4px 8px; font-weight: 800; }
+                .pay-mini-btn { padding: 4px 8px !important; font-size: 12px !important; min-width: 0 !important; }
                 .hr-balance-table th, .hr-balance-table td { text-align: center; white-space: nowrap; }
                 .hr-balance-table td.hr-agent { text-align: left; font-weight: 800; cursor: pointer; }
                 .hr-balance-table td.hr-agent:hover { text-decoration: underline; }
@@ -2275,22 +2312,23 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.14.0/html2pdf.bundle.min.js"></script>
 
     <!-- 📜 Main Application Script -->
-    <script src="js/core.js?v=20261124.140806"></script>
-    <script src="js/auth.js?v=20261124.140806"></script>
-    <script src="js/noc.js?v=20261124.140806"></script>
-    <script src="js/break-queue.js?v=20261124.140806"></script>
-    <script src="js/navigation.js?v=20261124.140806"></script>
-    <script src="js/unit-mapping.js?v=20261124.140806"></script>
-    <script src="js/calculator.js?v=20261124.140806"></script>
-    <script src="js/towers.js?v=20261124.140806"></script>
-    <script src="js/tech-schedule.js?v=20261124.140806"></script>
-    <script src="js/leave.js?v=20261124.140806"></script>
-    <script src="js/hr-hours.js?v=20261124.140806"></script>
-    <script src="js/roster.js?v=20261124.140806"></script>
-    <script src="js/admin.js?v=20261124.140806"></script>
-    <script src="js/notes.js?v=20261124.140806"></script>
-    <script src="js/cc-pulse.js?v=20261124.140806"></script>
-    <script src="js/glass.js?v=20261124.140806"></script>
-    <script src="js/init.js?v=20261124.140806"></script>
+    <script src="js/core.js?v=20261124.145403"></script>
+    <script src="js/auth.js?v=20261124.145403"></script>
+    <script src="js/noc.js?v=20261124.145403"></script>
+    <script src="js/break-queue.js?v=20261124.145403"></script>
+    <script src="js/navigation.js?v=20261124.145403"></script>
+    <script src="js/unit-mapping.js?v=20261124.145403"></script>
+    <script src="js/calculator.js?v=20261124.145403"></script>
+    <script src="js/towers.js?v=20261124.145403"></script>
+    <script src="js/tech-schedule.js?v=20261124.145403"></script>
+    <script src="js/leave.js?v=20261124.145403"></script>
+    <script src="js/hr-hours.js?v=20261124.145403"></script>
+    <script src="js/payroll.js?v=20261124.145403"></script>
+    <script src="js/roster.js?v=20261124.145403"></script>
+    <script src="js/admin.js?v=20261124.145403"></script>
+    <script src="js/notes.js?v=20261124.145403"></script>
+    <script src="js/cc-pulse.js?v=20261124.145403"></script>
+    <script src="js/glass.js?v=20261124.145403"></script>
+    <script src="js/init.js?v=20261124.145403"></script>
 </body>
 </html>

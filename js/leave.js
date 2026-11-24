@@ -320,7 +320,7 @@ let hrPendingTab = null;
 // بيتنادى من navigateTo("hr-page") في navigation.js
 function initHrPage() {
   const admin = leaveIsAdminUser();
-  ["hrTabApprovalsBtn", "hrTabBalanceBtn"].forEach(id => {
+  ["hrTabApprovalsBtn", "hrTabBalanceBtn", "hrTabPayrollBtn"].forEach(id => {
     const b = document.getElementById(id);
     if (b) b.style.display = admin ? "" : "none";
   });
@@ -335,8 +335,10 @@ function hrSwitchTab(key) {
     requests: { content: "hr-tab-requests", btn: "hrTabRequestsBtn" },
     hours: { content: "hr-tab-hours", btn: "hrTabHoursBtn" },
     approvals: { content: "hr-tab-approvals", btn: "hrTabApprovalsBtn" },
-    balance: { content: "hr-tab-balance", btn: "hrTabBalanceBtn" }
+    balance: { content: "hr-tab-balance", btn: "hrTabBalanceBtn" },
+    payroll: { content: "hr-tab-payroll", btn: "hrTabPayrollBtn" }
   };
+  if (key === "payroll" && !leaveIsAdminUser()) key = "requests";
   if (!tabs[key]) key = "requests";
   hrCurrentTab = key;
   Object.keys(tabs).forEach(k => {
@@ -347,6 +349,7 @@ function hrSwitchTab(key) {
   });
   initLeaveTab();
   if (key === "hours" && typeof hrInitHours === "function") hrInitHours();
+  if (key === "payroll" && typeof payInitTab === "function") payInitTab();
 }
 
 // 📊 Team Balance: كل الإيجنتس وعدادات السنة جنب بعض (أدمن)

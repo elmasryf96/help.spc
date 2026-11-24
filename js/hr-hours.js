@@ -5,8 +5,10 @@
 //   - كل يوم عليه Shift 1/2/3 في الروستر = 8 ساعات مطلوبة، منهم 30 دقيقة بريك حقه و 7:30 شغل صافي.
 //     (عدد أيام الشغل بيتحسب من الروستر نفسه - عادة 26 يوم في الشهر، يوم أوف واحد في الأسبوع)
 //   - "جوه الشيفت" = الوقت اللي كان فيه مش Away جوه مواعيد الشيفت (نفس حساب الأدهيرانس في CC Pulse).
-//   - الناقص = 7:30 − الشغل الصافي جوه الشيفت (من غير البريك). يعني البريك اللي بيوفّره بيعوّض التأخير:
-//       متأخر 10د + بريك 20د = مفيش ناقص (Late – compensated) / متأخر 10د + بريك 30د = ناقص 10د.
+//   - ⚠️ اتغيرت (24 نوفمبر): البريك اللي مااتاخدش مش بيعوّض أي تأخير - بيظهر بس إنه "ماخدش بريكه".
+//     الناقص = (التأخير + أي وقت مش لوجن جوه الشيفت + الخروج بدري + البريك الزيادة عن 30د)
+//              − الشغل بعد آخر الشيفت في نفس اليوم (نفس قاعدة المرتبات في js/payroll.js).
+//       متأخر 10د + بريك 20د = ناقص 10د (والـ 10د بريك اللي ماخدهاش بتظهر لوحدها) / متأخر 10د + قعد 10د بعد الشيفت = مفيش ناقص.
 //   - سماح دقيقة واحدة بس (زي الـ Tardy) - أي ناقص/تأخير دقيقة أو أقل مايتحسبش.
 //   - تصنيف كل يوم: ✅ Full day / 🔁 Late – compensated / ⚠️ Short day / 🚫 No Show
 //     + ➕ Overtime (شغل برا مواعيد الشيفت) جنب التصنيف + ⭐ Worked day off للأيام الأوف اللي اشتغل فيها.
@@ -78,7 +80,7 @@ function hrComputeDay(agentName, dateStr, day, trackingStartDate, now) {
     date: dateStr, code: code === null ? "" : (code || "OFF"), kind, isWorkDay: !!range, judged: false,
     firstLogin: day && day.firstLogin ? hrTimeOf(day.firstLogin) : "", lastLogout: day && day.endShift ? hrTimeOf(day.endShift) : "",
     inShiftWork: 0, inShiftBreak: 0, breakTotal: 0, outsideWork: 0, outsideBreak: 0, totalLogin: 0,
-    net: 0, missing: 0, late: 0, earlyLeave: 0, extraBreak: 0, overtime: 0, dayOffWork: 0,
+    net: 0, missing: 0, late: 0, earlyLeave: 0, extraBreak: 0, overtime: 0, dayOffWork: 0, afterWork: 0, owed: 0, madeUp: 0, breakUnused: 0,
     awayPeriods: [], awayMid: 0,
     category: "", categoryLabel: "", overtimeFlag: false, note: ""
   };
@@ -96,7 +98,7 @@ function hrComputeDay(agentName, dateStr, day, trackingStartDate, now) {
     const dur = b - a;
     const ov = range ? hrOverlap(a, b, shiftStart, shiftEnd) : 0;
     if (s.status === "Break") { r.breakTotal += dur; r.inShiftBreak += ov; }
-    else { r.inShiftWork += ov; r.outsideWork += dur - ov; }
+    else { r.inShiftWork += ov; r.outsideWork += dur - ov; if (range) r.afterWork += hrOverlap(a, Math.min(b, 1440), shiftEnd, 1440); }
     if (range && ov > 0) lastInShiftEnd = Math.max(lastInShiftEnd === null ? 0 : lastInShiftEnd, Math.min(b, shiftEnd));
     r.totalLogin += dur;
   });
@@ -145,8 +147,16 @@ function hrComputeDay(agentName, dateStr, day, trackingStartDate, now) {
     r.awayPeriods.push({ from: hm(a), to: hm(b), minutes: b - a, type });
     if (type === "away") r.awayMid += b - a;
   });
-  r.missing = Math.max(0, HR_NET_REQUIRED_MIN - r.net);
+  // الناقص: البريك اللي مااتاخدش مش بيعوّض - اللي بيعوّض بس الشغل بعد آخر الشيفت في نفس اليوم
+  r.owed = Math.max(0, HR_REQUIRED_MIN - r.inShiftWork - Math.min(r.inShiftBreak, HR_BREAK_ALLOWED_MIN));
+  if (r.owed <= HR_GRACE_MIN) r.owed = 0;
+  r.madeUp = Math.min(r.owed, r.afterWork);
+  r.missing = Math.max(0, r.owed - r.afterWork);
   if (r.missing <= HR_GRACE_MIN) r.missing = 0;
+  r.breakUnused = Math.max(0, HR_BREAK_ALLOWED_MIN - r.inShiftBreak);
+  if (r.breakUnused > HR_GRACE_MIN && day && day.firstLogin) {
+    r.note = r.inShiftBreak > 0 ? `break ${hrFmt(r.inShiftBreak)} of 30m - not compensation` : "didn't take a break - not compensation";
+  } else r.breakUnused = 0;
   r.overtime = r.outsideWork > HR_GRACE_MIN ? r.outsideWork : 0;
   r.overtimeFlag = r.overtime > 0;
 
@@ -155,8 +165,8 @@ function hrComputeDay(agentName, dateStr, day, trackingStartDate, now) {
     r.category = "noshow"; r.categoryLabel = "🚫 No Show";
   } else if (r.missing > 0) {
     r.category = "short"; r.categoryLabel = "⚠️ Short day";
-  } else if (r.late > 0) {
-    r.category = "latecomp"; r.categoryLabel = "🔁 Late – compensated";
+  } else if (r.owed > 0) {
+    r.category = "latecomp"; r.categoryLabel = `🔁 Made up after shift (${hrFmt(r.madeUp)})`;
   } else {
     r.category = "full"; r.categoryLabel = "✅ Full day";
   }
@@ -199,7 +209,8 @@ function hrComputeAgentMonth(agentName, month, reportDays, trackingStartDate) {
     s.earlyLeave += r.earlyLeave;
     if (r.category !== "noshow") { s.awayMid += r.awayMid; if (r.awayMid > 0) s.awayDays++; }
     s[r.category] = (s[r.category] || 0) + 1;
-    if (r.category === "latecomp") s.lateCompensated += r.late;
+    if (r.category === "latecomp") s.lateCompensated += r.madeUp;
+    if (r.category !== "noshow") { s.breakUnused = (s.breakUnused || 0) + r.breakUnused; if (r.breakUnused > 0) s.breakUnusedDays = (s.breakUnusedDays || 0) + 1; }
     if (r.category === "short") s.missingShort += r.missing;
     if (r.category === "noshow") s.missingNoShow += r.missing;
     s.missing += r.missing;
@@ -318,15 +329,16 @@ function hrSummaryHtml(s) {
       ${hrCard("📊 Total worked", hrFmt(s.totalLogin), "inside + outside")}
       ${hrCard("📐 Balance vs required", hrFmtSigned(hrBalance(s)), `${hrFmt(s.totalLogin)} worked of ${hrFmt(s.required)} required`, Math.abs(hrBalance(s)) <= HR_GRACE_MIN ? "" : (hrBalance(s) > 0 ? "good" : "bad"))}
       ${hrCard("➖ Missing time", hrFmt(s.missing), `short days ${hrFmt(s.missingShort)} · no show ${hrFmt(s.missingNoShow)}`, s.missing > 0 ? "bad" : "good")}
-      ${hrCard("☕ Break taken", hrFmt(s.breakTotal), s.extraBreak > 0 ? `<b style="color:#b91c1c">extra ${hrFmt(s.extraBreak)}</b> over 30m/day` : "within 30m/day")}
-      ${hrCard("⏰ Late (total)", hrFmt(s.late), `compensated ${hrFmt(s.lateCompensated)}`)}
+      ${hrCard("☕ Break taken", hrFmt(s.breakTotal), (s.extraBreak > 0 ? `<b style="color:#b91c1c">extra ${hrFmt(s.extraBreak)}</b> over 30m/day` : "within 30m/day") +
+        (s.breakUnused ? ` · not taken ${hrFmt(s.breakUnused)} on ${s.breakUnusedDays} day${s.breakUnusedDays === 1 ? "" : "s"} (not compensation)` : ""))}
+      ${hrCard("⏰ Late (total)", hrFmt(s.late), `made up after shift ${hrFmt(s.lateCompensated)} (all reasons)`)}
       ${hrCard("🚪 Left early (total)", hrFmt(s.earlyLeave), "before shift end")}
       ${hrCard("🚶 Away during shift", hrFmt(s.awayMid), s.awayDays ? `on ${s.awayDays} day${s.awayDays === 1 ? "" : "s"} - see the Away column` : "never away mid-shift", s.awayMid > 0 ? "bad" : "good")}
     </div>
     <div class="hr-section-title">📋 Days</div>
     <div class="ccp-metrics-grid">
       ${hrCard("✅ Full day", s.full || 0, "on time, full 7:30", "good")}
-      ${hrCard("🔁 Late – compensated", s.latecomp || 0, `late ${hrFmt(s.lateCompensated)}, covered from break`, "warn")}
+      ${hrCard("🔁 Made up after shift", s.latecomp || 0, `${hrFmt(s.lateCompensated)} made up after the shift, same day`, "warn")}
       ${hrCard("⚠️ Short day", s.short || 0, `missing ${hrFmt(s.missingShort)}`, (s.short || 0) ? "bad" : "")}
       ${hrCard("🚫 No Show", s.noshow || 0, `missing ${hrFmt(s.missingNoShow)}`, (s.noshow || 0) ? "bad" : "")}
       ${hrCard("➕ Overtime days", s.overtimeDays, `total ${hrFmt(s.overtime)}`)}
@@ -411,9 +423,9 @@ function hrTeamTableHtml(list) {
   return `<div class="table-scroll-wrapper"><table class="roster-full-table hr-balance-table">
       <thead><tr><th>Agent</th><th>Team</th><th>Work days</th><th>Required</th><th>In shift</th><th>Outside</th><th>Total</th>
       <th title="Total worked − Required">Balance</th><th>Missing</th><th title="Away in the middle of the shift">🚶 Away</th>
-      <th>✅ Full</th><th>🔁 Late-comp</th><th>⚠️ Short</th><th>🚫 No Show</th><th>➕ Overtime</th><th>⭐ Day off</th><th>☕ Extra break</th></tr></thead>
+      <th>✅ Full</th><th>🔁 Made up</th><th>⚠️ Short</th><th>🚫 No Show</th><th>➕ Overtime</th><th>⭐ Day off</th><th>☕ Extra break</th></tr></thead>
       <tbody>${rows || `<tr><td colspan="17">No agents in the roster for this month.</td></tr>`}${totalRow}</tbody></table></div>
-    <div class="swap-info" style="margin-top:8px;"><b>Balance</b> = Total worked − Required (green = worked more, red = worked less). <b>Missing</b> only counts time missing inside the shift, even if he worked extra outside it. Click an agent to see every day.</div>`;
+    <div class="swap-info" style="margin-top:8px;"><b>Balance</b> = Total worked − Required (green = worked more, red = worked less). <b>Missing</b> = late / away / left early / break over 30m inside the shift, minus what he made up by staying after the shift the same day. A shorter break is not compensation. Click an agent to see every day.</div>`;
 }
 
 function hrRenderHours() {
@@ -461,7 +473,7 @@ async function hrExportHours() {
     ws.addRow([`HR & Payroll - Hours - ${hrHoursState.month}  (hours in decimals, e.g. 7.5 = 7h 30m)`]).font = { bold: true, size: 13 };
     const head = ["Agent", "Team", "Work days", "Required (h)", "Required net work (h)", "In shift work (h)", "In shift break (h)", "Outside shift (h)",
       "Overtime (h)", "Day-off work (h)", "Total worked (h)", "Balance vs required (h)", "Missing (h)", "Missing - short days (h)", "Missing - no show (h)",
-      "Late total (h)", "Late compensated (h)", "Left early (h)", "Break total (h)", "Extra break (h)",
+      "Late total (h)", "Made up after shift (h)", "Left early (h)", "Break total (h)", "Extra break (h)",
       "Full days", "Late-compensated days", "Short days", "No Show days", "Overtime days", "Worked day off days",
       "Leave days", "Sick Leave days", "Public Holiday days", "Day in Lieu days", "Compensated days"];
     styleHeader(ws.addRow(head));

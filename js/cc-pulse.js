@@ -3229,6 +3229,7 @@ function getMyAgentName() {
   return knownNames.has(fullName) ? fullName : null;
 }
 
+// 💰 (24 نوفمبر) تيم المرتبات بيظهرلهم تحت شريط التاريخ بلوك التعليمات + الدقايق اللي عليهم يعوضوها النهاردة (js/payroll.js)
 // dateStr اختياري (YYYY-MM-DD) - لو مبعتش، بيعرض النهاردة. بيتنادى تاني لما الإيجنت يغيّر التاريخ من شريط الاختيار
 async function loadMyDayCard(dateStr) {
   const container = document.getElementById("myDayCardContainer");
@@ -3272,6 +3273,7 @@ async function loadMyDayCard(dateStr) {
             <span class="ccp-total-name">👋 My Day — ${agentName}</span>
           </div>
           ${dateBarHtml}
+          ${typeof payrollMyDayHtml === "function" ? payrollMyDayHtml(agentName, targetDateStr, null, data && data.trackingStartDate) : ""}
           <div class="ccp-error">⚠️ No data for this date</div>
         </div>`;
       return;
@@ -3287,6 +3289,7 @@ async function loadMyDayCard(dateStr) {
           <span class="ccp-total-name">👋 My Day — ${agentName}</span>
         </div>
         ${dateBarHtml}
+        ${typeof payrollMyDayHtml === "function" ? payrollMyDayHtml(agentName, targetDateStr, data.days[0], data.trackingStartDate) : ""}
         ${dayHtml}
       </div>`;
   } catch (e) {

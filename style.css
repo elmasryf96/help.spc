@@ -2414,3 +2414,12 @@ input:checked + .slider:before { transform: translateX(20px); }
     font-weight: 700;
     color: #1a252f;
 }
+
+/* 💰 كارت My Day - تعليمات تيم المرتبات (js/payroll.js) */
+.pay-myday { margin: 0 0 16px; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(226, 191, 68, 0.6); background: rgba(255, 251, 230, 0.85); font-size: 13px; line-height: 1.5; }
+.pay-myday-head { font-weight: 800; margin-bottom: 6px; }
+.pay-myday-status { padding: 8px 10px; border-radius: 10px; margin-bottom: 8px; font-weight: 600; background: rgba(224, 242, 254, 0.8); color: #075985; }
+.pay-myday-good .pay-myday-status { background: rgba(220, 252, 231, 0.9); color: #166534; }
+.pay-myday-bad .pay-myday-status { background: rgba(254, 226, 226, 0.95); color: #991b1b; }
+.pay-myday-rules { margin: 0; padding-left: 18px; color: #374151; }
+.pay-myday-rules li { margin: 2px 0; }
