@@ -465,16 +465,12 @@ function payDayLine(s, r) {
 }
 
 function payDetailHtml(s) {
-  // ✓ الأيام اللي الأدمن حسب فيها الشغل قبل الشيفت بتفضل ظاهرة دايمًا (عشان يقدر يشيل العلامة لو رجع في كلامه)
-  const show = r => r.status === "noshow" || r.status === "today" || r.remaining > 0 || (r.earlyOn && r.beforeWork > 0) ||
-    (r.owed > 0 && payrollState.showMadeUp) || (r.beforeWork > PAY_GRACE_MIN && payrollState.showMadeUp && r.final);
-  const madeUpCount = s.rows.filter(r => r.final && r.owed > 0 && r.remaining === 0 && r.status !== "noshow" && !(r.earlyOn && r.beforeWork > 0)).length;
+  // كل الأيام اللي فيها وقت فايت بتظهر دايمًا (الأحمر = اتخصم / الأخضر = اتعوض) + اليوم اللي الأدمن حسب فيه الشغل قبل الشيفت
+  const show = r => r.status === "noshow" || r.status === "today" || r.owed > 0 || (r.earlyOn && r.beforeWork > 0);
   const lines = s.rows.filter(show).map(r => payDayLine(s, r)).join("");
-  const toggle = madeUpCount
-    ? `<button type="button" class="swap-btn pay-mini-btn" style="margin-left:8px;" onclick="payToggleMadeUp()">${payrollState.showMadeUp ? "Hide" : "Show"} made-up days (${madeUpCount})</button>` : "";
   return `<div class="hr-detail">
-    <div style="font-weight:800;margin-bottom:8px;">📋 ${leaveEsc(s.agent)}${toggle}</div>
-    ${lines || `<div class="pay-line pay-line-good">✅ Nothing deducted this month so far.</div>`}
+    <div style="font-weight:800;margin-bottom:8px;">📋 ${leaveEsc(s.agent)}</div>
+    ${lines || `<div class="pay-line pay-line-good">✅ Nothing missed this month so far.</div>`}
   </div>`;
 }
 
