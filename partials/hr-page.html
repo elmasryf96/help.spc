@@ -27,9 +27,14 @@
                 <div class="agent-lookup-card">
                     <div class="lookup-header-box">
                         <i class="fa-solid fa-umbrella-beach"></i>
-                        <h3>New Request: Leave / Sick Leave / Compensation</h3>
+                        <h3 id="leaveFormTitle">New Request: Leave / Sick Leave / Compensation</h3>
                     </div>
                     <div class="lookup-controls-row">
+                        <!-- 👑 الأدمن بس: يختار الإيجنت (Leave / Sick Leave / Compensation) - بتتسجل وتتوافق على طول -->
+                        <div class="form-group flex-1" id="leaveCompAgentGroup" style="display: none;">
+                            <label for="leaveCompAgent"><i class="fa-solid fa-user"></i> Agent (admin):</label>
+                            <select id="leaveCompAgent" class="combo-input" onchange="leaveOnAgentChange()"></select>
+                        </div>
                         <div class="form-group flex-1">
                             <label for="leaveTypeSelect"><i class="fa-solid fa-tag"></i> Type:</label>
                             <select id="leaveTypeSelect" class="combo-input" onchange="leaveUpdateForm()">
@@ -48,10 +53,6 @@
                         </div>
                     </div>
                     <div class="lookup-controls-row" id="leaveCompRow" style="display: none;">
-                        <div class="form-group flex-1" id="leaveCompAgentGroup" style="display: none;">
-                            <label for="leaveCompAgent"><i class="fa-solid fa-user"></i> Agent (admin):</label>
-                            <select id="leaveCompAgent" class="combo-input" onchange="leaveLoadCompOptions(true)"></select>
-                        </div>
                         <div class="form-group flex-1">
                             <label for="leaveCompAbsent"><i class="fa-solid fa-ban"></i> Absent day (No Show):</label>
                             <select id="leaveCompAbsent" class="combo-input" onchange="leaveUpdateForm()"></select>

@@ -575,7 +575,7 @@ function leaveShowMsg(text, kind) {
 
 // أيام الشغل اللي هتتحسب إجازة (من rosterData) - نفس القاعدة اللي على السيرفر
 function leavePreviewDays(from, to) {
-  const me = leaveMyName();
+  const me = leaveCompTargetAgent();
   const out = { work: [], skipped: 0, missingMonth: null };
   leaveDatesBetween(from, to).forEach(d => {
     const code = leaveRosterCode(me, d);
@@ -591,7 +591,7 @@ function leaveIsCompMode() {
   return !!(t && t.value === COMPENSATION_TYPE);
 }
 
-// الإيجنت اللي التعويض ليه: الأدمن يقدر يختار أي إيجنت، غير كده أنا
+// الإيجنت اللي الطلب ليه (Leave / Sick Leave / Compensation): الأدمن يقدر يختار أي إيجنت، غير كده أنا
 function leaveCompTargetAgent() {
   const sel = document.getElementById("leaveCompAgent");
   return (leaveIsAdminUser() && sel && sel.value) ? sel.value : leaveMyName();
@@ -609,6 +609,18 @@ function leaveFillCompAgentSelect() {
   (Array.isArray(rosterData) ? rosterData : []).forEach(a => { if (a.dept !== "Queue Support" && names.indexOf(a.name) === -1) names.push(a.name); });
   names.sort((x, y) => x.localeCompare(y));
   sel.innerHTML = names.map(n => `<option value="${leaveEsc(n)}"${n.toLowerCase() === me.toLowerCase() ? " selected" : ""}>${leaveEsc(n)}</option>`).join("");
+}
+
+// الأدمن بيسجّل لإيجنت تاني؟ (ساعتها الطلب بيتوافق على طول ومفيش إيميل)
+function leaveIsForOtherAgent() {
+  return leaveIsAdminUser() && leaveCompTargetAgent().toLowerCase() !== leaveMyName().toLowerCase();
+}
+
+// لما الأدمن يغيّر الإيجنت من القايمة
+function leaveOnAgentChange() {
+  if (leaveIsCompMode()) { leaveLoadCompOptions(true); return; }
+  leaveDatesTouched = true;
+  leaveUpdateForm();
 }
 
 // بيسحب أيام الغياب (No Show) وأيام الأوف اللي اشتغلها الإيجنت من السيرفر (Leave.gs -> compOptions_)
@@ -688,6 +700,12 @@ function leaveUpdateForm() {
   const compRow = document.getElementById("leaveCompRow");
   if (compRow) compRow.style.display = comp ? "" : "none";
   info.style.display = "";
+  leaveFillCompAgentSelect();
+  const forOther = leaveIsForOtherAgent();
+  const target = leaveCompTargetAgent();
+  const titleEl = document.getElementById("leaveFormTitle");
+  if (titleEl) titleEl.textContent = leaveIsAdminUser() ? "New Request / Admin Entry: Leave / Sick Leave / Compensation" : "New Request: Leave / Sick Leave / Compensation";
+  btn.innerHTML = forOther ? `<i class="fa-solid fa-floppy-disk"></i> Save for ${leaveEsc(target)}` : `<i class="fa-solid fa-paper-plane"></i> Send Request`;
   if (comp) {
     if (fileRow) fileRow.style.display = "none";
     leaveUpdateCompForm(info, btn);
@@ -696,6 +714,8 @@ function leaveUpdateForm() {
 
   const isSick = typeEl.value === SICK_LEAVE_CODE;
   if (fileRow) fileRow.style.display = isSick ? "" : "none";
+  const fileLabel = fileRow ? fileRow.querySelector("label") : null;
+  if (fileLabel) fileLabel.innerHTML = `<i class="fa-solid fa-paperclip"></i> Sick leave certificate (${forOther ? "optional" : "required"}, max 10 MB):`;
 
   if (fromEl.value && (!toEl.value || toEl.value < fromEl.value)) toEl.value = fromEl.value;
   toEl.min = fromEl.value || "";
@@ -710,20 +730,23 @@ function leaveUpdateForm() {
   const pv = leavePreviewDays(from, to);
   if (pv.missingMonth) {
     const p = pv.missingMonth.split("-");
-    info.innerHTML = `<i class="fa-solid fa-circle-info"></i> Your name (<b>${leaveEsc(leaveMyName())}</b>) was not found in the roster for ${parseInt(p[1], 10)}/${p[0]}.`;
+    info.innerHTML = forOther
+      ? `<i class="fa-solid fa-circle-info"></i> <b>${leaveEsc(target)}</b> was not found in the roster for ${parseInt(p[1], 10)}/${p[0]}.`
+      : `<i class="fa-solid fa-circle-info"></i> Your name (<b>${leaveEsc(leaveMyName())}</b>) was not found in the roster for ${parseInt(p[1], 10)}/${p[0]}.`;
     return;
   }
   if (!pv.work.length) {
-    info.innerHTML = `<i class="fa-solid fa-circle-info"></i> You have no working shifts in this period — days off and days already on leave are not counted.`;
+    info.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${forOther ? leaveEsc(target) + " has" : "You have"} no working shifts in this period — days off and days already on leave are not counted.`;
     return;
   }
 
   info.innerHTML =
     `<div style="font-weight:700;opacity:.7;margin-bottom:4px;"><i class="fa-solid fa-circle-info"></i> Preview — not sent yet</div>` +
-    `If approved, this request will cover <b>${pv.work.length}</b> working day${pv.work.length === 1 ? "" : "s"} as <b>${leaveEsc(typeEl.value)}</b>` +
+    (forOther ? `<b>${leaveEsc(target)}</b>: this will be saved and approved right away for <b>${pv.work.length}</b>` : `If approved, this request will cover <b>${pv.work.length}</b>`) +
+    ` working day${pv.work.length === 1 ? "" : "s"} as <b>${leaveEsc(typeEl.value)}</b>` +
     (pv.skipped ? ` <span style="opacity:.75">(${pv.skipped} day${pv.skipped === 1 ? "" : "s"} off / already on leave not counted)</span>` : "") +
     `<div class="leave-days-chips">${pv.work.map(d => `<span class="swap-shift">${leaveEsc(leaveFmtDate(d.date))} · ${leaveEsc(d.shift)}</span>`).join(" ")}</div>` +
-    (isSick ? `<div style="margin-top:6px;"><i class="fa-solid fa-paperclip"></i> The sick leave certificate is <b>required</b>.</div>` : "");
+    (isSick ? `<div style="margin-top:6px;"><i class="fa-solid fa-paperclip"></i> The sick leave certificate is <b>${forOther ? "optional" : "required"}</b>.</div>` : "");
   btn.disabled = !!leaveState.busy;
   if (!leaveDatesTouched) info.style.display = "none";
 }
@@ -753,17 +776,23 @@ async function leaveSendRequest() {
   if (!from || !to) { leaveShowMsg("Please choose the dates.", "error"); return; }
 
   const file = fileEl && fileEl.files && fileEl.files[0] ? fileEl.files[0] : null;
-  if (type === SICK_LEAVE_CODE && !file) { leaveShowMsg("⚠️ Please attach the sick leave certificate.", "error"); return; }
+  const forOther = leaveIsForOtherAgent();
+  const agent = leaveCompTargetAgent();
+  if (type === SICK_LEAVE_CODE && !file && !forOther) { leaveShowMsg("⚠️ Please attach the sick leave certificate.", "error"); return; }
   if (file && file.size > LEAVE_MAX_FILE_BYTES) { leaveShowMsg("⚠️ The file is bigger than 10 MB.", "error"); return; }
 
   const pv = leavePreviewDays(from, to);
-  if (!confirm(`Send a ${type} request for ${pv.work.length} working day${pv.work.length === 1 ? "" : "s"} (${leaveFmtRange(from, to)})?\n\nThe admins will be notified by email.`)) return;
+  const daysTxt = `${pv.work.length} working day${pv.work.length === 1 ? "" : "s"} (${leaveFmtRange(from, to)})`;
+  if (!confirm(forOther
+    ? `Save ${type} for ${agent} - ${daysTxt}?\n\nIt will be approved and the roster updated right away. ${agent} gets a portal notification (no email).`
+    : `Send a ${type} request for ${daysTxt}?\n\nThe admins will be notified by email.`)) return;
 
   leaveState.busy = true;
   if (btn) btn.disabled = true;
-  leaveShowMsg(file ? "Uploading the certificate and sending..." : "Sending request...", "info");
+  leaveShowMsg(file ? "Uploading the certificate and saving..." : (forOther ? "Saving..." : "Sending request..."), "info");
   try {
     const payload = { action: "requestLeave", type, from, to, reason: reasonEl ? reasonEl.value : "" };
+    if (forOther) payload.agent = agent;
     if (file && type === SICK_LEAVE_CODE) {
       payload.fileName = file.name;
       payload.fileMime = file.type || "application/octet-stream";
@@ -777,6 +806,7 @@ async function leaveSendRequest() {
       if (reasonEl) reasonEl.value = "";
       if (fileEl) fileEl.value = "";
       leaveDatesTouched = false;
+      if (res.rosterChanged && typeof fetchAllDataFromGoogleSheet === "function") await fetchAllDataFromGoogleSheet();
       await leaveFetchList().catch(() => {});
     } else {
       leaveShowMsg("⚠️ " + ((res && res.message) || "Failed to send request"), "error");
