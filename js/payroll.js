@@ -191,7 +191,7 @@ function payComputeDay(agentName, dateStr, day, trackingStartDate, now, rates, e
   }
   if (r.owed > 0) {
     r.reason = r.parts.join(" · ") +
-      ` = owed ${payMin(r.owed)}; made up ${payMin(r.comp)}` +
+      ` = missed ${payMin(r.owed)}; made up ${payMin(r.comp)}` +
       (r.earlyOn && r.beforeWork > 0 ? ` (incl. ${payMin(r.beforeWork)} before shift - admin)` : "") +
       (r.remaining > 0 ? ` → ${payMin(r.remaining)} × ${payMoney(rates.minute)} = ${payMoney(r.deduction)}` : " → nothing deducted");
   }
@@ -435,8 +435,8 @@ function payDetailHtml(s) {
     </tr>`;
   }).join("");
   return `<div class="hr-detail">
-    <div style="font-weight:800;margin-bottom:6px;">📋 ${leaveEsc(s.agent)} - days with time owed / deductions</div>
-    <table class="roster-full-table hr-hours-table"><thead><tr><th>Date</th><th>Roster</th><th>Status</th><th>Owed</th><th>Stayed after shift</th>
+    <div style="font-weight:800;margin-bottom:6px;">📋 ${leaveEsc(s.agent)} - days with missed time / deductions</div>
+    <table class="roster-full-table hr-hours-table"><thead><tr><th>Date</th><th>Roster</th><th>Status</th><th>Missed time</th><th>Stayed after shift</th>
       <th title="Admin only: let the work before the shift count as compensation on this day">Before shift (admin)</th><th>Deduction</th><th>Reason</th></tr></thead>
       <tbody>${body}</tbody></table>
   </div>`;
@@ -549,14 +549,14 @@ function payrollMyDayHtml(agentName, dateStr, day, trackingStartDate) {
     if (r.remaining > 0) {
       tone = "bad";
       const stayUntil = now.nowMin < endMin ? endMin + r.remaining : now.nowMin + r.remaining;
-      status = `⚠️ You owe <b>${payMin(r.remaining)}</b> today (${leaveEsc(r.parts.join(" · "))})` +
+      status = `⚠️ You have <b>${payMin(r.remaining)}</b> to make up today (${leaveEsc(r.parts.join(" · "))})` +
         (r.comp > 0 ? ` - already made up ${payMin(r.comp)}` : "") +
         `.<br>Stay logged in until <b>${payClock(stayUntil)}</b> today to make it up` +
         (now.nowMin < endMin ? " (if you don't miss any more time)" : "") +
         ` - <b>otherwise it will be deducted from your salary.</b>`;
     } else if (r.owed > 0) {
       tone = "good";
-      status = `✅ You owed ${payMin(r.owed)} today and you've made it all up. Thank you!`;
+      status = `✅ You missed ${payMin(r.owed)} today and you've made it all up. Thank you!`;
     } else {
       tone = "good";
       status = `✅ No time to make up so far today. Keep it up!`;
@@ -566,13 +566,13 @@ function payrollMyDayHtml(agentName, dateStr, day, trackingStartDate) {
     status = `🚫 This day was a No Show - the day is deducted (unless an admin approves a Compensation).`;
   } else if (r.status === "deducted") {
     tone = "bad";
-    status = `➖ You owed ${payMin(r.owed)} this day (${leaveEsc(r.parts.join(" · "))}), made up ${payMin(r.comp)} → <b>${payMin(r.remaining)} deducted</b>.`;
+    status = `➖ You missed ${payMin(r.owed)} this day (${leaveEsc(r.parts.join(" · "))}), made up ${payMin(r.comp)} → <b>${payMin(r.remaining)} deducted</b>.`;
   } else if (r.status === "madeup") {
     tone = "good";
-    status = `✅ You owed ${payMin(r.owed)} this day and made it all up.`;
+    status = `✅ You missed ${payMin(r.owed)} this day and made it all up.`;
   } else if (r.status === "ok") {
     tone = "good";
-    status = `✅ Full shift this day - nothing owed.`;
+    status = `✅ Full shift this day - nothing missed.`;
   } else if (r.status === "nodata") {
     status = "No login data for this day.";
   }
