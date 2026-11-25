@@ -6,18 +6,22 @@
 //   - اليوم = المرتب ÷ 30 / الساعة = اليوم ÷ 8 / الدقيقة = الساعة ÷ 60.
 //   - أيام الأوف و Leave و Sick Leave و Public Holiday و Day in Lieu و Compensated مدفوعة - مفيش خصم.
 //   - كل يوم شيفت: التأخير + أي وقت مش لوجن جوه الشيفت (Away / خروج بدري) + البريك الزيادة عن 30 دقيقة
-//     = دقايق لازم تتعوض في نفس اليوم بالقعدة بعد آخر الشيفت. اللي مايتعوضش بيتخصم بالدقيقة.
+//     = دقايق لازم تتعوض. (اتغيرت 25 نوفمبر) ليها فرصتين: نفس اليوم بعد الشيفت، أو يوم الشغل اللي بعده
+//     في الروستر (قبل الشيفت أو بعده) - جوه نفس الشهر بس. اللي مايتعوضش بيتخصم بالدقيقة. (شوف payAllocateMonth)
+//   - إنهاء الخدمة (End service): الأدمن يقفل مرتب الإيجنت لحد يوم معين (عمود End Date في شيت Payroll).
+//   - Export to Excel: Summary + Days (لحد اللحظة دي).
 //   - البريك 30 دقيقة حق الإيجنت: لو أخد أقل، الباقي مابيعوضش أي تأخير.
-//   - الشغل قبل الشيفت مش بيعوض أوتوماتيك - الأدمن بس يقدر يفعّله ليوم معين (PayrollEarlyCredits).
+//   - الشغل قبل الشيفت في نفس اليوم مش بيعوض أوتوماتيك - الأدمن بس يقدر يفعّله ليوم معين (PayrollEarlyCredits).
+//     (في يوم الشغل اللي بعده، قبل الشيفت بيتحسب أوتوماتيك)
 //   - No Show = ماعملش لوجن خالص في اليوم ده -> اليوم كله بيتخصم.
 //     (اتغيرت 24 نوفمبر: لو اشتغل أي وقت - حتى أقل من نص الشيفت - بيتحسب يوم عادي: البريك 30د مدفوع
 //      والخصم بالدقايق اللي فاتته بس، ومش بتتكتب كلمة No Show)
 //     لو اتعمله Compensation واتوافق عليه، اليوم بيبقى Compensated في الروستر فمفيش خصم.
 //   - مفيش أوفر تايم دلوقتي.
-//   - النهاردة لسه "مفتوح" (الإيجنت لسه يقدر يعوّض لآخر اليوم) فبيظهر لوحده ومش بيدخل في الخصومات.
+//   - الأيام اللي لسه فرصة تعويضها ماخلصتش بتبقى "مفتوحة" (⏳) ومش بتدخل في الخصومات.
 //   - الأرقام كلها بتتحسب لحظيًا من AgentStatusLog - أي تعديل في الأكتيفيتي لوج بيظهر مع أول Refresh
 //     (والتاب بيعمل Refresh لوحده كل دقيقة).
-//   - الإيجنت مابيشوفش أي فلوس - بيشوف بس التعليمات + الدقايق اللي عليه تتعوض النهاردة في كارت My Day.
+//   - الإيجنت بيشوف صفحة Payroll بتاعته هو بس + التعليمات والدقايق اللي عليه في كارت My Day.
 // ============================================================
 
 const PAY_DAYS_DIVISOR = 30;
@@ -27,7 +31,7 @@ const PAY_AUTO_REFRESH_MS = 60000;
 let payrollState = {
   meLoaded: false, meLoading: null, member: false,
   agents: [], earlyCredits: [], settingsLoaded: false,
-  month: "", report: null, loading: false, error: "", detail: "", busy: false, showMadeUp: false
+  month: "", report: null, loading: false, error: "", detail: "", busy: false
 };
 let payrollTimer = null;
 
@@ -201,33 +205,128 @@ function payComputeDay(agentName, dateStr, day, trackingStartDate, now, rates, e
 }
 
 // ملخص شهر لإيجنت واحد
+// 🔁 التعويض (اتغير 25 نوفمبر): الوقت الفايت في يوم ليه فرصتين بس:
+//   1) نفس اليوم - بعد الشيفت (وقبل الشيفت لو الأدمن علّم عليه بس)
+//   2) يوم الشغل اللي بعده في الروستر (بيعدّي الأوف والإجازات) - قبل الشيفت أو بعده، أوتوماتيك
+//   - يوم الشغل اللي بعده لازم يكون في نفس الشهر (التعويض جوه الشهر بس قبل تقفيل المرتبات)
+//   - الوقت الزيادة في يوم التعويض بيغطي دين اليوم اللي قبله الأول (آخر فرصة ليه)، والباقي يغطي اليوم نفسه
+//   - اللي مايتعوضش لحد آخر يوم التعويض بيتخصم - مابيترحلش أكتر من يوم شغل واحد
+//   - لحد ما فرصة التعويض تخلص اليوم بيفضل "مفتوح" (⏳) ومش بيدخل في الخصومات
+//   - انتهاء الخدمة (End service): الأيام بعد آخر يوم مش بتتحسب، والتعويض مايعدّيش آخر يوم
+function payIsWorkRow(r) {
+  return !!(r.range && !r.kind && r.code !== "" && r.status !== "paid" && r.status !== "off" && r.status !== "noroster" && r.status !== "nodata" && r.status !== "ended");
+}
+
+function payAllocateMonth(rows, rates, now) {
+  const work = rows.filter(payIsWorkRow);
+  let carry = null; // { row, amount }
+  const closeRow = (r, amount, open) => {
+    r.remaining = amount > PAY_GRACE_MIN ? amount : 0;
+    r.deduction = r.remaining * rates.minute;
+    r.open = !!open && r.remaining > 0;
+    r.final = !r.open;
+  };
+  for (let i = 0; i < work.length; i++) {
+    const r = work[i];
+    if (r.status === "upcoming") {
+      // يوم التعويض لسه ماجاش -> الدين مفتوح لحد آخره
+      if (carry) { closeRow(carry.row, carry.amount, true); carry = null; }
+      break;
+    }
+    let before = r.status === "noshow" ? 0 : r.beforeWork;
+    let after = r.status === "noshow" ? 0 : r.afterWork;
+
+    // 1) دين يوم الشغل اللي فات (النهاردة آخر فرصة ليه)
+    if (carry) {
+      const c = carry.row;
+      const b = Math.min(carry.amount, before); before -= b; carry.amount -= b;
+      const a = Math.min(carry.amount, after); after -= a; carry.amount -= a;
+      c.nextDate = r.date; c.nextBefore = b; c.nextAfter = a;
+      closeRow(c, carry.amount, r.isToday); // لو يوم التعويض هو النهاردة -> لسه مفتوح
+      carry = null;
+    }
+
+    // 2) اليوم نفسه
+    if (r.status === "noshow") continue; // No Show بيتخصم يوم كامل (اتحسب في payComputeDay)
+    let own = r.owed;
+    r.sameAfter = Math.min(own, after); after -= r.sameAfter; own -= r.sameAfter;
+    r.sameBefore = r.earlyOn ? Math.min(own, before) : 0; before -= r.sameBefore; own -= r.sameBefore;
+    r.comp = r.sameAfter + r.sameBefore;
+    if (own <= PAY_GRACE_MIN) { closeRow(r, 0, false); continue; }
+    const next = work[i + 1];
+    r.deadline = next ? next.date : r.date;
+    if (next) {
+      carry = { row: r, amount: own };
+      r.remaining = own; r.open = true; r.final = false; // هيتقفل في اللفة الجاية
+    } else {
+      closeRow(r, own, r.isToday); // مفيش يوم شغل تاني في الشهر -> النهاردة آخر فرصة
+    }
+  }
+  if (carry) closeRow(carry.row, carry.amount, true);
+
+  // الحالة + السبب لكل يوم
+  rows.forEach(r => {
+    if (!payIsWorkRow(r) || r.status === "upcoming" || r.status === "noshow" || r.status === "notstarted" && !r.owed) return;
+    r.madeUp = (r.sameAfter || 0) + (r.sameBefore || 0) + (r.nextBefore || 0) + (r.nextAfter || 0);
+    if (r.open) { r.status = "open"; r.label = "⏳ Can still make up"; }
+    else if (r.remaining > 0) { r.status = "deducted"; r.label = "➖ Deducted"; }
+    else if (r.owed > 0) { r.status = "madeup"; r.label = "🔁 Made up"; }
+    else if (!r.isToday) { r.status = "ok"; r.label = "✅ On time"; }
+    if (r.owed > 0) {
+      const how = [];
+      if (r.sameAfter) how.push(`${payMin(r.sameAfter)} after the shift`);
+      if (r.sameBefore) how.push(`${payMin(r.sameBefore)} before the shift (admin)`);
+      if (r.nextBefore || r.nextAfter) how.push(`${payMin((r.nextBefore || 0) + (r.nextAfter || 0))} on ${leaveFmtDate(r.nextDate)}`);
+      r.reason = r.parts.join(" · ") + ` = missed ${payMin(r.owed)}; made up ${how.length ? how.join(" + ") : "0m"}` +
+        (r.open ? ` → ${payMin(r.remaining)} still open until end of ${leaveFmtDate(r.deadline || r.date)}`
+          : (r.remaining > 0 ? ` → ${payMin(r.remaining)} × ${payMoney(rates.minute)} = ${payMoney(r.deduction)}` : " → nothing deducted"));
+    }
+  });
+}
+
 function payComputeAgentMonth(payRow, agentName, month, reportDays, trackingStartDate) {
   const now = hrNowInfo();
   const rates = payRates(payRow.salary);
   const byDate = {};
   (reportDays || []).forEach(d => { byDate[d.date] = d; });
   const dates = hrMonthDates(month);
-  const rows = dates.map(date => payComputeDay(agentName, date, byDate[date], trackingStartDate, now, rates, payEarlyOn(agentName, date, payRow.agent)));
+  const endDate = payRow.endDate || "";
+  const rows = dates.map(date => {
+    if (endDate && date > endDate) {
+      return { date, code: "", kind: null, range: null, status: "ended", label: "After end of service", final: true, owed: 0, remaining: 0, deduction: 0, parts: [] };
+    }
+    return payComputeDay(agentName, date, byDate[date], trackingStartDate, now, rates, payEarlyOn(agentName, date, payRow.agent));
+  });
+  payAllocateMonth(rows, rates, now);
 
   const daysInMonth = dates.length;
   let elapsed = 0;
   if (month < now.month) elapsed = daysInMonth;
   else if (month === now.month) elapsed = parseInt(now.today.slice(8, 10), 10);
+  let paidDays = daysInMonth; // أيام الشهر اللي ليها مرتب (لو الخدمة انتهت جوه الشهر)
+  if (endDate && endDate.slice(0, 7) === month) {
+    const endDay = parseInt(endDate.slice(8, 10), 10);
+    elapsed = Math.min(elapsed, endDay);
+    paidDays = endDay;
+  }
 
   const s = {
-    payName: payRow.agent, agent: agentName, month, rates, rows, daysInMonth, elapsed,
+    payName: payRow.agent, agent: agentName, month, rates, rows, daysInMonth, elapsed, endDate,
+    ended: !!(endDate && endDate <= now.today), paidDays,
     shouldToDate: rates.salary * elapsed / daysInMonth,
-    deductions: 0, deductedMin: 0, deductedDays: 0, noShows: 0, todayRow: null, todayPending: 0
+    deductions: 0, deductedMin: 0, deductedDays: 0, noShows: 0,
+    todayRow: null, openAmount: 0, openMin: 0
   };
   rows.forEach(r => {
-    if (r.status === "today") { s.todayRow = r; s.todayPending = r.deduction; return; }
-    if (!r.final || r.deduction <= 0) return;
+    if (r.isToday && payIsWorkRow(r)) s.todayRow = r;
+    if (r.open) { s.openAmount += r.deduction; s.openMin += r.remaining; return; }
+    if (!r.final || !(r.deduction > 0)) return;
     s.deductions += r.deduction;
     s.deductedDays++;
     if (r.status === "noshow") s.noShows++; else s.deductedMin += r.remaining;
   });
   s.netToDate = Math.max(0, s.shouldToDate - s.deductions);
-  s.monthAfter = Math.max(0, rates.salary - s.deductions);
+  s.monthAfter = Math.max(0, rates.salary * paidDays / daysInMonth - s.deductions);
   return s;
 }
 
@@ -261,6 +360,8 @@ async function payPost(payload) {
 // ------------------------------------------------------------
 function payInitTab() {
   if (!payIsAdmin() && !payrollState.member) return;
+  const exportBtn = document.getElementById("payExportBtn");
+  if (exportBtn) exportBtn.style.display = payIsAdmin() ? "" : "none";
   const monthSel = document.getElementById("payMonth");
   if (!monthSel) return;
   const now = hrNowInfo();
@@ -326,6 +427,8 @@ function payBuildSummaries() {
   if (!admin) byName[leaveMyName()] = { days: report.days || [] };
   const list = [], problems = [];
   (payrollState.agents || []).forEach(p => {
+    // 🚪 خدمته انتهت قبل الشهر ده -> مش بيظهر
+    if (p.endDate && p.endDate < month + "-01") return;
     // الإيجنت: نفسه بس (بالاسم بتاعه في الروستر)
     const matches = admin ? payRosterMatches(p.agent, month) : [leaveMyName()];
     if (matches.length !== 1) {
@@ -358,10 +461,10 @@ function payRender() {
 
   const { list, problems } = payBuildSummaries();
   const cur = (payrollState.agents[0] && payrollState.agents[0].currency) || "EGP";
-  const t = { salary: 0, should: 0, ded: 0, net: 0, today: 0, todayAgents: 0 };
+  const t = { salary: 0, should: 0, ded: 0, net: 0, open: 0, openAgents: 0 };
   list.forEach(s => {
     t.salary += s.rates.salary; t.should += s.shouldToDate; t.ded += s.deductions; t.net += s.netToDate;
-    if (s.todayRow && s.todayRow.remaining > 0) { t.today += s.todayPending; t.todayAgents++; }
+    if (s.openMin > 0) { t.open += s.openAmount; t.openAgents++; }
   });
   const isCurrent = payrollState.month === hrNowInfo().month;
   const first = list[0];
@@ -377,15 +480,18 @@ function payRender() {
 
   const rows = list.map(s => {
     const key = leaveEsc(s.agent);
-    const tr = s.todayRow;
-    const todayBadge = tr && tr.remaining > 0
-      ? ` <span class="pay-today-badge" title="Today: still has time to make up after the shift - not deducted yet">⏳ ${payMin(tr.remaining)} today</span>` : "";
+    const todayBadge = (s.openMin > 0
+      ? ` <span class="pay-today-badge" title="Still has a chance to make this up (same day after the shift or next working day) - not deducted yet">⏳ ${payMin(s.openMin)} open</span>` : "") +
+      (s.endDate ? ` <span class="pay-today-badge pay-ended-badge" title="Service ended - salary counted until this day">🚪 ended ${leaveEsc(leaveFmtDate(s.endDate))}</span>` : "");
+    const endBtn = !admin ? "" : (s.endDate
+      ? `<button type="button" class="swap-btn pay-mini-btn" onclick="payEndService('${q(key)}', true)" title="Undo end of service"><i class="fa-solid fa-rotate-left"></i></button>`
+      : `<button type="button" class="swap-btn pay-mini-btn" onclick="payEndService('${q(key)}', false)" title="End of service - close his salary until a day"><i class="fa-solid fa-door-open"></i></button>`);
     const dedSub = s.deductions > 0
       ? `<div class="hr-card-sub">${s.deductedMin ? payMin(s.deductedMin) + " late/missed" : ""}${s.deductedMin && s.noShows ? " + " : ""}${s.noShows ? s.noShows + " No Show" : ""}</div>` : "";
     return `<tr class="${payrollState.detail === s.agent ? "pay-row-open" : ""}">
       <td class="hr-agent" onclick="${admin ? `payToggleDetail('${q(key)}')` : ""}"><i class="fa-solid fa-chevron-${payrollState.detail === s.agent ? "down" : "right"}" style="font-size:10px;opacity:.5;"></i> ${key}${todayBadge}</td>
       <td>${admin ? `<input type="number" min="0" step="100" class="combo-input pay-salary-input" id="paySal-${key}" value="${s.rates.salary}">
-          <button type="button" class="swap-btn swap-btn-primary pay-mini-btn" onclick="paySaveSalary('${q(key)}')" title="Save salary"><i class="fa-solid fa-floppy-disk"></i></button>` : `<b>${payMoney(s.rates.salary)}</b>`}
+          <button type="button" class="swap-btn swap-btn-primary pay-mini-btn" onclick="paySaveSalary('${q(key)}')" title="Save salary"><i class="fa-solid fa-floppy-disk"></i></button>${endBtn}` : `<b>${payMoney(s.rates.salary)}</b>`}
           <div class="hr-card-sub">Day ${payMoney(s.rates.day)} · Hour ${payMoney(s.rates.hour)} · Min ${payMoney(s.rates.minute)}</div></td>
       <td class="pay-big">${payMoney(s.shouldToDate)}</td>
       <td class="pay-big ${s.deductions > 0 ? "hr-neg" : "hr-zero"}">${s.deductions > 0 ? "−" + payMoney(s.deductions) : "0.00"}${dedSub}</td>
@@ -400,7 +506,7 @@ function payRender() {
       <div class="pay-big-card pay-bad"><div class="pay-big-label">➖ Deductions</div><div class="pay-big-value">${t.ded > 0 ? "−" : ""}${payMoney(t.ded)} <span>${cur}</span></div></div>
       <div class="pay-big-card pay-good"><div class="pay-big-label">✅ Will get</div><div class="pay-big-value">${payMoney(t.net)} <span>${cur}</span></div></div>
     </div>
-    ${isCurrent && t.todayAgents ? `<div class="swap-info" style="margin-top:8px;">⏳ <b>Today is still open:</b> ${admin ? `${t.todayAgents} agent${t.todayAgents === 1 ? " has" : "s have"} time to make up (${payMoney(t.today)} ${cur}). It's only deducted if they don't stay after their shift today.` : `you have ${payMin(list[0] && list[0].todayRow ? list[0].todayRow.remaining : 0)} to make up today (${payMoney(t.today)} ${cur}). It's only deducted if you don't stay after your shift today.`}</div>` : ""}
+    ${t.openAgents ? `<div class="swap-info" style="margin-top:8px;">⏳ <b>Still open:</b> ${admin ? `${t.openAgents} agent${t.openAgents === 1 ? " has" : "s have"} time they can still make up (${payMoney(t.open)} ${cur}) - the same day after the shift or on their next working day. It's only deducted if they don't.` : `you have ${payMin(list[0] ? list[0].openMin : 0)} you can still make up (${payMoney(t.open)} ${cur}) - the same day after your shift or on your next working day. It's only deducted if you don't.`}</div>` : ""}
     ${admin ? problemsHtml : ""}
     <div class="table-scroll-wrapper" style="margin-top:12px;">
       <table class="roster-full-table hr-balance-table pay-table">
@@ -412,7 +518,7 @@ function payRender() {
       </table>
     </div>
     <div class="swap-info" style="margin-top:10px;">
-      ${admin ? "Click an agent to see why. " : ""}Late / away / left early / break over 30m must be made up the <b>same day after the shift</b> - what's left is deducted per minute.
+      ${admin ? "Click an agent to see why. " : ""}Late / away / left early / break over 30m can be made up the <b>same day after the shift</b> or on the <b>next working day</b> (before or after the shift), within the same month - what's left is deducted per minute.
       No Show (didn't log in at all) = the whole day is deducted; if he worked part of the shift, only the missed minutes are deducted. Days off, Leave, Sick Leave, Public Holiday, Day in Lieu and Compensated are paid.
     </div>`;
 }
@@ -435,48 +541,52 @@ function payDayLine(s, r) {
   const early = (r.beforeWork > PAY_GRACE_MIN && r.status !== "noshow" && !payIsAdmin())
     ? (r.earlyOn ? ` <span class="pay-early">✓ ${payMin(r.beforeWork)} before the shift counted by admin</span>` : "")
     : (r.beforeWork > PAY_GRACE_MIN && r.status !== "noshow")
-    ? `<label class="pay-early" title="Admin only: count the time worked before the shift as making up for this day">
+    ? `<label class="pay-early" title="Admin only: count the time worked before the shift on the same day">
          <input type="checkbox" ${r.earlyOn ? "checked" : ""} onchange="paySetEarly('${q(leaveEsc(s.agent))}','${r.date}',this.checked)">
-         count ${payMin(r.beforeWork)} worked before the shift</label>` : "";
-  const madeUp = (r.earlyOn && r.beforeWork > 0)
-    ? `stayed ${payMin(r.afterWork)} after the shift + ${payMin(r.beforeWork)} before (counted by admin)`
-    : (r.comp >= 1 ? `stayed ${payMin(r.comp)} after the shift` : "didn't stay after the shift");
+         count ${payMin(r.beforeWork)} before the shift (same day)</label>` : "";
 
   if (r.status === "noshow") {
     return `<div class="pay-line pay-line-bad">🔴 ${day}: No Show - didn't log in${arrow}<b>whole day deducted = ${payMoney(r.deduction)}</b></div>`;
   }
-  if (r.status === "today") {
-    const what = payMissedWords(r);
-    if (r.remaining > 0) {
-      return `<div class="pay-line pay-line-open">⏳ ${day} (today): ${what || "missed time"} so far${arrow}${madeUp}${arrow}<b>${payMin(r.remaining)} still to make up</b> <span style="opacity:.7">(not deducted yet)</span>${early}</div>`;
-    }
-    return r.owed > 0
-      ? `<div class="pay-line pay-line-good">🟢 ${day} (today): ${what}${arrow}${madeUp}${arrow}<b>all made up</b>${early}</div>`
-      : `<div class="pay-line pay-line-good">🟢 ${day} (today): nothing missed so far</div>`;
-  }
   const what = payMissedWords(r);
-  if (r.remaining > 0) {
+  const how = [];
+  if (r.sameAfter >= 1) how.push(`stayed ${payMin(r.sameAfter)} after the shift`);
+  if (r.sameBefore >= 1) how.push(`${payMin(r.sameBefore)} before the shift (admin)`);
+  const nextTotal = (r.nextBefore || 0) + (r.nextAfter || 0);
+  if (nextTotal >= 1) {
+    const bits = [];
+    if (r.nextBefore >= 1) bits.push(`${payMin(r.nextBefore)} before`);
+    if (r.nextAfter >= 1) bits.push(`${payMin(r.nextAfter)} after`);
+    how.push(`made up ${payMin(nextTotal)} on ${leaveEsc(leaveFmtDate(r.nextDate))} (${bits.join(" + ")} the shift)`);
+  }
+  const madeUp = how.length ? how.join(" + ") : "nothing made up yet";
+  const todayTag = r.isToday ? " (today)" : "";
+
+  if (r.status === "open") {
+    const until = r.deadline && r.deadline !== r.date ? `until end of ${leaveEsc(leaveFmtDate(r.deadline))}` : "until end of today";
+    return `<div class="pay-line pay-line-open">⏳ ${day}${todayTag}: ${what || "missed time"}${arrow}${madeUp}${arrow}<b>${payMin(r.remaining)} still open</b> <span style="opacity:.7">(can make up ${until} - not deducted yet)</span>${early}</div>`;
+  }
+  if (r.status === "deducted") {
     return `<div class="pay-line pay-line-bad">🔴 ${day}: ${what}${arrow}${madeUp}${arrow}<b>deducted ${payMin(r.remaining)} = ${payMoney(r.deduction)}</b>${early}</div>`;
   }
   if (r.owed > 0) {
-    return `<div class="pay-line pay-line-good">🟢 ${day}: ${what}${arrow}${madeUp}${arrow}<b>no deduction</b>${early}</div>`;
+    return `<div class="pay-line pay-line-good">🟢 ${day}${todayTag}: ${what}${arrow}${madeUp}${arrow}<b>no deduction</b>${early}</div>`;
   }
+  if (r.isToday) return `<div class="pay-line pay-line-good">🟢 ${day} (today): nothing missed so far${early}</div>`;
   return `<div class="pay-line">⚪ ${day}: on time${early}</div>`;
 }
 
 function payDetailHtml(s) {
-  // كل الأيام اللي فيها وقت فايت بتظهر دايمًا (الأحمر = اتخصم / الأخضر = اتعوض) + اليوم اللي الأدمن حسب فيه الشغل قبل الشيفت
-  const show = r => r.status === "noshow" || r.status === "today" || r.owed > 0 || (r.earlyOn && r.beforeWork > 0);
+  // كل الأيام اللي فيها وقت فايت بتظهر دايمًا (أحمر = اتخصم / أخضر = اتعوض / أصفر = لسه مفتوح)
+  // + النهاردة + اليوم اللي الأدمن حسب فيه الشغل قبل الشيفت
+  const show = r => r.status === "noshow" || (r.isToday && payIsWorkRow(r)) || r.owed > 0 || (r.earlyOn && r.beforeWork > 0);
   const lines = s.rows.filter(show).map(r => payDayLine(s, r)).join("");
+  const ended = s.endDate ? `<div class="pay-line pay-line-bad">🚪 Service ended on <b>${leaveEsc(leaveFmtDate(s.endDate))}</b> - salary counted until that day only.</div>` : "";
   return `<div class="hr-detail">
     <div style="font-weight:800;margin-bottom:8px;">📋 ${leaveEsc(s.agent)}</div>
+    ${ended}
     ${lines || `<div class="pay-line pay-line-good">✅ Nothing missed this month so far.</div>`}
   </div>`;
-}
-
-function payToggleMadeUp() {
-  payrollState.showMadeUp = !payrollState.showMadeUp;
-  payRender();
 }
 
 function payToggleDetail(agent) {
@@ -519,6 +629,85 @@ function paySaveSalary(agent) {
   payRun({ op: "setSalary", agent, salary: v });
 }
 
+// 🚪 إنهاء الخدمة: المرتب بيتحسب لحد آخر يوم بس (والتعويض مابيعدّيش اليوم ده) - undo = يرجع عادي
+function payEndService(agent, undo) {
+  if (undo) {
+    if (!confirm(`Undo end of service for ${agent}?\n\nHis salary will be counted for the whole month again.`)) return;
+    payRun({ op: "setEndDate", agent, date: "" });
+    return;
+  }
+  const today = hrNowInfo().today;
+  const d = prompt(`End of service for ${agent}\n\nLast working day to pay (YYYY-MM-DD):`, today);
+  if (d === null) return;
+  const date = String(d).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { payMsg("⚠️ Please write the date like " + today, "error"); return; }
+  if (!confirm(`Close ${agent}'s salary on ${leaveFmtDate(date)}?\n\nSalary and deductions are counted until that day only. Any time he still had to make up after it is deducted. You can undo this any time.`)) return;
+  payRun({ op: "setEndDate", agent, date });
+}
+
+// 📥 Excel: شيت Summary (كل إيجنت) + شيت Days (كل يوم فيه وقت فايت / خصم) - لحد اللحظة دي
+async function payExportExcel() {
+  if (!payrollState.report) { alert("Load the payroll first."); return; }
+  const btn = document.getElementById("payExportBtn");
+  const old = btn ? btn.innerHTML : "";
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Exporting...'; }
+  try {
+    if (typeof ccpLoadExcelJs_ !== "function") throw new Error("Excel library not available");
+    const ExcelJS = await ccpLoadExcelJs_();
+    const wb = new ExcelJS.Workbook();
+    const m2 = n => Math.round((n || 0) * 100) / 100;
+    const styleHeader = row => row.eachCell(c => {
+      c.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } };
+      c.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+    });
+    const { list } = payBuildSummaries();
+    const cur = (payrollState.agents[0] && payrollState.agents[0].currency) || "EGP";
+    const asOf = new Date().toLocaleString("en-GB", { timeZone: "Asia/Dubai", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+    const ws = wb.addWorksheet("Summary", { views: [{ state: "frozen", xSplit: 1, ySplit: 2 }] });
+    ws.addRow([`Payroll - ${payrollState.month} - as of ${asOf} (UAE) - amounts in ${cur}`]).font = { bold: true, size: 13 };
+    styleHeader(ws.addRow(["Agent", "Monthly salary", "Day rate", "Hour rate", "Minute rate", "Days counted", "Should get (if committed)",
+      "Deductions", "Will get", "Still open (can make up)", "Month salary after deductions", "Deducted minutes", "No Show days", "Service ended"]));
+    const tot = { sal: 0, should: 0, ded: 0, net: 0, open: 0, month: 0 };
+    list.forEach(s => {
+      ws.addRow([s.agent, m2(s.rates.salary), m2(s.rates.day), m2(s.rates.hour), m2(s.rates.minute), s.elapsed, m2(s.shouldToDate),
+        m2(s.deductions), m2(s.netToDate), m2(s.openAmount), m2(s.monthAfter), Math.round(s.deductedMin), s.noShows, s.endDate || ""]);
+      tot.sal += s.rates.salary; tot.should += s.shouldToDate; tot.ded += s.deductions; tot.net += s.netToDate; tot.open += s.openAmount; tot.month += s.monthAfter;
+    });
+    const tr = ws.addRow(["Team total", m2(tot.sal), "", "", "", "", m2(tot.should), m2(tot.ded), m2(tot.net), m2(tot.open), m2(tot.month), "", "", ""]);
+    tr.font = { bold: true };
+    ws.columns.forEach((c, i) => { c.width = i === 0 ? 24 : 15; });
+
+    const wd = wb.addWorksheet("Days", { views: [{ state: "frozen", xSplit: 2, ySplit: 1 }] });
+    styleHeader(wd.addRow(["Agent", "Date", "Roster", "Status", "Late (min)", "Away (min)", "Left early (min)", "Extra break (min)", "Missed (min)",
+      "Made up same day (min)", "Made up next working day (min)", "Next working day", "Deducted / open (min)", "Amount", "Reason"]));
+    list.forEach(s => s.rows.filter(r => r.status === "noshow" || r.owed > 0).forEach(r => {
+      wd.addRow([s.agent, r.date, r.code, String(r.label || r.status).replace(/^[^\w]+/, ""),
+        Math.round(r.late || 0), Math.round((r.away || 0) + (r.notLoggedNow || 0)), Math.round(r.leftEarly || 0), Math.round(r.extraBreak || 0), Math.round(r.owed || 0),
+        Math.round((r.sameAfter || 0) + (r.sameBefore || 0)), Math.round((r.nextBefore || 0) + (r.nextAfter || 0)), r.nextDate || "",
+        r.status === "noshow" ? "Full day" : Math.round(r.remaining || 0), r.open ? `open (${m2(r.deduction)})` : m2(r.deduction),
+        r.reason || ""]);
+    }));
+    wd.columns.forEach((c, i) => { c.width = i === 0 ? 22 : (i === 14 ? 70 : 13); });
+
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `payroll_${payrollState.month}_as-of-${hrNowInfo().today}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    alert("Could not export: " + (err.message || err));
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = old; }
+  }
+}
+
 function paySetEarly(agent, date, on) {
   payRun({ op: "earlyCredit", agent, date, on: !!on });
 }
@@ -553,63 +742,112 @@ function payEnsureMe() {
   return payrollState.meLoading;
 }
 
+// الإيجنت: داتا الشهر بتاعه (عشان التعويض في يوم الشغل اللي بعده) - كاش دقيقة
+let payMyMonthCache = { key: "", at: 0, report: null, loading: false };
+
+function payMyMonthData(agentName, month) {
+  const key = agentName + "|" + month;
+  const fresh = payMyMonthCache.key === key && payMyMonthCache.report && (Date.now() - payMyMonthCache.at < PAY_AUTO_REFRESH_MS);
+  if (!fresh && !payMyMonthCache.loading) {
+    payMyMonthCache.loading = true;
+    hrFetchMonth(month, agentName)
+      .then(rep => {
+        payMyMonthCache = { key, at: Date.now(), report: rep, loading: false };
+        if (typeof loadMyDayCard === "function") loadMyDayCard(typeof myDayCardCurrentDate !== "undefined" ? myDayCardCurrentDate : undefined);
+      })
+      .catch(() => { payMyMonthCache.loading = false; payMyMonthCache.at = Date.now(); payMyMonthCache.key = key; });
+  }
+  return payMyMonthCache.key === key ? payMyMonthCache.report : null;
+}
+
 function payrollMyDayHtml(agentName, dateStr, day, trackingStartDate) {
   if (!payrollState.meLoaded || payrollState.meToken !== payToken()) { payEnsureMe(); return ""; }
   if (!payrollState.member) return "";
   const now = hrNowInfo();
-  const r = payComputeDay(agentName, dateStr, day, trackingStartDate, now, payRates(0), false);
   const isToday = dateStr === now.today;
+  const month = dateStr.slice(0, 7);
+  const payRow = (payrollState.agents && payrollState.agents[0]) || { agent: agentName, salary: 0 };
+
+  // الشهر كله (لو جه) - وإلا النهاردة لوحده لحد ما الداتا توصل
+  const rep = payMyMonthData(agentName, month);
+  let rows;
+  if (rep && Array.isArray(rep.days)) {
+    const days = rep.days.slice();
+    if (day && !days.some(d => d.date === dateStr)) days.push(day);
+    else if (day) for (let i = 0; i < days.length; i++) if (days[i].date === dateStr) days[i] = day; // داتا الكارت أحدث
+    rows = payComputeAgentMonth(payRow, agentName, month, days, trackingStartDate || rep.trackingStartDate).rows;
+  } else {
+    rows = payComputeAgentMonth(payRow, agentName, month, day ? [day] : [], trackingStartDate).rows;
+  }
+  const r = rows.find(x => x.date === dateStr) || payComputeDay(agentName, dateStr, day, trackingStartDate, now, payRates(0), false);
+  const work = rows.filter(payIsWorkRow);
+  const idx = work.findIndex(x => x.date === dateStr);
+  const nextWork = idx >= 0 ? work[idx + 1] : null;
+
   let shiftLine = "";
   if (r.range) shiftLine = `<b>${leaveEsc(r.code)}</b> · ${payClock(r.range[0])} – ${payClock(r.range[1])} · 8h = 7:30 work + 30m break`;
   else shiftLine = r.code ? `<b>${leaveEsc(r.code)}</b>` : "Not in the roster";
 
-  let status = "", tone = "info";
-  if (r.status === "paid" || r.status === "off") {
-    status = `🌴 ${leaveEsc(r.label)} - nothing to make up.`;
-  } else if (r.status === "notstarted") {
-    status = `⏰ Your shift starts at <b>${payClock(r.range[0])}</b>. Log in on time - any late minute must be made up today after your shift.`;
-  } else if (r.status === "today") {
-    const endMin = r.range[1];
-    if (r.remaining > 0) {
+  const msgs = [];
+  let tone = "info";
+  // دين من يوم الشغل اللي فات - النهاردة آخر فرصة
+  if (isToday) {
+    const prev = rows.find(x => x.open && x.deadline === dateStr && x.date !== dateStr);
+    if (prev) {
       tone = "bad";
-      const stayUntil = now.nowMin < endMin ? endMin + r.remaining : now.nowMin + r.remaining;
-      status = `⚠️ You have <b>${payMin(r.remaining)}</b> to make up today (${leaveEsc(r.parts.join(" · "))})` +
-        (r.comp > 0 ? ` - already made up ${payMin(r.comp)}` : "") +
-        `.<br>Stay logged in until <b>${payClock(stayUntil)}</b> today to make it up` +
-        (now.nowMin < endMin ? " (if you don't miss any more time)" : "") +
-        ` - <b>otherwise it will be deducted from your salary.</b>`;
-    } else if (r.owed > 0) {
-      tone = "good";
-      status = `✅ You missed ${payMin(r.owed)} today and you've made it all up. Thank you!`;
-    } else {
-      tone = "good";
-      status = `✅ No time to make up so far today. Keep it up!`;
+      msgs.push(`⚠️ From <b>${leaveEsc(leaveFmtDate(prev.date))}</b> you still have <b>${payMin(prev.remaining)}</b> to make up - <b>today is your last chance</b> (before or after your shift), otherwise it will be deducted from your salary.`);
     }
+  }
+
+  if (r.status === "paid" || r.status === "off") {
+    msgs.push(`🌴 ${leaveEsc(r.label)} - nothing to make up.`);
+  } else if (r.status === "notstarted") {
+    msgs.push(`⏰ Your shift starts at <b>${payClock(r.range[0])}</b>. Log in on time.`);
   } else if (r.status === "noshow") {
     tone = "bad";
-    status = `🚫 No Show - you didn't log in this day, so the whole day is deducted (unless an admin approves a Compensation).`;
+    msgs.push(`🚫 No Show - you didn't log in this day, so the whole day is deducted (unless an admin approves a Compensation).`);
+  } else if (r.status === "open" && r.date === dateStr) {
+    tone = "bad";
+    const chance = r.deadline && r.deadline !== r.date
+      ? `today after your shift, or on your next shift <b>${leaveEsc(leaveFmtDate(r.deadline))}</b> (before or after it)`
+      : `today after your shift - <b>this is the last working day of the month</b>`;
+    msgs.push(`⚠️ You have <b>${payMin(r.remaining)}</b> to make up${isToday ? " today" : ""} (${leaveEsc(payMissedWords(r))})` +
+      (r.madeUp >= 1 ? ` - already made up ${payMin(r.madeUp)}` : "") + `. Make it up ${chance} - <b>otherwise it will be deducted from your salary.</b>`);
   } else if (r.status === "deducted") {
     tone = "bad";
-    status = `➖ You missed ${payMin(r.owed)} this day (${leaveEsc(r.parts.join(" · "))}), made up ${payMin(r.comp)} → <b>${payMin(r.remaining)} deducted</b>.`;
-  } else if (r.status === "madeup") {
-    tone = "good";
-    status = `✅ You missed ${payMin(r.owed)} this day and made it all up.`;
-  } else if (r.status === "ok") {
-    tone = "good";
-    status = `✅ Full shift this day - nothing missed.`;
+    msgs.push(`➖ You missed ${payMin(r.owed)} this day (${leaveEsc(payMissedWords(r))}), made up ${payMin(r.madeUp || 0)} → <b>${payMin(r.remaining)} deducted</b>.`);
+  } else if (r.owed > 0) {
+    if (tone !== "bad") tone = "good";
+    msgs.push(`✅ You missed ${payMin(r.owed)} ${isToday ? "today" : "this day"} and made it all up. Thank you!`);
   } else if (r.status === "nodata") {
-    status = "No login data for this day.";
+    msgs.push("No login data for this day.");
+  } else if (payIsWorkRow(r)) {
+    if (tone !== "bad") tone = "good";
+    msgs.push(isToday ? `✅ No time to make up so far today. Keep it up!` : `✅ Full shift this day - nothing missed.`);
+  }
+
+  // ⏰ يقعد لحد إمتى عشان يخلّص كل اللي عليه النهاردة
+  if (isToday && r.range) {
+    const prev = rows.find(x => x.open && x.deadline === dateStr && x.date !== dateStr);
+    const total = (prev ? prev.remaining : 0) + (r.status === "open" ? r.remaining : 0);
+    if (total >= 1) {
+      const endMin = r.range[1];
+      const stayUntil = now.nowMin < endMin ? endMin + total : now.nowMin + total;
+      msgs.push(`🕒 To clear everything today, stay logged in until <b>${payClock(Math.min(stayUntil, 1439))}</b>` + (now.nowMin < endMin ? " (if you don't miss any more time)." : "."));
+    }
   }
 
   return `
     <div class="pay-myday pay-myday-${tone}">
       <div class="pay-myday-head"><i class="fa-solid fa-clipboard-check"></i> Your shift rules ${isToday ? "· today" : "· " + leaveEsc(leaveFmtDate(dateStr))}: ${shiftLine}</div>
-      ${status ? `<div class="pay-myday-status">${status}</div>` : ""}
+      ${msgs.length ? `<div class="pay-myday-status">${msgs.join("<br>")}</div>` : ""}
       <ul class="pay-myday-rules">
         <li>Be logged in for your <b>whole shift</b> as per the roster.</li>
         <li>Your break is <b>30 minutes - it's your right, take it</b>. A shorter break does <b>not</b> make up for being late, and any minute over 30 must be made up.</li>
-        <li>Late login, being logged out / away during the shift, leaving early, or a longer break → make it up the <b>same day</b> by staying <b>after your shift ends</b>. Time before your shift or on another day does not count.</li>
-        <li>Any minutes not made up by the end of the day are <b>deducted from your salary</b>.</li>
+        <li>Late login, being logged out / away during the shift, leaving early, or a longer break → you have <b>2 chances</b> to make it up: the <b>same day after your shift</b>, or on your <b>next working day</b> (coming in before your shift or staying after it). Days off and leave in between don't count.</li>
+        <li>Coming in early on the <b>same day</b> does not count as making up.</li>
+        <li>Making up only counts <b>within the same month</b> - anything not made up before the month closes is deducted (e.g. if you're late on the last working day of the month, make it up that same day).</li>
+        <li>Anything not made up by the end of your next working day is <b>deducted from your salary</b>.</li>
         <li>Not logging in at all (No Show) = the whole day is deducted, unless a Compensation (a day off worked) is approved. If you work part of the shift, only the missed minutes are deducted.</li>
         <li>Leave, Sick Leave, Public Holiday and Day in Lieu are paid - no deduction.</li>
       </ul>

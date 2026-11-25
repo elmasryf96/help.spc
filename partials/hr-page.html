@@ -161,6 +161,10 @@
                         <button type="button" class="swap-btn swap-btn-primary align-self-end" onclick="payLoad(true)">
                             <i class="fa-solid fa-rotate"></i> Refresh
                         </button>
+                        <!-- 📥 Excel (أدمن بس) - js/payroll.js payExportExcel -->
+                        <button type="button" id="payExportBtn" class="swap-btn align-self-end" onclick="payExportExcel()" style="display: none;">
+                            <i class="fa-solid fa-file-excel"></i> Export to Excel
+                        </button>
                     </div>
                     <div id="payMsg" class="swap-msg" style="display: none;"></div>
                 </div>
@@ -174,6 +178,7 @@
                 .pay-mini-btn { padding: 4px 8px !important; font-size: 12px !important; min-width: 0 !important; }
                 .pay-table td.pay-big { font-size: 15px; font-weight: 700; }
                 .pay-table tr.pay-row-open td { background: rgba(226, 191, 68, 0.12); }
+                .pay-ended-badge { background: #fee2e2 !important; color: #991b1b !important; }
                 .pay-today-badge { margin-left: 6px; background: #fef3c7; color: #92400e; border-radius: 8px; padding: 1px 7px; font-size: 11px; font-weight: 800; white-space: nowrap; }
                 .pay-big-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
                 .pay-big-card { padding: 14px 16px; border-radius: 14px; background: rgba(255, 255, 255, 0.75); border: 1px solid rgba(226, 191, 68, 0.5); }
