@@ -204,11 +204,90 @@ function payComputeDay(agentName, dateStr, day, trackingStartDate, now, rates, e
   return r;
 }
 
+// ------------------------------------------------------------
+// 📅 دورة المرتب (اتغيرت 25 نوفمبر): من يوم 26 لحد يوم 25 في الشهر اللي بعده
+//   - اسم الدورة = شهر القبض: دورة "2026-12" = 26 نوفمبر -> 25 ديسمبر
+//   - التعويض بيعدّي الشهور عادي (يوم 31 يتعوض يوم 1)
+//   - الخصم بيتحسب في الدورة اللي فيها آخر يوم تعويض له (settle day):
+//     يعني تأخير يوم 25 اللي اتعوض/اتخصم يوم 26 بيروح للدورة الجديدة -> الدورة القديمة بتتقفل يوم 25 بالليل وماتتغيرش
+//   - (دي حاجة جوا الإدارة - مش مكتوبة في تعليمات الإيجنت)
+// ------------------------------------------------------------
+const PAY_CYCLE_END_DAY = 25;
+const PAY_CYCLE_LOOK_DAYS = 14; // أيام قبل/بعد الدورة عشان نعرف يوم الشغل اللي قبلها/بعدها
+
+function payAddDays(dateStr, n) {
+  const d = new Date(dateStr + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function payDatesBetween(a, b) {
+  const out = [];
+  for (let d = a; d <= b; d = payAddDays(d, 1)) out.push(d);
+  return out;
+}
+
+// الدورة اللي التاريخ ده فيها (اسمها شهر القبض)
+function payCycleOf(dateStr) {
+  const y = parseInt(dateStr.slice(0, 4), 10), m = parseInt(dateStr.slice(5, 7), 10), d = parseInt(dateStr.slice(8, 10), 10);
+  if (d <= PAY_CYCLE_END_DAY) return dateStr.slice(0, 7);
+  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
+}
+
+function payCycleRange(key) {
+  const y = parseInt(key.slice(0, 4), 10), m = parseInt(key.slice(5, 7), 10);
+  const end = `${key}-${String(PAY_CYCLE_END_DAY).padStart(2, "0")}`;
+  const py = m === 1 ? y - 1 : y, pm = m === 1 ? 12 : m - 1;
+  const start = `${py}-${String(pm).padStart(2, "0")}-${String(PAY_CYCLE_END_DAY + 1).padStart(2, "0")}`;
+  return { key, start, end, dates: payDatesBetween(start, end) };
+}
+
+function payCycleLabel(key) {
+  const names = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const r = payCycleRange(key);
+  return `${names[parseInt(key.slice(5), 10) - 1]} ${key.slice(0, 4)} (${leaveFmtDate(r.start)} – ${leaveFmtDate(r.end)})`;
+}
+
+// الشهور (التقويم) اللي محتاجين داتا اللوجن بتاعها عشان نحسب من a لـ b (لحد النهاردة بس)
+function payMonthsBetween(a, b) {
+  const today = hrNowInfo().today;
+  if (b > today) b = today;
+  const out = [];
+  for (let k = a.slice(0, 7); k <= b.slice(0, 7);) {
+    out.push(k);
+    const y = parseInt(k.slice(0, 4), 10), m = parseInt(k.slice(5, 7), 10);
+    k = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
+  }
+  return out;
+}
+
+// بيسحب داتا اللوجن لكذا شهر ويجمعها: { agents: [{name, days}], trackingStartDate }
+async function payFetchDays(fromDate, toDate, agent) {
+  const months = payMonthsBetween(fromDate, toDate);
+  const reps = await Promise.all(months.map(m => hrFetchMonth(m, agent || "").catch(err => {
+    // شهر قديم مالوش داتا مايوقفش الحسبة - غير الشهر الحالي
+    if (m === hrNowInfo().month) throw err;
+    return null;
+  })));
+  const byName = {};
+  let tracking = null;
+  reps.forEach(rep => {
+    if (!rep) return;
+    if (rep.trackingStartDate && (!tracking || rep.trackingStartDate < tracking)) tracking = rep.trackingStartDate;
+    if (agent) {
+      byName[agent] = (byName[agent] || []).concat(rep.days || []);
+    } else {
+      (rep.agents || []).forEach(a => { byName[a.name] = (byName[a.name] || []).concat(a.days || []); });
+    }
+  });
+  return { agents: Object.keys(byName).map(n => ({ name: n, days: byName[n] })), trackingStartDate: tracking };
+}
+
 // ملخص شهر لإيجنت واحد
 // 🔁 التعويض (اتغير 25 نوفمبر): الوقت الفايت في يوم ليه فرصتين بس:
 //   1) نفس اليوم - بعد الشيفت (وقبل الشيفت لو الأدمن علّم عليه بس)
 //   2) يوم الشغل اللي بعده في الروستر (بيعدّي الأوف والإجازات) - قبل الشيفت أو بعده، أوتوماتيك
-//   - يوم الشغل اللي بعده لازم يكون في نفس الشهر (التعويض جوه الشهر بس قبل تقفيل المرتبات)
+//   - التعويض بيعدّي الشهور عادي (اتغيرت 25 نوفمبر) - الخصم بيتحسب في دورة المرتب بتاعة آخر يوم تعويض
 //   - الوقت الزيادة في يوم التعويض بيغطي دين اليوم اللي قبله الأول (آخر فرصة ليه)، والباقي يغطي اليوم نفسه
 //   - اللي مايتعوضش لحد آخر يوم التعويض بيتخصم - مابيترحلش أكتر من يوم شغل واحد
 //   - لحد ما فرصة التعويض تخلص اليوم بيفضل "مفتوح" (⏳) ومش بيدخل في الخصومات
@@ -284,14 +363,16 @@ function payAllocateMonth(rows, rates, now) {
   });
 }
 
-function payComputeAgentMonth(payRow, agentName, month, reportDays, trackingStartDate) {
+// ملخص دورة مرتب لإيجنت واحد (من 26 لـ 25) - بيحسب كمان أيام قبل/بعد الدورة عشان التعويض اللي بيعدّي الحدود
+function payComputeAgentCycle(payRow, agentName, key, reportDays, trackingStartDate) {
   const now = hrNowInfo();
   const rates = payRates(payRow.salary);
+  const cyc = payCycleRange(key);
   const byDate = {};
   (reportDays || []).forEach(d => { byDate[d.date] = d; });
-  const dates = hrMonthDates(month);
   const endDate = payRow.endDate || "";
-  const rows = dates.map(date => {
+  const ext = payDatesBetween(payAddDays(cyc.start, -PAY_CYCLE_LOOK_DAYS), payAddDays(cyc.end, PAY_CYCLE_LOOK_DAYS));
+  const rows = ext.map(date => {
     if (endDate && date > endDate) {
       return { date, code: "", kind: null, range: null, status: "ended", label: "After end of service", final: true, owed: 0, remaining: 0, deduction: 0, parts: [] };
     }
@@ -299,26 +380,31 @@ function payComputeAgentMonth(payRow, agentName, month, reportDays, trackingStar
   });
   payAllocateMonth(rows, rates, now);
 
-  const daysInMonth = dates.length;
-  let elapsed = 0;
-  if (month < now.month) elapsed = daysInMonth;
-  else if (month === now.month) elapsed = parseInt(now.today.slice(8, 10), 10);
-  let paidDays = daysInMonth; // أيام الشهر اللي ليها مرتب (لو الخدمة انتهت جوه الشهر)
-  if (endDate && endDate.slice(0, 7) === month) {
-    const endDay = parseInt(endDate.slice(8, 10), 10);
-    elapsed = Math.min(elapsed, endDay);
-    paidDays = endDay;
+  // اليوم اللي الخصم بيتحسب فيه = آخر فرصة تعويض (يوم الشغل اللي بعده لو اترحّل)
+  rows.forEach(r => { r.settleDate = r.status === "noshow" ? r.date : (r.nextDate || r.deadline || r.date); r.inCycle = r.date >= cyc.start && r.date <= cyc.end; });
+  const counts = r => r.settleDate >= cyc.start && r.settleDate <= cyc.end;
+
+  const cycleLen = cyc.dates.length;
+  let elapsed = cyc.dates.filter(d => d <= now.today).length;
+  let paidDays = cycleLen;
+  if (endDate && endDate <= cyc.end) {
+    paidDays = endDate < cyc.start ? 0 : cyc.dates.filter(d => d <= endDate).length;
+    elapsed = Math.min(elapsed, paidDays);
   }
 
   const s = {
-    payName: payRow.agent, agent: agentName, month, rates, rows, daysInMonth, elapsed, endDate,
-    ended: !!(endDate && endDate <= now.today), paidDays,
-    shouldToDate: rates.salary * elapsed / daysInMonth,
+    payName: payRow.agent, agent: agentName, month: key, cycle: cyc, rates, endDate,
+    // الأيام اللي بتتعرض: أيام الدورة + أي يوم قبلها خصمه بيتحسب في الدورة دي (ديون يوم 25 اللي فات)
+    rows: rows.filter(r => r.inCycle || (r.date < cyc.start && counts(r) && (r.owed > 0 || r.status === "noshow"))),
+    daysInMonth: cycleLen, elapsed, paidDays,
+    ended: !!(endDate && endDate <= now.today),
+    shouldToDate: rates.salary * elapsed / cycleLen,
     deductions: 0, deductedMin: 0, deductedDays: 0, noShows: 0,
     todayRow: null, openAmount: 0, openMin: 0
   };
   rows.forEach(r => {
     if (r.isToday && payIsWorkRow(r)) s.todayRow = r;
+    if (!counts(r)) return;
     if (r.open) { s.openAmount += r.deduction; s.openMin += r.remaining; return; }
     if (!r.final || !(r.deduction > 0)) return;
     s.deductions += r.deduction;
@@ -326,7 +412,7 @@ function payComputeAgentMonth(payRow, agentName, month, reportDays, trackingStar
     if (r.status === "noshow") s.noShows++; else s.deductedMin += r.remaining;
   });
   s.netToDate = Math.max(0, s.shouldToDate - s.deductions);
-  s.monthAfter = Math.max(0, rates.salary * paidDays / daysInMonth - s.deductions);
+  s.monthAfter = Math.max(0, rates.salary * paidDays / cycleLen - s.deductions);
   return s;
 }
 
@@ -365,17 +451,18 @@ function payInitTab() {
   const monthSel = document.getElementById("payMonth");
   if (!monthSel) return;
   const now = hrNowInfo();
-  const months = [];
+  // 📅 الدورات (26 -> 25) - من شهور الروستر + الدورة الحالية
+  const cur = payCycleOf(now.today);
+  const keys = [];
   (Array.isArray(rosterData) ? rosterData : []).forEach(a => {
     const k = `${a.year}-${String(a.month).padStart(2, "0")}`;
-    if (months.indexOf(k) === -1 && k <= now.month) months.push(k);
+    if (keys.indexOf(k) === -1 && k <= cur) keys.push(k);
   });
-  if (months.indexOf(now.month) === -1) months.push(now.month);
-  months.sort().reverse();
-  const names = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  const keep = monthSel.value || payrollState.month || now.month;
-  monthSel.innerHTML = months.map(k => `<option value="${k}">${names[parseInt(k.slice(5), 10) - 1]} ${k.slice(0, 4)}</option>`).join("");
-  monthSel.value = months.indexOf(keep) !== -1 ? keep : months[0];
+  if (keys.indexOf(cur) === -1) keys.push(cur);
+  keys.sort().reverse();
+  const keep = monthSel.value || payrollState.month || cur;
+  monthSel.innerHTML = keys.map(k => `<option value="${k}">${leaveEsc(payCycleLabel(k))}${k === cur ? " - current" : ""}</option>`).join("");
+  monthSel.value = keys.indexOf(keep) !== -1 ? keep : keys[0];
   payLoad(false);
   payStartAutoRefresh();
 }
@@ -403,10 +490,12 @@ async function payLoad(force, silent) {
   payrollState.month = month;
   payrollState.loading = true;
   payrollState.error = "";
-  if (!silent) box.innerHTML = `<div class="swap-empty"><i class="fa-solid fa-spinner fa-spin"></i> Loading the payroll for ${leaveEsc(month)}...</div>`;
+  if (!silent) box.innerHTML = `<div class="swap-empty"><i class="fa-solid fa-spinner fa-spin"></i> Loading the payroll for ${leaveEsc(payCycleLabel(month))}...</div>`;
   try {
-    // الإيجنت بيسحب تقريره هو بس، والأدمن كل الإيجنتس
-    const [settings, report] = await Promise.all([payFetchSettings(), hrFetchMonth(month, payIsAdmin() ? "" : leaveMyName())]);
+    // الإيجنت بيسحب تقريره هو بس، والأدمن كل الإيجنتس - الدورة + أيام قبلها/بعدها (التعويض بيعدّي الحدود)
+    const cyc = payCycleRange(month);
+    const [settings, report] = await Promise.all([payFetchSettings(),
+      payFetchDays(payAddDays(cyc.start, -PAY_CYCLE_LOOK_DAYS), payAddDays(cyc.end, PAY_CYCLE_LOOK_DAYS), payIsAdmin() ? "" : leaveMyName())]);
     if (payrollState.month !== month) return;
     payrollState.report = report;
     payrollState.loadedAt = new Date();
@@ -424,19 +513,20 @@ function payBuildSummaries() {
   const byName = {};
   (report.agents || []).forEach(a => { byName[a.name] = a; });
   const admin = payIsAdmin();
-  if (!admin) byName[leaveMyName()] = { days: report.days || [] };
+  const cyc = payCycleRange(month);
   const list = [], problems = [];
   (payrollState.agents || []).forEach(p => {
     // 🚪 خدمته انتهت قبل الشهر ده -> مش بيظهر
-    if (p.endDate && p.endDate < month + "-01") return;
+    if (p.endDate && p.endDate < cyc.start) return;
     // الإيجنت: نفسه بس (بالاسم بتاعه في الروستر)
-    const matches = admin ? payRosterMatches(p.agent, month) : [leaveMyName()];
+    let matches = admin ? payRosterMatches(p.agent, month) : [leaveMyName()];
+    if (admin && !matches.length) matches = payRosterMatches(p.agent, cyc.start.slice(0, 7)); // روستر الشهر اللي فات
     if (matches.length !== 1) {
       problems.push({ p, matches });
       return;
     }
     const name = matches[0];
-    list.push(payComputeAgentMonth(p, name, month, byName[name] ? byName[name].days : [], tracking));
+    list.push(payComputeAgentCycle(p, name, month, byName[name] ? byName[name].days : [], tracking));
   });
   list.sort((a, b) => a.agent.localeCompare(b.agent));
   return { list, problems };
@@ -466,9 +556,9 @@ function payRender() {
     t.salary += s.rates.salary; t.should += s.shouldToDate; t.ded += s.deductions; t.net += s.netToDate;
     if (s.openMin > 0) { t.open += s.openAmount; t.openAgents++; }
   });
-  const isCurrent = payrollState.month === hrNowInfo().month;
+  const isCurrent = payrollState.month === payCycleOf(hrNowInfo().today);
   const first = list[0];
-  const period = isCurrent && first ? `1 → ${first.elapsed} ${leaveEsc(leaveFmtDate(hrNowInfo().today).split(" ")[1] || "")} (${first.elapsed} of ${first.daysInMonth} days)` : "whole month";
+  const period = first ? (isCurrent ? `${leaveEsc(payCycleLabel(payrollState.month))} · day ${first.elapsed} of ${first.daysInMonth}` : leaveEsc(payCycleLabel(payrollState.month))) : leaveEsc(payCycleLabel(payrollState.month));
   const at = payrollState.loadedAt ? payrollState.loadedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
   const q = v => String(v).replace(/'/g, "\\'");
   const admin = payIsAdmin();
@@ -500,7 +590,7 @@ function payRender() {
   }).join("");
 
   box.innerHTML = `
-    <div class="hr-section-title">💰 ${admin ? "Payroll" : "My payroll"} · ${leaveEsc(payrollState.month)} · ${period} <span style="opacity:.55;font-size:12px;font-weight:600;">updated ${leaveEsc(at)} · refreshes every minute</span></div>
+    <div class="hr-section-title">💰 ${admin ? "Payroll" : "My payroll"} · ${period} <span style="opacity:.55;font-size:12px;font-weight:600;">updated ${leaveEsc(at)} · refreshes every minute</span></div>
     <div class="pay-big-cards">
       <div class="pay-big-card"><div class="pay-big-label">💵 Should get (if committed)</div><div class="pay-big-value">${payMoney(t.should)} <span>${cur}</span></div></div>
       <div class="pay-big-card pay-bad"><div class="pay-big-label">➖ Deductions</div><div class="pay-big-value">${t.ded > 0 ? "−" : ""}${payMoney(t.ded)} <span>${cur}</span></div></div>
@@ -518,7 +608,7 @@ function payRender() {
       </table>
     </div>
     <div class="swap-info" style="margin-top:10px;">
-      ${admin ? "Click an agent to see why. " : ""}Late / away / left early / break over 30m can be made up the <b>same day after the shift</b> or on the <b>next working day</b> (before or after the shift), within the same month - what's left is deducted per minute.
+      ${admin ? "Click an agent to see why. " : ""}Late / away / left early / break over 30m can be made up the <b>same day after the shift</b> or on the <b>next working day</b> (before or after the shift) - what's left is deducted per minute.
       No Show (didn't log in at all) = the whole day is deducted; if he worked part of the shift, only the missed minutes are deducted. Days off, Leave, Sick Leave, Public Holiday, Day in Lieu and Compensated are paid.
     </div>`;
 }
@@ -560,17 +650,22 @@ function payDayLine(s, r) {
     how.push(`made up ${payMin(nextTotal)} on ${leaveEsc(leaveFmtDate(r.nextDate))} (${bits.join(" + ")} the shift)`);
   }
   const madeUp = how.length ? how.join(" + ") : "nothing made up yet";
+  // 📅 (أدمن بس) خصم بيتحسب في دورة تانية - يوم 25 اللي اتعوض/اتخصم في الدورة الجديدة
+  const cyc = s.cycle;
+  const periodNote = !payIsAdmin() || !cyc ? "" :
+    (r.date < cyc.start ? ` <span class="pay-period-note">from the previous period</span>` :
+      ((r.settleDate || r.date) > cyc.end ? ` <span class="pay-period-note">→ counted in the next period</span>` : ""));
   const todayTag = r.isToday ? " (today)" : "";
 
   if (r.status === "open") {
     const until = r.deadline && r.deadline !== r.date ? `until end of ${leaveEsc(leaveFmtDate(r.deadline))}` : "until end of today";
-    return `<div class="pay-line pay-line-open">⏳ ${day}${todayTag}: ${what || "missed time"}${arrow}${madeUp}${arrow}<b>${payMin(r.remaining)} still open</b> <span style="opacity:.7">(can make up ${until} - not deducted yet)</span>${early}</div>`;
+    return `<div class="pay-line pay-line-open">⏳ ${day}${todayTag}: ${what || "missed time"}${arrow}${madeUp}${arrow}<b>${payMin(r.remaining)} still open</b> <span style="opacity:.7">(can make up ${until} - not deducted yet)</span>${periodNote}${early}</div>`;
   }
   if (r.status === "deducted") {
-    return `<div class="pay-line pay-line-bad">🔴 ${day}: ${what}${arrow}${madeUp}${arrow}<b>deducted ${payMin(r.remaining)} = ${payMoney(r.deduction)}</b>${early}</div>`;
+    return `<div class="pay-line pay-line-bad">🔴 ${day}: ${what}${arrow}${madeUp}${arrow}<b>deducted ${payMin(r.remaining)} = ${payMoney(r.deduction)}</b>${periodNote}${early}</div>`;
   }
   if (r.owed > 0) {
-    return `<div class="pay-line pay-line-good">🟢 ${day}${todayTag}: ${what}${arrow}${madeUp}${arrow}<b>no deduction</b>${early}</div>`;
+    return `<div class="pay-line pay-line-good">🟢 ${day}${todayTag}: ${what}${arrow}${madeUp}${arrow}<b>no deduction</b>${periodNote}${early}</div>`;
   }
   if (r.isToday) return `<div class="pay-line pay-line-good">🟢 ${day} (today): nothing missed so far${early}</div>`;
   return `<div class="pay-line">⚪ ${day}: on time${early}</div>`;
@@ -666,7 +761,7 @@ async function payExportExcel() {
     const asOf = new Date().toLocaleString("en-GB", { timeZone: "Asia/Dubai", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
     const ws = wb.addWorksheet("Summary", { views: [{ state: "frozen", xSplit: 1, ySplit: 2 }] });
-    ws.addRow([`Payroll - ${payrollState.month} - as of ${asOf} (UAE) - amounts in ${cur}`]).font = { bold: true, size: 13 };
+    ws.addRow([`Payroll - ${payCycleLabel(payrollState.month)} - as of ${asOf} (UAE) - amounts in ${cur}`]).font = { bold: true, size: 13 };
     styleHeader(ws.addRow(["Agent", "Monthly salary", "Day rate", "Hour rate", "Minute rate", "Days counted", "Should get (if committed)",
       "Deductions", "Will get", "Still open (can make up)", "Month salary after deductions", "Deducted minutes", "No Show days", "Service ended"]));
     const tot = { sal: 0, should: 0, ded: 0, net: 0, open: 0, month: 0 };
@@ -681,15 +776,15 @@ async function payExportExcel() {
 
     const wd = wb.addWorksheet("Days", { views: [{ state: "frozen", xSplit: 2, ySplit: 1 }] });
     styleHeader(wd.addRow(["Agent", "Date", "Roster", "Status", "Late (min)", "Away (min)", "Left early (min)", "Extra break (min)", "Missed (min)",
-      "Made up same day (min)", "Made up next working day (min)", "Next working day", "Deducted / open (min)", "Amount", "Reason"]));
+      "Made up same day (min)", "Made up next working day (min)", "Next working day", "Deducted / open (min)", "Amount", "Counted in payroll", "Reason"]));
     list.forEach(s => s.rows.filter(r => r.status === "noshow" || r.owed > 0).forEach(r => {
       wd.addRow([s.agent, r.date, r.code, String(r.label || r.status).replace(/^[^\w]+/, ""),
         Math.round(r.late || 0), Math.round((r.away || 0) + (r.notLoggedNow || 0)), Math.round(r.leftEarly || 0), Math.round(r.extraBreak || 0), Math.round(r.owed || 0),
         Math.round((r.sameAfter || 0) + (r.sameBefore || 0)), Math.round((r.nextBefore || 0) + (r.nextAfter || 0)), r.nextDate || "",
         r.status === "noshow" ? "Full day" : Math.round(r.remaining || 0), r.open ? `open (${m2(r.deduction)})` : m2(r.deduction),
-        r.reason || ""]);
+        payCycleOf(r.settleDate || r.date) === payrollState.month ? "This period" : "Next period", r.reason || ""]);
     }));
-    wd.columns.forEach((c, i) => { c.width = i === 0 ? 22 : (i === 14 ? 70 : 13); });
+    wd.columns.forEach((c, i) => { c.width = i === 0 ? 22 : (i === 15 ? 70 : 13); });
 
     const buf = await wb.xlsx.writeBuffer();
     const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
@@ -745,14 +840,17 @@ function payEnsureMe() {
 // الإيجنت: داتا الشهر بتاعه (عشان التعويض في يوم الشغل اللي بعده) - كاش دقيقة
 let payMyMonthCache = { key: "", at: 0, report: null, loading: false };
 
-function payMyMonthData(agentName, month) {
-  const key = agentName + "|" + month;
+function payMyMonthData(agentName, dateStr) {
+  // من 14 يوم قبل التاريخ لحد التاريخ (عشان دين يوم الشغل اللي فات حتى لو في شهر تاني)
+  const from = payAddDays(dateStr, -PAY_CYCLE_LOOK_DAYS);
+  const key = agentName + "|" + dateStr;
   const fresh = payMyMonthCache.key === key && payMyMonthCache.report && (Date.now() - payMyMonthCache.at < PAY_AUTO_REFRESH_MS);
   if (!fresh && !payMyMonthCache.loading) {
     payMyMonthCache.loading = true;
-    hrFetchMonth(month, agentName)
-      .then(rep => {
-        payMyMonthCache = { key, at: Date.now(), report: rep, loading: false };
+    payFetchDays(from, dateStr, agentName)
+      .then(res => {
+        const a = res.agents[0];
+        payMyMonthCache = { key, at: Date.now(), report: { days: a ? a.days : [], trackingStartDate: res.trackingStartDate }, loading: false };
         if (typeof loadMyDayCard === "function") loadMyDayCard(typeof myDayCardCurrentDate !== "undefined" ? myDayCardCurrentDate : undefined);
       })
       .catch(() => { payMyMonthCache.loading = false; payMyMonthCache.at = Date.now(); payMyMonthCache.key = key; });
@@ -765,19 +863,19 @@ function payrollMyDayHtml(agentName, dateStr, day, trackingStartDate) {
   if (!payrollState.member) return "";
   const now = hrNowInfo();
   const isToday = dateStr === now.today;
-  const month = dateStr.slice(0, 7);
+  const month = payCycleOf(dateStr);
   const payRow = (payrollState.agents && payrollState.agents[0]) || { agent: agentName, salary: 0 };
 
   // الشهر كله (لو جه) - وإلا النهاردة لوحده لحد ما الداتا توصل
-  const rep = payMyMonthData(agentName, month);
+  const rep = payMyMonthData(agentName, dateStr);
   let rows;
   if (rep && Array.isArray(rep.days)) {
     const days = rep.days.slice();
     if (day && !days.some(d => d.date === dateStr)) days.push(day);
     else if (day) for (let i = 0; i < days.length; i++) if (days[i].date === dateStr) days[i] = day; // داتا الكارت أحدث
-    rows = payComputeAgentMonth(payRow, agentName, month, days, trackingStartDate || rep.trackingStartDate).rows;
+    rows = payComputeAgentCycle(payRow, agentName, month, days, trackingStartDate || rep.trackingStartDate).rows;
   } else {
-    rows = payComputeAgentMonth(payRow, agentName, month, day ? [day] : [], trackingStartDate).rows;
+    rows = payComputeAgentCycle(payRow, agentName, month, day ? [day] : [], trackingStartDate).rows;
   }
   const r = rows.find(x => x.date === dateStr) || payComputeDay(agentName, dateStr, day, trackingStartDate, now, payRates(0), false);
   const work = rows.filter(payIsWorkRow);
@@ -810,7 +908,7 @@ function payrollMyDayHtml(agentName, dateStr, day, trackingStartDate) {
     tone = "bad";
     const chance = r.deadline && r.deadline !== r.date
       ? `today after your shift, or on your next shift <b>${leaveEsc(leaveFmtDate(r.deadline))}</b> (before or after it)`
-      : `today after your shift - <b>this is the last working day of the month</b>`;
+      : `today after your shift`;
     msgs.push(`⚠️ You have <b>${payMin(r.remaining)}</b> to make up${isToday ? " today" : ""} (${leaveEsc(payMissedWords(r))})` +
       (r.madeUp >= 1 ? ` - already made up ${payMin(r.madeUp)}` : "") + `. Make it up ${chance} - <b>otherwise it will be deducted from your salary.</b>`);
   } else if (r.status === "deducted") {
@@ -846,7 +944,6 @@ function payrollMyDayHtml(agentName, dateStr, day, trackingStartDate) {
         <li>Your break is <b>30 minutes - it's your right, take it</b>. A shorter break does <b>not</b> make up for being late, and any minute over 30 must be made up.</li>
         <li>Late login, being logged out / away during the shift, leaving early, or a longer break → you have <b>2 chances</b> to make it up: the <b>same day after your shift</b>, or on your <b>next working day</b> (coming in before your shift or staying after it). Days off and leave in between don't count.</li>
         <li>Coming in early on the <b>same day</b> does not count as making up.</li>
-        <li>Making up only counts <b>within the same month</b> - anything not made up before the month closes is deducted (e.g. if you're late on the last working day of the month, make it up that same day).</li>
         <li>Anything not made up by the end of your next working day is <b>deducted from your salary</b>.</li>
         <li>Not logging in at all (No Show) = the whole day is deducted, unless a Compensation (a day off worked) is approved. If you work part of the shift, only the missed minutes are deducted.</li>
         <li>Leave, Sick Leave, Public Holiday and Day in Lieu are paid - no deduction.</li>
