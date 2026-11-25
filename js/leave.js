@@ -19,6 +19,9 @@ const PUBLIC_HOLIDAY_CODE = "Public Holiday";
 const DAY_IN_LIEU_CODE = "Day in Lieu";
 const COMPENSATED_CODE = "Compensated";
 const COMPENSATION_TYPE = "Compensation";
+// 🔄 Day Off Swap (25 نوفمبر): يوم غياب في دورة المرتب الحالية يتعوض في يوم الأوف الجاي (طلب مقدمًا + موافقة)
+const DAY_OFF_SWAP_TYPE = "Day Off Swap";
+const SWAPPED_CODE = "Swapped";
 // الأوف في شيت الروستر عندهم مكتوب "OFF+" - القايمة بتكتبه بنفس الشكل
 const ROSTER_EDIT_CODES = ["Shift 1", "Shift 1 EG", "Shift 2", "Shift 3", "OFF+", LEAVE_CODE, SICK_LEAVE_CODE, PUBLIC_HOLIDAY_CODE, DAY_IN_LIEU_CODE];
 const LIEU_REASONS = ["Worked Public Holiday", "Worked Day Off"];
@@ -28,7 +31,7 @@ const LEAVE_MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Au
 let leaveState = { requests: [], notifications: [], compensations: [], lieuCredits: [], me: "", isAdmin: false, busy: false, loaded: false };
 // المربع الرمادي (معاينة الأيام) مايظهرش غير لما الموظف يختار التاريخ بإيده - عشان محدش يفتكر إن في حاجة اتحسبت عليه
 let leaveDatesTouched = false;
-let leaveCompOptions = { agent: "", absent: [], worked: [], loading: false, error: "" };
+let leaveCompOptions = { agent: "", absent: [], worked: [], nextOff: null, cycleStart: "", loading: false, error: "" };
 let leaveLastSignal = null;
 let leaveLastRosterSignal = null;
 
@@ -47,6 +50,45 @@ function leavePad(n) {
 function leaveToday() {
   const u = getUAECurrentDate();
   return `${u.year}-${u.month}-${u.day}`;
+}
+
+function leaveTodayStr() {
+  return leaveToday();
+}
+
+// 📅 دورة المرتب (26 -> 25): أول يوم وآخر يوم في الدورة اللي التاريخ ده فيها
+function leavePayCycleStartFor(dateStr) {
+  const p = String(dateStr).split("-").map(Number);
+  let y = p[0], m = p[1];
+  if (p[2] <= 25) { m -= 1; if (m === 0) { m = 12; y -= 1; } }
+  return `${y}-${leavePad(m)}-26`;
+}
+
+function leavePayCycleEndFor(dateStr) {
+  const p = String(dateStr).split("-").map(Number);
+  let y = p[0], m = p[1];
+  if (p[2] > 25) { m += 1; if (m === 13) { m = 1; y += 1; } }
+  return `${y}-${leavePad(m)}-25`;
+}
+
+// ⚠️ تنبيه للأدمن: طلبات لسه Pending بتأثر على مرتبات الدورة الحالية (لازم تتوافق أو تترفض قبل التقفيل يوم 25)
+//    + طلبات Pending ليوم في دورة اتقفلت خلاص
+function leavePayrollPendingAlertHtml() {
+  if (!leaveIsAdminUser() || !leaveState.loaded) return "";
+  const today = leaveTodayStr();
+  const start = leavePayCycleStartFor(today), end = leavePayCycleEndFor(today);
+  const pending = (leaveState.requests || []).filter(r => r.status === "Pending");
+  const inCycle = pending.filter(r => r.from >= start && r.from <= end);
+  const closed = pending.filter(r => r.from < start);
+  if (!inCycle.length && !closed.length) return "";
+  const daysLeft = Math.round((new Date(end + "T00:00:00Z") - new Date(today + "T00:00:00Z")) / 86400000);
+  const urgent = daysLeft <= 3;
+  const names = list => list.map(r => `${leaveEsc(r.agent)} (${leaveEsc(r.type)} ${leaveEsc(leaveFmtDate(r.from))})`).join(", ");
+  return `<div class="leave-payroll-alert${urgent ? " is-urgent" : ""}">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      ${inCycle.length ? `<b>${inCycle.length} pending request${inCycle.length === 1 ? "" : "s"}</b> affect${inCycle.length === 1 ? "s" : ""} the payroll that closes on <b>${leaveFmtDate(end)}</b>${daysLeft <= 0 ? " (today)" : ` (in ${daysLeft} day${daysLeft === 1 ? "" : "s"})`} - approve or reject ${inCycle.length === 1 ? "it" : "them"} before then: ${names(inCycle)}.` : ""}
+      ${closed.length ? `<div style="margin-top:4px;"><b>${closed.length} pending request${closed.length === 1 ? " is" : "s are"} for a closed payroll period</b> - approving changes that period: ${names(closed)}.</div>` : ""}
+    </div>`;
 }
 
 // "2026-09-07" -> "7 Sep"
@@ -68,6 +110,7 @@ function rosterLeaveKind(code) {
   if (c === "public holiday" || c === "holiday" || c === "ph") return PUBLIC_HOLIDAY_CODE;
   if (c === "day in lieu" || c === "lieu" || c === "dil") return DAY_IN_LIEU_CODE;
   if (c === "compensated") return COMPENSATED_CODE;
+  if (c === "swapped") return SWAPPED_CODE;
   return null;
 }
 
@@ -97,6 +140,7 @@ function leaveIcon(kind) {
   if (kind === SICK_LEAVE_CODE) return "fa-kit-medical";
   if (kind === PUBLIC_HOLIDAY_CODE) return "fa-flag";
   if (kind === DAY_IN_LIEU_CODE || kind === COMPENSATED_CODE || kind === COMPENSATION_TYPE) return "fa-arrows-rotate";
+  if (kind === DAY_OFF_SWAP_TYPE || kind === SWAPPED_CODE) return "fa-right-left";
   return "fa-umbrella-beach";
 }
 
@@ -143,7 +187,7 @@ function leaveCountFor(name, fromDate, toDate) {
   const out = { leave: [], sick: [], holiday: [], compensated: [], lieuUsed: [], lieuEarned: [] };
   if (!name) return out;
   const wanted = String(name).trim().toLowerCase();
-  const key = { [LEAVE_CODE]: "leave", [SICK_LEAVE_CODE]: "sick", [PUBLIC_HOLIDAY_CODE]: "holiday", [COMPENSATED_CODE]: "compensated", [DAY_IN_LIEU_CODE]: "lieuUsed" };
+  const key = { [LEAVE_CODE]: "leave", [SICK_LEAVE_CODE]: "sick", [PUBLIC_HOLIDAY_CODE]: "holiday", [COMPENSATED_CODE]: "compensated", [SWAPPED_CODE]: "compensated", [DAY_IN_LIEU_CODE]: "lieuUsed" };
   (Array.isArray(rosterData) ? rosterData : []).forEach(entry => {
     if (String(entry.name).trim().toLowerCase() !== wanted || !entry.schedule) return;
     const daysInMonth = new Date(entry.year, entry.month, 0).getDate();
@@ -184,7 +228,7 @@ function leaveCounterHtml(name, fromDate, toDate, title) {
         ${item("is-leave", "fa-umbrella-beach", "Leave", c.leave)}
         ${item("is-sick", "fa-kit-medical", "Sick Leave", c.sick)}
         ${item("is-holiday", "fa-flag", "Public Holiday", c.holiday)}
-        ${item("is-comp", "fa-arrows-rotate", "Compensated", c.compensated)}
+        ${item("is-comp", "fa-arrows-rotate", "Compensated / Swapped", c.compensated)}
         ${lieu}
       </div>
     </div>`;
@@ -433,6 +477,10 @@ function leaveNotificationText(n) {
       `${leaveEsc(n.from || "-")} → <b>${leaveEsc(n.to)}</b>${by}`;
   }
   const verb = n.status === "Approved" ? "approved ✅" : (n.status === "Rejected" ? "rejected ❌" : "cancelled");
+  if (n.type === DAY_OFF_SWAP_TYPE) {
+    return `<i class="fa-solid fa-right-left"></i> Your <b>Day Off Swap</b> (absent ${leaveEsc(leaveFmtDate(n.from))} → working on ${leaveEsc(leaveFmtDate(n.to))}) was <b>${verb}</b>${by}` +
+      (n.note ? `<div class="leave-toast-note">“${leaveEsc(n.note)}”</div>` : "");
+  }
   if (n.type === COMPENSATION_TYPE) {
     return `<i class="fa-solid fa-arrows-rotate"></i> Your <b>Compensation</b> (absent ${leaveEsc(leaveFmtDate(n.from))} ↔ worked ${leaveEsc(leaveFmtDate(n.to))}) was <b>${verb}</b>${by}` +
       (n.note ? `<div class="leave-toast-note">“${leaveEsc(n.note)}”</div>` : "");
@@ -448,6 +496,9 @@ function leaveNotificationPlain(n) {
     return { title: "📅 Your roster changed", text: `${leaveFmtDate(n.date)}: ${n.from || "-"} → ${n.to}${by}` };
   }
   const verb = n.status === "Approved" ? "approved ✅" : (n.status === "Rejected" ? "rejected ❌" : "cancelled");
+  if (n.type === DAY_OFF_SWAP_TYPE) {
+    return { title: `🔄 Day Off Swap ${verb}`, text: `Absent ${leaveFmtDate(n.from)} → working on ${leaveFmtDate(n.to)}${by}${n.note ? ` — “${n.note}”` : ""}` };
+  }
   if (n.type === COMPENSATION_TYPE) {
     return { title: `🔁 Compensation ${verb}`, text: `Absent ${leaveFmtDate(n.from)} ↔ worked ${leaveFmtDate(n.to)}${by}${n.note ? ` — “${n.note}”` : ""}` };
   }
@@ -455,8 +506,9 @@ function leaveNotificationPlain(n) {
 }
 
 function leavePendingPlain(r) {
-  const icon = r.type === COMPENSATION_TYPE ? "🔁" : (r.type === SICK_LEAVE_CODE ? "🤒" : "🌴");
-  const what = r.type === COMPENSATION_TYPE ? `absent ${leaveFmtDate(r.from)} ↔ worked ${leaveFmtDate(r.to)}` : `${leaveFmtRange(r.from, r.to)} · ${(r.days || []).length} day${(r.days || []).length === 1 ? "" : "s"}`;
+  const icon = r.type === COMPENSATION_TYPE ? "🔁" : (r.type === DAY_OFF_SWAP_TYPE ? "🔄" : (r.type === SICK_LEAVE_CODE ? "🤒" : "🌴"));
+  const what = r.type === COMPENSATION_TYPE ? `absent ${leaveFmtDate(r.from)} ↔ worked ${leaveFmtDate(r.to)}` :
+    r.type === DAY_OFF_SWAP_TYPE ? `absent ${leaveFmtDate(r.from)} → will work ${leaveFmtDate(r.to)}` : `${leaveFmtRange(r.from, r.to)} · ${(r.days || []).length} day${(r.days || []).length === 1 ? "" : "s"}`;
   return { title: `${icon} ${r.type} request — waiting for approval`, text: `${r.agent} · ${what}` };
 }
 
@@ -596,7 +648,12 @@ function leavePreviewDays(from, to) {
 
 function leaveIsCompMode() {
   const t = document.getElementById("leaveTypeSelect");
-  return !!(t && t.value === COMPENSATION_TYPE);
+  return !!(t && (t.value === COMPENSATION_TYPE || t.value === DAY_OFF_SWAP_TYPE));
+}
+
+function leaveIsSwapMode() {
+  const t = document.getElementById("leaveTypeSelect");
+  return !!(t && t.value === DAY_OFF_SWAP_TYPE);
 }
 
 // الإيجنت اللي الطلب ليه (Leave / Sick Leave / Compensation): الأدمن يقدر يختار أي إيجنت، غير كده أنا
@@ -635,16 +692,16 @@ function leaveOnAgentChange() {
 async function leaveLoadCompOptions(force) {
   const agent = leaveCompTargetAgent();
   if (!force && leaveCompOptions.agent === agent && !leaveCompOptions.error && !leaveCompOptions.loading) return;
-  leaveCompOptions = { agent, absent: [], worked: [], loading: true, error: "" };
+  leaveCompOptions = { agent, absent: [], worked: [], nextOff: null, cycleStart: "", loading: true, error: "" };
   leaveUpdateForm();
   try {
     const url = GOOGLE_SHEET_API_URL + "?action=compOptions&t=" + Date.now() + "&agent=" + encodeURIComponent(agent) + "&token=" + encodeURIComponent(leaveToken());
     const res = await fetch(url, { method: "GET", redirect: "follow" }).then(r => r.json());
     if (!res || res.status !== "success") throw new Error((res && res.message) || "Could not load the days");
     if (leaveCompTargetAgent() !== agent) return; // اليوزر غيّر الإيجنت في النص
-    leaveCompOptions = { agent, absent: res.absent || [], worked: res.worked || [], loading: false, error: "" };
+    leaveCompOptions = { agent, absent: res.absent || [], worked: res.worked || [], nextOff: res.nextOff || null, cycleStart: res.cycleStart || "", loading: false, error: "" };
   } catch (err) {
-    leaveCompOptions = { agent, absent: [], worked: [], loading: false, error: err.message || String(err) };
+    leaveCompOptions = { agent, absent: [], worked: [], nextOff: null, cycleStart: "", loading: false, error: err.message || String(err) };
   }
   leaveUpdateForm();
 }
@@ -666,24 +723,47 @@ function leaveUpdateCompForm(info, btn) {
     return;
   }
 
+  const swap = leaveIsSwapMode();
+  const workedLabel = document.getElementById("leaveCompWorkedLabel");
+  if (workedLabel) workedLabel.innerHTML = swap
+    ? `<i class="fa-solid fa-right-left"></i> Your next day off (becomes a working day):`
+    : `<i class="fa-solid fa-star"></i> Day off worked instead:`;
   const keepA = absentSel.value, keepW = workedSel.value;
   absentSel.innerHTML = `<option value="">-- Choose the absent day --</option>` + leaveCompOptions.absent.map(d =>
     `<option value="${d.date}">${leaveFmtDate(d.date)} · ${leaveEsc(d.shift)} · login ${leaveFmtDuration(d.loginSec)}</option>`).join("");
-  workedSel.innerHTML = `<option value="">-- Choose the day off worked --</option>` + leaveCompOptions.worked.map(d =>
-    `<option value="${d.date}">${leaveFmtDate(d.date)} · ${leaveEsc(d.code || "OFF")} · worked ${leaveFmtDuration(d.loginSec)}</option>`).join("");
+  // 🔄 Day Off Swap: يوم واحد بس - يوم الأوف الجاي
+  const workedList = swap
+    ? (leaveCompOptions.nextOff ? [{ date: leaveCompOptions.nextOff.date, code: leaveCompOptions.nextOff.code, next: true }] : [])
+    : leaveCompOptions.worked;
+  workedSel.innerHTML = swap
+    ? (workedList.length ? workedList.map(d => `<option value="${d.date}">${leaveFmtDate(d.date)} · ${leaveEsc(d.code || "OFF")} · next day off</option>`).join("") : `<option value="">-- No day off found in the roster --</option>`)
+    : `<option value="">-- Choose the day off worked --</option>` + workedList.map(d =>
+      `<option value="${d.date}">${leaveFmtDate(d.date)} · ${leaveEsc(d.code || "OFF")} · worked ${leaveFmtDuration(d.loginSec)}</option>`).join("");
   if (leaveCompOptions.absent.some(d => d.date === keepA)) absentSel.value = keepA;
-  if (leaveCompOptions.worked.some(d => d.date === keepW)) workedSel.value = keepW;
+  if (!swap && workedList.some(d => d.date === keepW)) workedSel.value = keepW;
+  workedSel.disabled = swap;
 
   const who = agent.toLowerCase() === leaveMyName().toLowerCase() ? "You have" : `${leaveEsc(agent)} has`;
-  if (!leaveCompOptions.absent.length || !leaveCompOptions.worked.length) {
+  const period = leaveCompOptions.cycleStart ? `since ${leaveFmtDate(leaveCompOptions.cycleStart)} (this payroll period)` : "in this payroll period";
+  if (!leaveCompOptions.absent.length || !workedList.length) {
     info.innerHTML = `<i class="fa-solid fa-circle-info"></i> ` +
-      (!leaveCompOptions.absent.length ? `${who} no No Show days to compensate in the last 60 days.` : `${who} no day off with at least 4h of work in the last 60 days.`) +
-      ` <span style="opacity:.75">(A compensation needs a No Show day + a day off worked for at least half a shift.)</span>`;
+      (!leaveCompOptions.absent.length ? `${who} no No Show days ${period}.`
+        : (swap ? `No upcoming day off was found in the roster.` : `${who} no day off with at least 4h of work ${period}.`)) +
+      (swap ? ` <span style="opacity:.75">(A Day Off Swap needs a No Show day + your next day off.)</span>`
+        : ` <span style="opacity:.75">(A compensation needs a No Show day + a day off worked for at least half a shift.)</span>`);
     btn.disabled = true;
     return;
   }
 
-  if (absentSel.value && workedSel.value) {
+  if (swap && absentSel.value && workedSel.value) {
+    const sh = (leaveCompOptions.absent.find(d => d.date === absentSel.value) || {}).shift || "the same shift";
+    info.innerHTML = `<i class="fa-solid fa-right-left"></i> <b>${leaveFmtDate(absentSel.value)}</b> will become <b>Swapped</b> (paid), and your day off <b>${leaveFmtDate(workedSel.value)}</b> becomes a working day: <b>${leaveEsc(sh)}</b>. It counts like any normal shift day.` +
+      (leaveIsAdminUser() ? ` <span style="opacity:.75">As an admin, it's saved and approved right away.</span>` : ` <span style="opacity:.75">An admin needs to approve it.</span>`);
+    btn.disabled = !!leaveState.busy;
+  } else if (swap) {
+    info.innerHTML = `Choose the absent day (No Show) - it will be made up on your next day off.`;
+    btn.disabled = true;
+  } else if (absentSel.value && workedSel.value) {
     info.innerHTML = `<i class="fa-solid fa-arrows-rotate"></i> <b>${leaveFmtDate(absentSel.value)}</b> will become <b>Compensated</b> (not a No Show, not counted in adherence) — made up on <b>${leaveFmtDate(workedSel.value)}</b>.` +
       (leaveIsAdminUser() ? ` <span style="opacity:.75">As an admin, it's saved and approved right away.</span>` : ` <span style="opacity:.75">An admin needs to approve it.</span>`);
     btn.disabled = !!leaveState.busy;
@@ -712,7 +792,7 @@ function leaveUpdateForm() {
   const forOther = leaveIsForOtherAgent();
   const target = leaveCompTargetAgent();
   const titleEl = document.getElementById("leaveFormTitle");
-  if (titleEl) titleEl.textContent = leaveIsAdminUser() ? "New Request / Admin Entry: Leave / Sick Leave / Compensation" : "New Request: Leave / Sick Leave / Compensation";
+  if (titleEl) titleEl.textContent = leaveIsAdminUser() ? "New Request / Admin Entry: Leave / Sick Leave / Compensation / Day Off Swap" : "New Request: Leave / Sick Leave / Compensation / Day Off Swap";
   btn.innerHTML = forOther ? `<i class="fa-solid fa-floppy-disk"></i> Save for ${leaveEsc(target)}` : `<i class="fa-solid fa-paper-plane"></i> Send Request`;
   if (comp) {
     if (fileRow) fileRow.style.display = "none";
@@ -779,7 +859,7 @@ async function leaveSendRequest() {
   if (!typeEl || !fromEl || !toEl) return;
 
   const type = typeEl.value;
-  if (type === COMPENSATION_TYPE) { await leaveSendCompensation(); return; }
+  if (type === COMPENSATION_TYPE || type === DAY_OFF_SWAP_TYPE) { await leaveSendCompensation(); return; }
   const from = fromEl.value, to = toEl.value;
   if (!from || !to) { leaveShowMsg("Please choose the dates.", "error"); return; }
 
@@ -834,15 +914,20 @@ async function leaveSendCompensation() {
   const btn = document.getElementById("leaveSendBtn");
   const agent = leaveCompTargetAgent();
   if (!absentEl || !workedEl || !absentEl.value || !workedEl.value) { leaveShowMsg("Please choose both days.", "error"); return; }
+  const swap = leaveIsSwapMode();
+  const type = swap ? DAY_OFF_SWAP_TYPE : COMPENSATION_TYPE;
   const isAdminNow = leaveIsAdminUser();
   const forWho = agent.toLowerCase() === leaveMyName().toLowerCase() ? "" : ` for ${agent}`;
-  if (!confirm(`${isAdminNow ? "Save" : "Send"} this compensation${forWho}?\n\nAbsent: ${leaveFmtDate(absentEl.value)}\nWorked instead: ${leaveFmtDate(workedEl.value)}${isAdminNow ? "\n\nIt will be approved and the roster updated right away." : "\n\nAn admin needs to approve it."}`)) return;
+  const what = swap
+    ? `Day Off Swap${forWho}?\n\nAbsent: ${leaveFmtDate(absentEl.value)} -> becomes Swapped (paid)\nWill work on: ${leaveFmtDate(workedEl.value)} (day off -> same shift)`
+    : `compensation${forWho}?\n\nAbsent: ${leaveFmtDate(absentEl.value)}\nWorked instead: ${leaveFmtDate(workedEl.value)}`;
+  if (!confirm(`${isAdminNow ? "Save" : "Send"} this ${what}${isAdminNow ? "\n\nIt will be approved and the roster updated right away." : "\n\nAn admin needs to approve it."}`)) return;
 
   leaveState.busy = true;
   if (btn) btn.disabled = true;
   leaveShowMsg("Saving...", "info");
   try {
-    const res = await leavePost({ action: "requestLeave", type: COMPENSATION_TYPE, agent, absentDate: absentEl.value, workedDate: workedEl.value, reason: reasonEl ? reasonEl.value : "" });
+    const res = await leavePost({ action: "requestLeave", type, agent, absentDate: absentEl.value, workedDate: workedEl.value, reason: reasonEl ? reasonEl.value : "" });
     if (res && res.status === "success") {
       leaveShowMsg("✅ " + (res.message || "Saved"), "ok");
       if (reasonEl) reasonEl.value = "";
@@ -868,10 +953,17 @@ async function leaveRespond(id, decision) {
 
   let note = "";
   const who = req.mine ? "your" : `${req.agent}'s`;
-  if (decision === "approve" && req.type === COMPENSATION_TYPE) {
-    if (!confirm(`Approve ${who} compensation?\n\nAbsent: ${leaveFmtDate(req.from)} -> becomes Compensated\nWorked instead: ${leaveFmtDate(req.to)}`)) return;
+  // 📅 طلب بيلمس دورة مرتب اتقفلت -> تحذير قبل الموافقة
+  const cycleStart = leavePayCycleStartFor(leaveTodayStr());
+  const closedWarn = (decision === "approve" && req.from < cycleStart)
+    ? `\n\n⚠️ ${leaveFmtDate(req.from)} is in a payroll period that is already closed (before ${leaveFmtDate(cycleStart)}). Approving changes that closed period.` : "";
+  if (decision === "approve" && req.type === DAY_OFF_SWAP_TYPE) {
+    const sh = (req.days && req.days[0] && req.days[0].shift) || "the same shift";
+    if (!confirm(`Approve ${who} Day Off Swap?\n\nAbsent: ${leaveFmtDate(req.from)} -> becomes Swapped (paid)\nDay off ${leaveFmtDate(req.to)} -> becomes ${sh} in the roster${closedWarn}`)) return;
+  } else if (decision === "approve" && req.type === COMPENSATION_TYPE) {
+    if (!confirm(`Approve ${who} compensation?\n\nAbsent: ${leaveFmtDate(req.from)} -> becomes Compensated\nWorked instead: ${leaveFmtDate(req.to)}${closedWarn}`)) return;
   } else if (decision === "approve") {
-    if (!confirm(`Approve ${who} ${req.type} (${leaveFmtRange(req.from, req.to)}, ${req.days.length} day${req.days.length === 1 ? "" : "s"})?\n\nThe roster will be updated right away.`)) return;
+    if (!confirm(`Approve ${who} ${req.type} (${leaveFmtRange(req.from, req.to)}, ${req.days.length} day${req.days.length === 1 ? "" : "s"})?\n\nThe roster will be updated right away.${closedWarn}`)) return;
   } else if (decision === "reject") {
     const n = prompt(`Reject ${who} ${req.type} (${leaveFmtRange(req.from, req.to)})?\n\nOptional note for the agent:`, "");
     if (n === null) return;
@@ -968,9 +1060,15 @@ function leaveCardHtml(r) {
     ? `<button class="swap-btn leave-btn-file" data-leave-action="file" data-leave-id="${leaveEsc(r.id)}"><i class="fa-solid fa-paperclip"></i> ${leaveEsc(r.attachment.name)}</button>`
     : "";
 
-  const isComp = r.type === COMPENSATION_TYPE;
+  const isSwap = r.type === DAY_OFF_SWAP_TYPE;
+  const isComp = r.type === COMPENSATION_TYPE || isSwap;
   const ex = r.extra || {};
-  const daysChips = isComp
+  const absentShift = (r.days && r.days[0] && r.days[0].shift) || ex.absentShift || "";
+  const daysChips = isSwap
+    ? `<span class="swap-shift">🚫 Absent ${leaveEsc(leaveFmtDate(r.from))} · ${leaveEsc(absentShift)} · login ${leaveFmtDuration(ex.absentLoginSec)}</span>` +
+      ` <i class="fa-solid fa-arrow-right"></i> ` +
+      `<span class="swap-shift">🔄 Works on ${leaveEsc(leaveFmtDate(r.to))} · ${leaveEsc(ex.offCode || "OFF")} → ${leaveEsc(absentShift)}</span>`
+    : isComp
     ? `<span class="swap-shift">🚫 Absent ${leaveEsc(leaveFmtDate(r.from))} · ${leaveEsc((r.days && r.days[0] && r.days[0].shift) || "")} · login ${leaveFmtDuration(ex.absentLoginSec)}</span>` +
       ` <i class="fa-solid fa-arrow-right-arrow-left"></i> ` +
       `<span class="swap-shift">⭐ Worked ${leaveEsc(leaveFmtDate(r.to))} · ${leaveEsc(ex.workedCode || "OFF")} · ${leaveFmtDuration(ex.workedLoginSec)}</span>`
@@ -979,7 +1077,7 @@ function leaveCardHtml(r) {
   const emailInfo = (leaveIsAdminUser() && r.email && r.email !== "Sent") ? ` · email: ${leaveEsc(r.email)}` : "";
 
   return `<div class="swap-card leave-card ${r.type === SICK_LEAVE_CODE ? "is-sick" : (isComp ? "is-comp" : "is-leave")}">
-    <div class="swap-card-main"><i class="fa-solid ${leaveIcon(r.type)}"></i> <b>${who}</b>${r.dept && !r.mine ? ` <span style="opacity:.7">(${leaveEsc(r.dept)})</span>` : ""} · <b>${leaveEsc(r.type)}</b> · ${isComp ? `absent ${leaveEsc(leaveFmtDate(r.from))}, worked ${leaveEsc(leaveFmtDate(r.to))}` : `${leaveEsc(leaveFmtRange(r.from, r.to))} · <b>${(r.days || []).length}</b> day${(r.days || []).length === 1 ? "" : "s"}`}</div>
+    <div class="swap-card-main"><i class="fa-solid ${leaveIcon(r.type)}"></i> <b>${who}</b>${r.dept && !r.mine ? ` <span style="opacity:.7">(${leaveEsc(r.dept)})</span>` : ""} · <b>${leaveEsc(r.type)}</b> · ${isSwap ? `absent ${leaveEsc(leaveFmtDate(r.from))}, works on ${leaveEsc(leaveFmtDate(r.to))}` : isComp ? `absent ${leaveEsc(leaveFmtDate(r.from))}, worked ${leaveEsc(leaveFmtDate(r.to))}` : `${leaveEsc(leaveFmtRange(r.from, r.to))} · <b>${(r.days || []).length}</b> day${(r.days || []).length === 1 ? "" : "s"}`}</div>
     <div class="leave-days-chips">${daysChips}</div>
     ${r.reason ? `<div class="swap-card-meta"><i class="fa-regular fa-comment"></i> ${leaveEsc(r.reason)}</div>` : ""}
     ${r.adminNote ? `<div class="swap-card-meta"><i class="fa-solid fa-user-shield"></i> Admin note: ${leaveEsc(r.adminNote)}</div>` : ""}
@@ -1004,7 +1102,7 @@ function leaveRenderLists() {
     if (!leaveState.loaded) { approvals.innerHTML = `<div class="swap-empty">Loading...</div>`; return; }
     const waiting = leaveState.requests.filter(r => r.canDecide);
     const others = leaveState.requests.filter(r => !r.canDecide && !r.mine);
-    approvals.innerHTML =
+    approvals.innerHTML = leavePayrollPendingAlertHtml() +
       section("Waiting for approval", "fa-inbox", waiting, "No requests waiting.") +
       section("All requests (last 60 days)", "fa-clock-rotate-left", others.slice(0, 80), "Nothing here yet.");
   }
@@ -1045,7 +1143,9 @@ function leaveOpenCellMenu(td) {
       return `<button type="button" class="rcm-option rcm-star${on ? " is-current" : ""}" data-rc-credit="${leaveEsc(reason)}"${on ? " disabled" : ""}>⭐ ${leaveEsc(reason)}</button>`;
     }).join("") +
     (credit ? `<button type="button" class="rcm-option rcm-star" data-rc-credit-off="1">✖ Remove ⭐ credit</button>` : "") +
-    (comp ? `<div class="rcm-note">🔁 ${comp.absentDate === date ? `Compensated — worked ${leaveEsc(leaveFmtDate(comp.workedDate))}` : `Worked day off — compensates ${leaveEsc(leaveFmtDate(comp.absentDate))}`}</div>` : "") +
+    (comp ? `<div class="rcm-note">${comp.type === DAY_OFF_SWAP_TYPE
+      ? `🔄 ${comp.absentDate === date ? `Swapped — made up on ${leaveEsc(leaveFmtDate(comp.workedDate))}` : `Day Off Swap — makes up ${leaveEsc(leaveFmtDate(comp.absentDate))}`}`
+      : `🔁 ${comp.absentDate === date ? `Compensated — worked ${leaveEsc(leaveFmtDate(comp.workedDate))}` : `Worked day off — compensates ${leaveEsc(leaveFmtDate(comp.absentDate))}`}`}</div>` : "") +
     `<div class="rcm-msg" style="display:none;"></div>`;
 
   document.body.appendChild(menu);

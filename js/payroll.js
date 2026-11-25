@@ -597,6 +597,7 @@ function payRender() {
       <div class="pay-big-card pay-good"><div class="pay-big-label">✅ Will get</div><div class="pay-big-value">${payMoney(t.net)} <span>${cur}</span></div></div>
     </div>
     ${t.openAgents ? `<div class="swap-info" style="margin-top:8px;">⏳ <b>Still open:</b> ${admin ? `${t.openAgents} agent${t.openAgents === 1 ? " has" : "s have"} time they can still make up (${payMoney(t.open)} ${cur}) - the same day after the shift or on their next working day. It's only deducted if they don't.` : `you have ${payMin(list[0] ? list[0].openMin : 0)} you can still make up (${payMoney(t.open)} ${cur}) - the same day after your shift or on your next working day. It's only deducted if you don't.`}</div>` : ""}
+    ${admin && typeof leavePayrollPendingAlertHtml === "function" ? leavePayrollPendingAlertHtml() : ""}
     ${admin ? problemsHtml : ""}
     <div class="table-scroll-wrapper" style="margin-top:12px;">
       <table class="roster-full-table hr-balance-table pay-table">

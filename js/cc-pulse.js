@@ -207,10 +207,13 @@ function ccPulseBuildAgentCardHtml(a, nowSec) {
     </div>`;
 
   const agentDept = getAgentDeptToday(a.name);
-  const callsAnsweredHtml = ccpIsInboundAgent_(a.name)
+  // 🔒 (25 نوفمبر) عدد المكالمات والأوت باوند: الأدمن يشوف الكل - الإيجنت يشوف بتوعه هو بس (مش بتوع زمايله)
+  const myName = String(localStorage.getItem("userFullName") || "").trim().toLowerCase();
+  const canSeeCounts = (typeof isAdmin === "function" && isAdmin()) || (myName && String(a.name || "").trim().toLowerCase() === myName);
+  const callsAnsweredHtml = canSeeCounts && ccpIsInboundAgent_(a.name)
     ? `<div class="ccp-calls-badge"><i class="fa-solid fa-phone-volume"></i> Calls: ${a.todaysCallsAnswered || 0}</div>`
     : "";
-  const outboundHtml = `<div class="ccp-outbound-badge" title="Outbound: Answered / Unanswered"><i class="fa-solid fa-arrow-up-right-from-square"></i> Outbound: ${a.todaysOutboundAnswered || 0} / ${a.todaysOutboundUnanswered || 0}</div>`;
+  const outboundHtml = !canSeeCounts ? "" : `<div class="ccp-outbound-badge" title="Outbound: Answered / Unanswered"><i class="fa-solid fa-arrow-up-right-from-square"></i> Outbound: ${a.todaysOutboundAnswered || 0} / ${a.todaysOutboundUnanswered || 0}</div>`;
 
   let callHtml = "";
   if (a.currentCall && a.currentCall.startedAt) {
@@ -1207,6 +1210,7 @@ function ccpLeaveKindFor_(agentName, dateStr) {
   if (code === "public holiday" || code === "holiday" || code === "ph") return "Public Holiday";
   if (code === "day in lieu" || code === "lieu" || code === "dil") return "Day in Lieu";
   if (code === "compensated") return "Compensated";
+  if (code === "swapped") return "Swapped"; // 🔄 Day Off Swap - يوم الغياب اتعوض في يوم الأوف الجاي
   return null;
 }
 
@@ -1216,7 +1220,8 @@ const CCP_LEAVE_STYLE_ = {
   "Sick Leave": { emoji: "🤒", color: "#991b1b", bg: "#fee2e2" },
   "Public Holiday": { emoji: "🎉", color: "#5b21b6", bg: "#ede9fe" },
   "Day in Lieu": { emoji: "🔁", color: "#075985", bg: "#e0f2fe" },
-  "Compensated": { emoji: "🔁", color: "#075985", bg: "#e0f2fe" }
+  "Compensated": { emoji: "🔁", color: "#075985", bg: "#e0f2fe" },
+  "Swapped": { emoji: "🔄", color: "#075985", bg: "#e0f2fe" }
 };
 
 function ccpFmtShortDate_(d) {
@@ -1229,9 +1234,9 @@ function ccpFmtShortDate_(d) {
 function ccpLeaveLabel_(agentName, dateStr, kind) {
   const st = CCP_LEAVE_STYLE_[kind] || { emoji: "" };
   let text = `${st.emoji} ${kind}`;
-  if (kind === "Compensated" && typeof leaveCompensationFor === "function") {
+  if ((kind === "Compensated" || kind === "Swapped") && typeof leaveCompensationFor === "function") {
     const c = leaveCompensationFor(agentName, dateStr);
-    if (c && c.absentDate === dateStr) text += ` — worked ${ccpFmtShortDate_(c.workedDate)}`;
+    if (c && c.absentDate === dateStr) text += kind === "Swapped" ? ` — made up on ${ccpFmtShortDate_(c.workedDate)}` : ` — worked ${ccpFmtShortDate_(c.workedDate)}`;
   }
   return text;
 }
@@ -1275,7 +1280,7 @@ function ccpLeaveBadgeStyle_(kind) {
 
 // كروت عدّاد الإجازات لفترة - Leave و Sick Leave دايمًا، والباقي لو فيه أيام بس
 function ccpLeaveCardsHtml_(agentName, days) {
-  const lists = { "Leave": [], "Sick Leave": [], "Public Holiday": [], "Compensated": [], "Day in Lieu": [] };
+  const lists = { "Leave": [], "Sick Leave": [], "Public Holiday": [], "Compensated": [], "Swapped": [], "Day in Lieu": [] };
   const earned = [];
   (days || []).forEach(d => {
     const k = ccpLeaveKindFor_(agentName, d.date);
@@ -1292,6 +1297,7 @@ function ccpLeaveCardsHtml_(agentName, days) {
   let html = card("🌴 Leave", lists["Leave"], "#166534") + card("🤒 Sick Leave", lists["Sick Leave"], "#991b1b");
   if (lists["Public Holiday"].length) html += card("🎉 Public Holiday", lists["Public Holiday"], "#5b21b6");
   if (lists["Compensated"].length) html += card("🔁 Compensated", lists["Compensated"], "#075985");
+  if (lists["Swapped"].length) html += card("🔄 Swapped (Day Off Swap)", lists["Swapped"], "#075985");
   if (lists["Day in Lieu"].length) html += card("🔁 Day in Lieu taken", lists["Day in Lieu"], "#075985");
   if (earned.length) html += card("⭐ Day in Lieu earned", earned, "#92400e");
   return html;

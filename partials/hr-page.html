@@ -30,7 +30,7 @@
                 <div class="agent-lookup-card">
                     <div class="lookup-header-box">
                         <i class="fa-solid fa-umbrella-beach"></i>
-                        <h3 id="leaveFormTitle">New Request: Leave / Sick Leave / Compensation</h3>
+                        <h3 id="leaveFormTitle">New Request: Leave / Sick Leave / Compensation / Day Off Swap</h3>
                     </div>
                     <div class="lookup-controls-row">
                         <!-- 👑 الأدمن بس: يختار الإيجنت (Leave / Sick Leave / Compensation) - بتتسجل وتتوافق على طول -->
@@ -44,6 +44,7 @@
                                 <option value="Leave">Leave</option>
                                 <option value="Sick Leave">Sick Leave</option>
                                 <option value="Compensation">Compensation (worked a day off instead of an absent day)</option>
+                                <option value="Day Off Swap">Day Off Swap (make up an absent day on your next day off)</option>
                             </select>
                         </div>
                         <div class="form-group flex-1" id="leaveFromGroup">
@@ -61,7 +62,7 @@
                             <select id="leaveCompAbsent" class="combo-input" onchange="leaveUpdateForm()"></select>
                         </div>
                         <div class="form-group flex-1">
-                            <label for="leaveCompWorked"><i class="fa-solid fa-star"></i> Day off worked instead:</label>
+                            <label for="leaveCompWorked" id="leaveCompWorkedLabel"><i class="fa-solid fa-star"></i> Day off worked instead:</label>
                             <select id="leaveCompWorked" class="combo-input" onchange="leaveUpdateForm()"></select>
                         </div>
                     </div>
@@ -178,6 +179,8 @@
                 .pay-mini-btn { padding: 4px 8px !important; font-size: 12px !important; min-width: 0 !important; }
                 .pay-table td.pay-big { font-size: 15px; font-weight: 700; }
                 .pay-table tr.pay-row-open td { background: rgba(226, 191, 68, 0.12); }
+                .leave-payroll-alert { margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; font-size: 13px; line-height: 1.5; }
+                .leave-payroll-alert.is-urgent { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
                 .pay-period-note { margin-left: 6px; font-size: 11px; font-weight: 800; color: #6d28d9; background: #ede9fe; border-radius: 8px; padding: 1px 7px; white-space: nowrap; }
                 .pay-ended-badge { background: #fee2e2 !important; color: #991b1b !important; }
                 .pay-today-badge { margin-left: 6px; background: #fef3c7; color: #92400e; border-radius: 8px; padding: 1px 7px; font-size: 11px; font-weight: 800; white-space: nowrap; }

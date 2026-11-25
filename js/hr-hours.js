@@ -348,6 +348,7 @@ function hrSummaryHtml(s) {
       ${s.leave["Public Holiday"] ? hrCard("🎉 Public Holiday", s.leave["Public Holiday"], "not counted in required") : ""}
       ${s.leave["Day in Lieu"] ? hrCard("🔁 Day in Lieu", s.leave["Day in Lieu"], "days taken in lieu") : ""}
       ${s.leave["Compensated"] ? hrCard("🔁 Compensated", s.leave["Compensated"], "absence made up on a day off") : ""}
+      ${s.leave["Swapped"] ? hrCard("🔄 Swapped", s.leave["Swapped"], "absence made up on the next day off (Day Off Swap)") : ""}
       ${s.inprogress ? hrCard("⏳ In progress", s.inprogress, "today's shift not finished") : ""}
     </div>`;
 }
