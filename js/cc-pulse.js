@@ -117,7 +117,8 @@ function initCcPulsePage() {
 
 function startCcPulsePolling() {
   stopCcPulsePolling();
-  ccPulsePollTimer = setInterval(fetchCcPulseLiveStatus, 10000);
+  // ⏱️ كل 5 ثواني (كانت 10 - 26 نوفمبر، بعد ما اتضاف GZip في server.py) - العدادات بتعد كل ثانية لوحدها
+  ccPulsePollTimer = setInterval(fetchCcPulseLiveStatus, 5000);
   ccPulseTickTimer = setInterval(() => {
     tickCcPulseCounters();
     tickCcPulseReportNumbers();

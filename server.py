@@ -11,10 +11,15 @@ from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel
 from docxtpl import DocxTemplate
 
 app = FastAPI()
+
+# 🗜️ ضغط الردود (اتضاف 26 نوفمبر): المتصفح بيفكها لوحده - بيوفر 80-90% من الباندويث على Render
+# (أهم حاجة /api/agent-status اللي كل متصفح مفتوح بيطلبها كل 5 ثواني). الردود الأصغر من 1000 بايت مابتتضغطش.
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 app.add_middleware(
     CORSMiddleware,
