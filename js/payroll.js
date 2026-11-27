@@ -30,7 +30,7 @@ const PAY_AUTO_REFRESH_MS = 60000;
 
 let payrollState = {
   meLoaded: false, meLoading: null, member: false,
-  agents: [], earlyCredits: [], settingsLoaded: false,
+  agents: [], earlyCredits: [], waivers: [], settingsLoaded: false,
   month: "", report: null, loading: false, error: "", detail: "", busy: false
 };
 let payrollTimer = null;
@@ -96,6 +96,13 @@ function payRosterMatches(payName, month) {
 
 function payEarlyOn(agentName, dateStr, payName) {
   return (payrollState.earlyCredits || []).some(c => c.date === dateStr &&
+    (String(c.agent).trim().toLowerCase() === String(agentName).trim().toLowerCase() ||
+     String(c.agent).trim().toLowerCase() === String(payName || "").trim().toLowerCase()));
+}
+
+// 🧽 (27 نوفمبر) الأدمن شال خصم اليوم ده؟ - بيتطبق بس على خصومات "from the previous period" (شيت PayrollWaivers)
+function payWaivedOn(agentName, dateStr, payName) {
+  return (payrollState.waivers || []).some(c => c.date === dateStr &&
     (String(c.agent).trim().toLowerCase() === String(agentName).trim().toLowerCase() ||
      String(c.agent).trim().toLowerCase() === String(payName || "").trim().toLowerCase()));
 }
@@ -385,6 +392,11 @@ function payComputeAgentCycle(payRow, agentName, key, reportDays, trackingStartD
   // اليوم اللي الخصم بيتحسب فيه = آخر فرصة تعويض (يوم الشغل اللي بعده لو اترحّل)
   rows.forEach(r => { r.settleDate = r.status === "noshow" ? r.date : (r.nextDate || r.deadline || r.date); r.inCycle = r.date >= cyc.start && r.date <= cyc.end; });
   const counts = r => r.settleDate >= cyc.start && r.settleDate <= cyc.end;
+  // 🧽 خصم من الدورة اللي فاتت والأدمن شاله -> مايتخصمش (اليوم لازم يكون اتقفل وعليه خصم)
+  rows.forEach(r => {
+    r.prevPeriod = r.date < cyc.start && counts(r);
+    r.waived = r.prevPeriod && r.status !== "noshow" && !r.open && r.remaining > 0 && payWaivedOn(agentName, r.date, payRow.agent);
+  });
 
   const cycleLen = cyc.dates.length;
   let elapsed = cyc.dates.filter(d => d <= now.today).length;
@@ -406,7 +418,7 @@ function payComputeAgentCycle(payRow, agentName, key, reportDays, trackingStartD
   };
   rows.forEach(r => {
     if (r.isToday && payIsWorkRow(r)) s.todayRow = r;
-    if (!counts(r)) return;
+    if (!counts(r) || r.waived) return;
     if (r.open) { s.openAmount += r.deduction; s.openMin += r.remaining; return; }
     if (!r.final || !(r.deduction > 0)) return;
     s.deductions += r.deduction;
@@ -432,6 +444,7 @@ async function payFetchSettings() {
   if (Array.isArray(res.agents)) {
     payrollState.agents = Array.isArray(res.agents) ? res.agents : [];
     payrollState.earlyCredits = Array.isArray(res.earlyCredits) ? res.earlyCredits : [];
+    payrollState.waivers = Array.isArray(res.waivers) ? res.waivers : [];
     payrollState.settingsLoaded = true;
   }
   return res;
@@ -659,13 +672,22 @@ function payDayLine(s, r) {
     (r.date < cyc.start ? ` <span class="pay-period-note">from the previous period</span>` :
       ((r.settleDate || r.date) > cyc.end ? ` <span class="pay-period-note">→ counted in the next period</span>` : ""));
   const todayTag = r.isToday ? " (today)" : "";
+  // 🧽 (أدمن بس) شيل خصم من الدورة اللي فاتت
+  const waiveBox = (payIsAdmin() && r.prevPeriod && (r.waived || r.status === "deducted"))
+    ? ` <label class="pay-early" title="Admin only: don't deduct this day from this period">
+         <input type="checkbox" ${r.waived ? "checked" : ""} onchange="paySetWaive('${q(leaveEsc(s.agent))}','${r.date}',this.checked)">
+         Remove this deduction</label>` : "";
+
+  if (r.waived) {
+    return `<div class="pay-line pay-line-good">🟢 ${day}: ${what}${arrow}${madeUp}${arrow}<b>${payMin(r.remaining)} = ${payMoney(r.deduction)} - deduction removed by admin</b>${periodNote}${waiveBox}</div>`;
+  }
 
   if (r.status === "open") {
     const until = r.deadline && r.deadline !== r.date ? `until end of ${leaveEsc(leaveFmtDate(r.deadline))}` : "until end of today";
     return `<div class="pay-line pay-line-open">⏳ ${day}${todayTag}: ${what || "missed time"}${arrow}${madeUp}${arrow}<b>${payMin(r.remaining)} still open</b> <span style="opacity:.7">(can make up ${until} - not deducted yet)</span>${periodNote}${early}</div>`;
   }
   if (r.status === "deducted") {
-    return `<div class="pay-line pay-line-bad">🔴 ${day}: ${what}${arrow}${madeUp}${arrow}<b>deducted ${payMin(r.remaining)} = ${payMoney(r.deduction)}</b>${periodNote}${early}</div>`;
+    return `<div class="pay-line pay-line-bad">🔴 ${day}: ${what}${arrow}${madeUp}${arrow}<b>deducted ${payMin(r.remaining)} = ${payMoney(r.deduction)}</b>${periodNote}${early}${waiveBox}</div>`;
   }
   if (r.owed > 0) {
     return `<div class="pay-line pay-line-good">🟢 ${day}${todayTag}: ${what}${arrow}${madeUp}${arrow}<b>no deduction</b>${periodNote}${early}</div>`;
@@ -784,8 +806,8 @@ async function payExportExcel() {
       wd.addRow([s.agent, r.date, r.code, String(r.label || r.status).replace(/^[^\w]+/, ""),
         Math.round(r.late || 0), Math.round((r.away || 0) + (r.notLoggedNow || 0)), Math.round(r.leftEarly || 0), Math.round(r.extraBreak || 0), Math.round(r.owed || 0),
         Math.round((r.sameAfter || 0) + (r.sameBefore || 0)), Math.round((r.nextBefore || 0) + (r.nextAfter || 0)), r.nextDate || "",
-        r.status === "noshow" ? "Full day" : Math.round(r.remaining || 0), r.open ? `open (${m2(r.deduction)})` : m2(r.deduction),
-        payCycleOf(r.settleDate || r.date) === payrollState.month ? "This period" : "Next period", r.reason || ""]);
+        r.status === "noshow" ? "Full day" : Math.round(r.remaining || 0), r.open ? `open (${m2(r.deduction)})` : (r.waived ? 0 : m2(r.deduction)),
+        r.waived ? "Removed by admin" : (payCycleOf(r.settleDate || r.date) === payrollState.month ? "This period" : "Next period"), r.reason || ""]);
     }));
     wd.columns.forEach((c, i) => { c.width = i === 0 ? 22 : (i === 15 ? 70 : 13); });
 
@@ -808,6 +830,11 @@ async function payExportExcel() {
 
 function paySetEarly(agent, date, on) {
   payRun({ op: "earlyCredit", agent, date, on: !!on });
+}
+
+// 🧽 (27 نوفمبر) شيل/رجّع خصم يوم من الدورة اللي فاتت
+function paySetWaive(agent, date, on) {
+  payRun({ op: "waive", agent, date, on: !!on });
 }
 
 // ------------------------------------------------------------
