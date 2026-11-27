@@ -42,11 +42,14 @@ function payMoney(n) {
   return (Math.round((n || 0) * 100) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// (27 نوفمبر) بيعرض الثواني كمان عشان يطابق الخصم اللي بيتحسب بالثانية (مثلاً 1m 52s مش 2m)
 function payMin(min) {
-  min = Math.round(min || 0);
-  if (min <= 0) return "0m";
-  const h = Math.floor(min / 60), m = min % 60;
-  return h ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m`;
+  let sec = Math.round((min || 0) * 60);
+  if (sec <= 0) return "0m";
+  const h = Math.floor(sec / 3600); sec -= h * 3600;
+  const m = Math.floor(sec / 60), s = sec - m * 60;
+  const secPart = s ? ` ${String(s).padStart(2, "0")}s` : "";
+  return h ? `${h}h ${String(m).padStart(2, "0")}m${secPart}` : `${m}m${secPart}`;
 }
 
 function payClock(min) {
@@ -209,8 +212,7 @@ function payComputeDay(agentName, dateStr, day, trackingStartDate, now, rates, e
 //   - اسم الدورة = شهر القبض: دورة "2026-12" = 26 نوفمبر -> 25 ديسمبر
 //   - التعويض بيعدّي الشهور عادي (يوم 31 يتعوض يوم 1)
 //   - الخصم بيتحسب في الدورة اللي فيها آخر يوم تعويض له (settle day):
-//     يعني تأخير يوم 25 اللي اتعوض/اتخصم يوم 26 بيروح للدورة الجديدة -> الدورة القديمة بتتقفل يوم 25 بالليل وماتتغيرش
-//   - (دي حاجة جوا الإدارة - مش مكتوبة في تعليمات الإيجنت)
+//     يعني تأخير يوم 25 اللي اتعوض/اتخصم يوم 26 بيروح للدورة الجديدة -> الدورة القديمة بتتقفل يوم 25 بالليل وماتتغيرش//   - (دي حاجة جوا الإدارة - مش مكتوبة في تعليمات الإيجنت)
 // ------------------------------------------------------------
 const PAY_CYCLE_END_DAY = 25;
 const PAY_CYCLE_LOOK_DAYS = 14; // أيام قبل/بعد الدورة عشان نعرف يوم الشغل اللي قبلها/بعدها
